@@ -1,8 +1,10 @@
 # API DEAMON FOR WASSERSTAND
 #
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.status import HTTP_401_UNAUTHORIZED
 from datetime import datetime
 import database_utils as dbu
 import configparser
@@ -14,6 +16,18 @@ config_file = "../config.cfg"
 config = configparser.ConfigParser()
 config.read(config_file)
 
+PORT = int(config['API']['port'])
+print (PORT)
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+
+def verifiy_token(token: str = Depends(oauth2_scheme)):
+    if token != config['API']['token']:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={'WWW-Authentication':'Bearer'},
+        )
 
 def insert_to_db(measurement):
     if isinstance(measurement, dict):
@@ -29,16 +43,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/items/{item_id}")
-async def root( item_id : int):
-    if item_id == 0:
-        return hello_world()
-    else:
-        return insert_to_db(meas_dict)
-
 @app.post("/insert/")
-async def root(request: Request):
+async def receive_data(request: Request, token: str = Depends(verifiy_token)):
     json_obj = await request.json()
     x = insert_to_db(json.loads(json_obj))
-    print (x)
+    #print (x)
     return x
+    #return False
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
