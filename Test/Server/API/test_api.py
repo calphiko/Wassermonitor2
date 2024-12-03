@@ -6,7 +6,8 @@ from requests import post
 import pytz
 import json
 
-test_url = "http://127.0.0.1:8000/insert/"
+test_url = "http://127.0.0.1:8012/insert/"
+test_token = 'secret_token'
 
 test_meas_dict = {
     'datetime': datetime.now(tz=pytz.utc).isoformat(),
@@ -23,10 +24,13 @@ test_meas_dict = {
 
 class Test_api_request(unittest.TestCase):
     def test_json_to_database(self):
+        headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
 
         print (f"Sended {test_meas_dict} to database")
-        r = post(test_url, json=json.dumps(test_meas_dict))
-
+        r = post(test_url, json=json.dumps(test_meas_dict), headers=headers)
+        #r = post(test_url, json=test_meas_dict, headers=headers)
         print(f"Answer was: {r}")
 
 
