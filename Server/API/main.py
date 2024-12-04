@@ -9,6 +9,7 @@ from datetime import datetime
 import database_utils as dbu
 import configparser
 import json
+import time
 
 config_file = "../config.cfg"
 
@@ -23,6 +24,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
 def verifiy_token(token: str = Depends(oauth2_scheme)):
     if token != config['API']['token']:
+        time.sleep(5)
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
