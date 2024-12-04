@@ -33,6 +33,15 @@ class Test_api_request(unittest.TestCase):
         #r = post(test_url, json=test_meas_dict, headers=headers)
         print(f"Answer was: {r}")
 
+        headers = {
+            "Authorization": f"Bearer {test_token+"_wrong"}"
+        }
+
+        print(f"Sended {test_meas_dict} to database with wrong token")
+        r = post(test_url, json=json.dumps(test_meas_dict), headers=headers)
+        # r = post(test_url, json=test_meas_dict, headers=headers)
+        print(f"Answer was: {r}")
+
 
 if __name__ == '__main__':
     unittest.main()
