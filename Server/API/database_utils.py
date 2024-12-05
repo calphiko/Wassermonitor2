@@ -2,22 +2,73 @@
 import pymysql
 import sqlite3
 from sqlite3 import Error
-from datetime import datetime
+from datetime import datetime, timezone
 import pytz
 
 def get_mysql_connection(conf):
+    """
+    Establishes a connection to a MySQL database and returns the connection and cursor objects.
+
+    Parameters:
+    conf (dict): A dictionary containing the database connection parameters:
+        - 'host' (str): The hostname or IP address of the MySQL server.
+        - 'user' (str): The username to use for authentication.
+        - 'pass' (str): The password to use for authentication.
+        - 'db' (str): The name of the database to connect to.
+
+    Returns:
+    tuple: A tuple containing:
+        - conn: The MySQL connection object.
+        - cur: The MySQL cursor object.
+
+    Example:
+    >>> conf = {'host': 'localhost', 'user': 'root', 'pass': 'password', 'db': 'test_db'}
+    >>> conn, cur = get_mysql_connection(conf)
+    """
     conn = pymysql.connect(host=conf['host'], user=conf['user'], password=conf['pass'],
                             db=conf['db'], connect_timeout=60)
     cur = conn.cursor()
     return conn, cur
 
 def get_sqlite3_connection(db_file):
+    """
+    Establishes a connection to an SQLite3 database, creates the database if it doesn't exist,
+    and returns the connection and cursor objects.
+
+    Parameters:
+    db_file (str): The file path to the SQLite3 database file.
+
+    Returns:
+    tuple: A tuple containing:
+        - conn: The SQLite3 connection object.
+        - cur: The SQLite3 cursor object.
+
+    Example:
+    >>> db_file = 'example.db'
+    >>> conn, cur = get_sqlite3_connection(db_file)
+    """
     conn = sqlite3.connect(db_file)
     cur = conn.cursor()
     create_sqlite_database(conn, cur)
     return conn, cur
 
 def create_sqlite_database(conn, cur):
+    """
+    Creates the necessary tables in the SQLite3 database if they do not already exist.
+
+    Parameters:
+    conn: The SQLite3 connection object.
+    cur: The SQLite3 cursor object.
+
+    Tables Created:
+    - measurement: Stores measurement data with fields for id, datetime, pi_name, sensor_id, and comment.
+    - meas_val: Stores measurement values with fields for id, measurement_id, value, and comment.
+
+    Example:
+    >>> conn, cur = get_sqlite3_connection('example.db')
+    >>> create_sqlite_database(conn, cur)
+    """
+
     template = list()
     template.append("""
         CREATE TABLE IF NOT EXISTS measurement (
@@ -49,7 +100,28 @@ def create_sqlite_database(conn, cur):
 
 
 def insert_and_get_id(db_conf, dt, sql, sql_args):
-    print (db_conf['engine'])
+    """
+    Inserts a record into the database and returns the ID of the inserted record.
+
+    Parameters:
+    db_conf (dict): A dictionary containing the database configuration parameters:
+        - 'engine' (str): The type of database engine (e.g., "sqlite").
+        - 'sqlite_path' (str): The path to the SQLite database files.
+    dt (datetime): The datetime object used to generate the SQLite file name.
+    sql (str): The SQL query to execute.
+    sql_args (tuple): The arguments to pass to the SQL query.
+
+    Returns:
+    int: The ID of the inserted record if successful.
+    Exception: The exception object if an error occurs.
+
+    Example:
+    >>> db_conf = {'engine': 'sqlite', 'sqlite_path': '/path/to/db/'}
+    >>> dt = datetime.now(timezone.utc) with timezone utc
+    >>> sql = "INSERT INTO measurement (dt, pi_name) VALUES (?, ?)"
+    >>> sql_args = (dt, 'sensor_1')
+    >>> insert_id = insert_and_get_id(db_conf, dt, sql, sql_args)
+    """
     if db_conf['engine'] == "sqlite":
         sqlite_file_name = db_conf['sqlite_path'] + get_sqlite3_file_name_from_conf(dt)
         try:
@@ -67,7 +139,34 @@ def insert_and_get_id(db_conf, dt, sql, sql_args):
 
 
 def insert_value(db_conf, val_dict):
-    now = datetime.utcnow()
+    """
+    Inserts a measurement and its associated values into the database.
+
+    Parameters:
+    db_conf (dict): A dictionary containing the database configuration parameters.
+    val_dict (dict): A dictionary containing the measurement details and values:
+        - 'datetime' (str): The datetime of the measurement in ISO format.
+        - 'pi_name' (str): The name of the Raspberry Pi or device.
+        - 'sensor_id' (int): The ID of the sensor.
+        - 'values' (list): A list of measurement values to be inserted.
+
+    Returns:
+    bool: Always returns False.
+
+    Example:
+    >>> db_conf = {'engine': 'sqlite', 'sqlite_path': '/path/to/db/'}
+    >>> val_dict = {
+    ...     'datetime': '2024-12-05T07:11:32+00:00',
+    ...     'pi_name': 'sensor_1',
+    ...     'sensor_id': 1,
+    ...     'values': [23.5, 24.0, 22.8]
+    ... }
+    >>> insert_value(db_conf, val_dict)
+    False
+    """
+
+    #now = datetime.utcnow() # Decrepatet
+    now = datetime.now(timezone.utc)
     now = now.replace(tzinfo=pytz.utc)
     # CREATE MEASUREMENT
     sql = ("""
@@ -97,7 +196,23 @@ def insert_value(db_conf, val_dict):
     return False
 
 def get_sqlite3_file_name_from_conf(dt):
-    print(dt)
+    """
+    Generates an SQLite3 file name based on the provided datetime object.
+
+    Parameters:
+    dt (datetime): The datetime object used to generate the file name.
+
+    Returns:
+    str: The generated SQLite3 file name in the format "month-year.sqlite".
+    bool: Returns False if the input is not a datetime object.
+
+    Example:
+    >>> dt = datetime(2024, 12, 5)
+    >>> get_sqlite3_file_name_from_conf(dt)
+    '12-2024.sqlite'
+    """
+
+
     if isinstance(dt, datetime):
         return f"{dt.month}-{dt.year}.sqlite"
     else:
