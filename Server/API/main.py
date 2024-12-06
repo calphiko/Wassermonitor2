@@ -4,12 +4,13 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.status import HTTP_401_UNAUTHORIZED
-from datetime import datetime
+from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_406_NOT_ACCEPTABLE
+from pydantic import BaseModel, ValidationError
 import database_utils as dbu
 import configparser
 import json
 import time
+from datetime import datetime
 
 config_file = "../config.cfg"
 
@@ -21,6 +22,43 @@ PORT = int(config['API']['port'])
 print (PORT)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+
+class SensorData(BaseModel):
+    """
+    SensorData represents the structure of the expected JSON data.
+
+    Attributes:
+        datetime (datetime): The date and time of the sensor reading.
+        pi_name (str): The name of the Raspberry Pi or sensor.
+        sensor_id (int): The unique ID of the sensor.
+        values (List[int]): A list of integer values measured by the sensor.
+    """
+    datetime: datetime
+    pi_name: str
+    sensor_id: int
+    values: list[float]
+
+def validate_json(data: dict):
+    """
+    Validates the JSON data against the SensorData model.
+
+    Args:
+        data (dict): The JSON data to be validated.
+
+    Raises:
+        ValidationError: If the data does not conform to the SensorData model.
+
+    Returns:
+        None
+    """
+    try:
+        sensor_data = SensorData(**data)
+        return True
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=HTTP_406_NOT_ACCEPTABLE,
+            detail="Invalid JSON Structure",
+        )
 
 def verifiy_token(token: str = Depends(oauth2_scheme)):
     """
@@ -95,9 +133,11 @@ async def receive_data(request: Request, token: str = Depends(verifiy_token)):
     """
 
     json_obj = await request.json()
-    x = insert_to_db(json.loads(json_obj))
+    json_dict = json.loads(json_obj)
+    if validate_json(json_dict):
+        x = insert_to_db(json_dict)
     #print (x)
-    return x
+        return x
     #return False
 
 if __name__ == '__main__':
