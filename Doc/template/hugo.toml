@@ -1,0 +1,7 @@
+baseURL = 'https://mondor.pakleds.patentoffice.de/'
+languageCode = 'en-us'
+title = 'Mondor Documentation'
+theme = 'hugo-theme-learn'
+
+[params]
+  themeVariant="mine"

@@ -1,0 +1,6 @@
++++
+title = "$TITLE"
+chapter = $CHAPTER
+weight = $WEIGHT
+pre = "<b>$PREFIX</b>"
++++
