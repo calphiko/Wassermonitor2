@@ -25,7 +25,9 @@ cp -r ../template/static/images/ static/
 cp -r ../content/* content/
 
 cd ..
-python3 disable_home_button.py
+
+#python3 disable_home_button.py
+
 cd hugo
 #touch layouts/home.html
 #hugo new content content/home.md
