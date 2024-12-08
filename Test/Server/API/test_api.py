@@ -57,7 +57,7 @@ class Test_api_request(unittest.TestCase):
 
     def test_json_to_database_w_wrong_token(self):
         headers = {
-            "Authorization": f"Bearer {test_token+"_wrong"}"
+            "Authorization": f"Bearer {test_token}_wrong"
         }
 
         print(f"Sended {test_meas_dict} to database with wrong token")
