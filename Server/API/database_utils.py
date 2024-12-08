@@ -18,11 +18,14 @@ Author:
     - Carl Philipp Koppen (admin@wassermonitor.de)
 
 """
+import os.path
 
+import pandas as pd
 import pymysql
 import sqlite3
 from sqlite3 import Error
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import pandas as pd
 import pytz
 
 def get_mysql_connection(conf):
@@ -237,3 +240,77 @@ def get_sqlite3_file_name_from_conf(dt):
         return f"{dt.month}-{dt.year}.sqlite"
     else:
         return False
+
+def get_months_between(start_date, end_date):
+    """
+    Generate a list of months between two datetime objects in "%m-%y" format.
+
+    Args:
+        start_date (datetime): The start date.
+        end_date (datetime): The end date.
+
+    Returns:
+        list: A list of strings representing the months in "%m-%y" format.
+    """
+    # Ensure start_date is before end_date
+    if start_date > end_date:
+        raise ValueError("start_date must be earlier than or equal to end_date")
+
+    months = []
+    current = start_date.replace(day=1)  # Start at the beginning of the first month
+
+    while current <= end_date:
+        months.append(current.strftime("%m-%y"))
+        # Increment by one month
+        next_month = current.month % 12 + 1
+        next_year = current.year + (current.month // 12)
+        current = current.replace(month=next_month, year=next_year)
+
+    return months
+
+def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
+    if not db_conf['engine'] == 'sqlite':
+        raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
+
+    if dt_end == None:
+        dt_end = datetime.now(timezone.utc)
+        dt_end = dt_end.replace(tzinfo=pytz.utc)
+
+    if dt_begin == None:
+        dt_begin = dt_end - timedelta(days=60)
+
+    if not isinstance(dt_begin, datetime) and not isinstance(dt_end, datetime):
+        raise ValueError("Invalid input: dt_begin and dt_end have to be type of datetime!")
+
+    if dt_begin > dt_end:
+        raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
+    sql = """
+        SELECT m.dt, m.sensor_id, AVG(v.values) 
+        FROM meas_val v
+        INNER JOIN measurement m ON v.measurement_id = m.id 
+        WHERE m.dt > ? 
+        AND m.dt < ? 
+
+        GROUP BY messung.date;
+    """
+
+    output = pd.DataFrame()
+
+    for m in get_months_between(dt_begin, dt_end):
+        db_path = f"{db_conf['sqlite_path']}/{m}.sqlite"
+        if os.path.exists(db_path):
+            conn, cur = get_sqlite3_connection(db_path)
+            cur.execute(sql,[dt_begin, dt_end])
+            res = pd.DataFrame(cur.fetchall())
+            conn.close()
+            output = pd.concat([output, res], ignore_index=True)
+
+    return output
+    #cur.execute(sql, (interval, sensor_id))
+    #res = DataFrame(cur.fetchall())
+    #res.columns = ['Datum', 'Tank', 'Wert']
+    #res = res.round({'Wert': 0})
+
+    #slope_val = pd.Series(np.gradient(res.Wert), name='slope')
+    #slope_date = pd.Series(np.gradient(res.Datum), name='slope')
+    #slope_date = slope_date.apply(datetime_to_hours)
