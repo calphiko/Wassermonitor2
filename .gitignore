@@ -1,5 +1,5 @@
 /Test/Data/12-2024.sqlite
-Doc/hugo/
-Doc/hugo/themes
+/Doc/hugo/*
+/Doc/hugo/themes/*
 Doc/template/
-Doc/hugo/.gitmodules
+/Doc/hugo/.gitmodules
