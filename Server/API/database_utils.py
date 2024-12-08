@@ -1,4 +1,24 @@
-# DATABASE FUNCTIONS
+"""
+Module Name: Wassermonitor2 API database functions
+
+Description:
+    This file provides the database functions for the wassermonitor API.
+    It includes functions for:
+        - Insert measurement data into the database
+        - Read data from database.
+
+Dependencies:
+    - sqlite3  (for sqlite support)
+    - pymysql (for mysql support)
+
+Configuration:
+    - Some parameters can be configured in the config_file ../config.cfg.
+
+Author:
+    - Carl Philipp Koppen (admin@wassermonitor.de)
+
+"""
+
 import pymysql
 import sqlite3
 from sqlite3 import Error

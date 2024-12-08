@@ -1,5 +1,32 @@
-# API DEAMON FOR WASSERSTAND
-#
+"""
+Module Name: Wassermonitor2 API
+
+Description:
+    This module provides an API for interacting with the Wassermonitor Filesystem. It includes functions for inserting values into the database and retrieving stored values.
+    The module is designed to create a new sqlite file for each month of the year. It supports error handling to ensure robust operations.
+
+    Typical use cases:
+    - /insert/: Store calibrated sensor readings (in the unit of cm) in the database. A measurement usually consists of 5 single values.
+    - /read/: Read values from the database and return them in JSON format.
+
+Dependencies:
+    - fastapi
+    - pydantic
+    - configparser
+    - json
+    - time
+    - datetime.datetime
+    - database_utils from the project
+
+Configuration:
+    - Some parameters can be configured in the config_file ../config.cfg.
+
+Author:
+    - Carl Philipp Koppen (admin@wassermonitor.de)
+
+Example:
+    -
+"""
 
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
