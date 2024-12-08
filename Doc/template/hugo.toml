@@ -1,7 +1,6 @@
 baseURL = 'https://wassermonitor.pakleds.patentoffice.de/'
 languageCode = 'en-us'
 title = 'Wassermonitor Documentation'
-theme = 'hugo-theme-learn'
+theme = 'hugo-theme-relearn'
 
-[params]
-  themeVariant="mine"
+

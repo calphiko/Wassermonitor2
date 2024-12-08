@@ -8,18 +8,21 @@ hugo new site hugo/ --force
 git init hugo
 
 cd hugo
-git submodule add https://github.com/matcornic/hugo-theme-learn.git themes/hugo-theme-learn
+
+#### FOR NEW BUILDS
+git submodule add https://github.com/McShelby/hugo-theme-relearn.git themes/hugo-theme-relearn
 
 #sed -i "/baseURL = 'http:\/\/example.org\/'/c baseURL = 'https:\/\/mondor.pakleds-patentoffice.de\/' " config.toml
 #sed -i "/title = 'My New Hugo Site'/c title = 'Mondor Documentation'" config.toml
 
-cp ../template/hugo.toml config.toml
-cp ../template/themes/hugo-theme-learn/layouts/partials/logo.html themes/hugo-theme-learn/layouts/partials/
+cp ../template/hugo.toml ./
+#cp ../template/hugo.toml
+#cp ../template/themes/hugo-theme-learn/layouts/partials/logo.html themes/hugo-theme-learn/layouts/partials/
 
 #echo "theme = 'hugo-theme-learn'" >> config.toml
 
-cp -r ../template/static/css/ static/
-cp -r ../template/static/images/ static/
+#cp -r ../template/static/css/ static/
+#cp -r ../template/static/images/ static/
 
 #cp -r template/* hugo/ 
 cp -r ../content/* content/
