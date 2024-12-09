@@ -65,6 +65,17 @@ class SensorData(BaseModel):
     sensor_id: int
     values: list[float]
 
+class request_json(BaseModel):
+    """
+        request_json represents the structure of the expected JSON to request data from the database.
+
+        Attributes:
+            dt_begin (datetime): The earliest data to request.
+            dt_end (datetime): The latest data to request
+        """
+    dt_begin: datetime
+    dt_end: datetime
+
 def validate_json(data: dict):
     """
     Validates the JSON data against the SensorData model.
@@ -87,7 +98,28 @@ def validate_json(data: dict):
             detail="Invalid JSON Structure",
         )
 
-def verifiy_token(token: str = Depends(oauth2_scheme)):
+def validate_request_json(data: dict):
+    """
+    Validates the JSON data against the request_json model.
+
+    Args:
+        data (dict): The JSON data to be validated.
+
+    Raises:
+        ValidationError: If the data does not conform to the SensorData model.
+
+    Returns:
+        True if request_json structure is valid
+    """
+    try:
+        sensor_data = request_json(**data)
+        return True
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=HTTP_406_NOT_ACCEPTABLE,
+            detail="Invalid JSON Structure",
+        )
+def verify_token(token: str = Depends(oauth2_scheme)):
     """
      Verifies the provided token against the expected token from the configuration.
 
@@ -102,7 +134,6 @@ def verifiy_token(token: str = Depends(oauth2_scheme)):
      >>> token = "example_token"
      >>> verifiy_token(token)
      """
-
     if token != config['API']['token']:
         time.sleep(5)
         raise HTTPException(
@@ -137,6 +168,11 @@ def insert_to_db(measurement):
     return {'message':'Received'}
 
 
+def request_measurement_data(request_dict):
+    data = dbu.get_meas_data_from_sqlite_db(config['database'], request_dict['dt_begin'], request_dict['dt_end'])
+    return data.to_json()
+
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -146,7 +182,7 @@ app.add_middleware(
 )
 
 @app.post("/insert/")
-async def receive_data(request: Request, token: str = Depends(verifiy_token)):
+async def receive_data(request: Request, token: str = Depends(verify_token)):
     """
     Receives JSON data from a POST request, verifies the token, and inserts the data into the database.
 
@@ -166,6 +202,15 @@ async def receive_data(request: Request, token: str = Depends(verifiy_token)):
     #print (x)
         return x
     #return False
+
+@app.post("/get/")
+async def receive_data(request:Request, token: str = Depends(verify_token)):
+    print("Hello")
+    json_obj = await request.json()
+    json_dict = json.loads(json_obj)
+    print(json_dict)
+    if validate_request_json(json_dict):
+        return request_measurement_data(json_dict)
 
 if __name__ == '__main__':
     import uvicorn

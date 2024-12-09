@@ -7,6 +7,7 @@ import pytz
 import json
 
 test_url = "http://127.0.0.1:8012/insert/"
+test_url_get = "http://127.0.0.1:8012/get/"
 test_token = 'secret_token'
 
 test_meas_dict = {
@@ -66,6 +67,19 @@ class Test_api_request(unittest.TestCase):
         assert r.status_code == 401, "Unexpected status code: " + str(r.status_code)
 
 
+    def test_get_data_from_database(self):
+        headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
+
+        print(headers)
+
+        test_request_dict = {
+            'dt_begin': datetime(year=2024, month=4, day=10, hour=0, minute=0, second=0).isoformat(),
+            'dt_end': datetime(year=2024, month=4, day=12, hour=23, minute=59, second=59).isoformat()
+        }
+        r = post(test_url_get, json=json.dumps(test_request_dict), headers=headers)
+        print(r)
 
 
 if __name__ == '__main__':
