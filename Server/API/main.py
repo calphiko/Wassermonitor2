@@ -174,14 +174,14 @@ def request_measurement_data(request_dict):
         datetime.fromisoformat(request_dict['dt_begin']),
         datetime.fromisoformat(request_dict['dt_end'])
     )
-    print(data)
+    #print(data)
     return data.to_json(orient='records', date_format='iso')
 
 def request_last_measurements():
     data = dbu.get_last_meas_data_from_sqlite_db(
         config['database']
     )
-    print(data)
+    #print(data)
     return data.to_json(orient='records', date_format='iso')
 
 
