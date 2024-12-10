@@ -8,6 +8,7 @@ import json
 
 test_url = "http://127.0.0.1:8012/insert/"
 test_url_get = "http://127.0.0.1:8012/get/"
+test_url_get_latest = "http://127.0.0.1:8012/get_latest/"
 test_token = 'secret_token'
 
 test_meas_dict = {
@@ -80,6 +81,13 @@ class Test_api_request(unittest.TestCase):
         print (r.json())
         assert r.status_code == 200, "Unexpected status code: " + str(r.status_code)
 
+    def test_get_latest_data_from_database(self):
+        headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
+        r = post(test_url_get_latest, headers=headers)
+        print (r.json())
+        assert r.status_code == 200, "Unexpected status code: " + str(r.status_code)
 
 if __name__ == '__main__':
     unittest.main()

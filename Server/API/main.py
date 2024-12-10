@@ -177,6 +177,13 @@ def request_measurement_data(request_dict):
     print(data)
     return data.to_json(orient='records', date_format='iso')
 
+def request_last_measurements():
+    data = dbu.get_last_meas_data_from_sqlite_db(
+        config['database']
+    )
+    print(data)
+    return data.to_json(orient='records', date_format='iso')
+
 
 app = FastAPI()
 app.add_middleware(
@@ -212,9 +219,12 @@ async def receive_data(request: Request, token: str = Depends(verify_token)):
 async def receive_data(request:Request, token: str = Depends(verify_token)):
     json_obj = await request.json()
     json_dict = json.loads(json_obj)
-    print(json_dict)
     if validate_request_json(json_dict):
         return request_measurement_data(json_dict)
+
+@app.post("/get_latest/")
+async def receive_last_data(token: str = Depends(verify_token)):
+    return request_last_measurements()
 
 if __name__ == '__main__':
     import uvicorn
