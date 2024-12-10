@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wassermonitor 2</title>
+    <script src="js/wassermonitor.js" defer></script>
+</head>
+<body>
+    <h1>Wassermonitor</h1>
+    <button id="fetchDataButton">Catch latest data</button>
+
+    <script>
+        document.getElementById('fetchDataButton').addEventListener('click', () => {
+            getData();
+        });
+    </script>
+</body>
+</html>
