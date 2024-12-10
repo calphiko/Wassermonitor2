@@ -185,9 +185,16 @@ def request_last_measurements():
     return data.to_json(orient='records', date_format='iso')
 
 
+origins = [
+    "http://127.0.0.1:8012",
+    "http://127.0.0.1:63342",
+    "http://localhost:8012",
+    "http://localhost:63342",
+]
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=origins,
     allow_credentials = True,
     allow_methods=["*"],
     allow_headers=["*"],
