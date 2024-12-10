@@ -169,8 +169,13 @@ def insert_to_db(measurement):
 
 
 def request_measurement_data(request_dict):
-    data = dbu.get_meas_data_from_sqlite_db(config['database'], request_dict['dt_begin'], request_dict['dt_end'])
-    return data.to_json()
+    data = dbu.get_meas_data_from_sqlite_db(
+        config['database'],
+        datetime.fromisoformat(request_dict['dt_begin']),
+        datetime.fromisoformat(request_dict['dt_end'])
+    )
+    print(data)
+    return data.to_json(orient='records', date_format='iso')
 
 
 app = FastAPI()
@@ -205,7 +210,6 @@ async def receive_data(request: Request, token: str = Depends(verify_token)):
 
 @app.post("/get/")
 async def receive_data(request:Request, token: str = Depends(verify_token)):
-    print("Hello")
     json_obj = await request.json()
     json_dict = json.loads(json_obj)
     print(json_dict)
