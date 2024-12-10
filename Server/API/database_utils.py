@@ -243,14 +243,14 @@ def get_sqlite3_file_name_from_conf(dt):
 
 def get_months_between(start_date, end_date):
     """
-    Generate a list of months between two datetime objects in "%m-%y" format.
+    Generate a list of months between two datetime objects in "%m-%Y" format.
 
     Args:
         start_date (datetime): The start date.
         end_date (datetime): The end date.
 
     Returns:
-        list: A list of strings representing the months in "%m-%y" format.
+        list: A list of strings representing the months in "%m-%Y" format.
     """
     # Ensure start_date is before end_date
     if start_date > end_date:
@@ -260,7 +260,7 @@ def get_months_between(start_date, end_date):
     current = start_date.replace(day=1)  # Start at the beginning of the first month
 
     while current <= end_date:
-        months.append(current.strftime("%m-%y"))
+        months.append(current.strftime("%m-%Y"))
         # Increment by one month
         next_month = current.month % 12 + 1
         next_year = current.year + (current.month // 12)
@@ -285,13 +285,13 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
     if dt_begin > dt_end:
         raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
     sql = """
-        SELECT m.dt, m.sensor_id, AVG(v.values) 
+        SELECT m.dt, m.sensor_id, m.pi_name, AVG(v.value) 
         FROM meas_val v
         INNER JOIN measurement m ON v.measurement_id = m.id 
         WHERE m.dt > ? 
         AND m.dt < ? 
 
-        GROUP BY messung.date;
+        GROUP BY m.dt;
     """
 
     output = pd.DataFrame()
@@ -302,6 +302,7 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
             conn, cur = get_sqlite3_connection(db_path)
             cur.execute(sql,[dt_begin, dt_end])
             res = pd.DataFrame(cur.fetchall())
+            res.columns = ['dt','sensor_id', 'pi_name', 'value']
             conn.close()
             output = pd.concat([output, res], ignore_index=True)
 
