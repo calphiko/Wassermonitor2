@@ -1,0 +1,38 @@
+{
+  "colors": {
+    "normal": [
+      {
+        "offset": 0,
+        "color": "#7fbfff"
+      },
+      {
+        "offset": 1,
+        "color": "#004b8c"
+      }
+    ],
+    "warning": [
+      {
+        "offset": 0,
+        "color": "#ffe97f"
+      },
+      {
+        "offset": 1,
+        "color": "#f5b800"
+      }
+    ],
+    "alarm": [
+      {
+        "offset": 0,
+        "color": "#7fbfff"
+      },
+      {
+        "offset": 1,
+        "color": "#004b8c"
+      }
+    ]
+  },
+  "thresholds": {
+    "warning": 120,
+    "alarm": 110
+  }
+}
