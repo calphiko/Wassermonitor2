@@ -419,6 +419,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
         cur.execute(sql)
         res = pd.DataFrame(cur.fetchall())
         res.columns = ['dt', 'pi_name', 'sensor_id', 'value']
+        res['value'] = 158.0 - res['value']
         conn.close()
         return res
     else:
