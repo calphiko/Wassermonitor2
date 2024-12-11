@@ -4,3 +4,4 @@
 Doc/template/
 /Doc/hugo/.gitmodules
 /Server/Dashboard/wassermonitor-dash/node_modules/
+.idea/
