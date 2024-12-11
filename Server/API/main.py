@@ -31,6 +31,7 @@ Example:
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_406_NOT_ACCEPTABLE
 from pydantic import BaseModel, ValidationError
 import database_utils as dbu
@@ -174,22 +175,33 @@ def request_measurement_data(request_dict):
         datetime.fromisoformat(request_dict['dt_begin']),
         datetime.fromisoformat(request_dict['dt_end'])
     )
-    #print(data)
-    return data.to_json(orient='records', date_format='iso')
+    data_json = {
+        'dt': data['dt'].tolist(),
+        'sensor_id': data['sensor_id'].tolist(),
+        'pi_name': data['pi_name'].tolist(),
+        'value': data['value'].tolist()
+    }
+    return JSONResponse(content=data_json)
 
 def request_last_measurements():
     data = dbu.get_last_meas_data_from_sqlite_db(
         config['database']
     )
     #print(data)
-    return data.to_json(orient='records', date_format='iso')
+    data_json = {
+        'dt':data['dt'].tolist(),
+        'sensor_id': data['sensor_id'].tolist(),
+        'pi_name': data['pi_name'].tolist(),
+        'value': data['value'].tolist(),
+    }
+    return JSONResponse(content=data_json)
 
 
 origins = [
     "http://127.0.0.1:8012",
-    "http://127.0.0.1:63342",
+    "http://127.0.0.1:5173",
     "http://localhost:8012",
-    "http://localhost:63342",
+    "http://localhost:5173",
 ]
 app = FastAPI()
 app.add_middleware(
