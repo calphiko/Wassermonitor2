@@ -1,4 +1,4 @@
-import * as echarts from 'echarts';
+import * as echarts from './echarts.min.js';
 
 async function getData() {
     const url = 'http://127.0.0.1:8012/get_latest/';
@@ -21,13 +21,14 @@ async function getData() {
     } catch (error) {
         console.error('There was an error with fetch-operation', error)
     }
-}
+};
 
 async function getFillPlot() {
+
     const data = await getData();
 
     const xAxisData = data.map(item => 'sensor_id');
-    const xAxisData = data.map(item => 'value');
+    const yAxisData = data.map(item => 'value');
 
     const chartDom = document.getElementById('main');
     const FillPlot = echarts.init(chartDom);
@@ -124,4 +125,6 @@ async function getFillPlot() {
           dataAxis[Math.min(params.dataIndex + zoomSize / 2, data.length - 1)]
       });
     });
-}
+};
+
+getFillPlot;
