@@ -69,11 +69,12 @@
         const colors = data_fill.color;
         const chartCols = colors.map(getLinearGradient)
 
-        const chart = echarts.init(document.getElementById('myChart'));
+        const chart = echarts.init(document.getElementById('myChart'),'dark');
         console.log ('Sensor IDs:',sensorIDs);
         console.log ('Colors c1:',chartCols);
 
         const chartOptions = {
+              backgroundColor:'rgba(255,255,255,0)',
               xAxis: {
                 data: sensorIDs,
                 axisLabel: {
