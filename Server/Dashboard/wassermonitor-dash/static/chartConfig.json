@@ -23,16 +23,12 @@
     "alarm": [
       {
         "offset": 0,
-        "color": "#7fbfff"
+        "color": "#ff7f7f"
       },
       {
         "offset": 1,
-        "color": "#004b8c"
+        "color": "#f50000"
       }
     ]
-  },
-  "thresholds": {
-    "warning": 120,
-    "alarm": 110
   }
 }
