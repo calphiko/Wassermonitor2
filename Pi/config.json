@@ -1,0 +1,19 @@
+{
+  "name": "Raspi1",
+  "sensors": [
+    {
+      "name": "left_tank",
+      "max_val": 155,
+      "warn": 90,
+      "alarm": 70,
+      "calib_file": "calib/calib_date_sensor_3.csv"
+    },
+    {
+      "name": "right_tank",
+      "max_val": 145,
+      "warn": 92,
+      "alarm": 540,
+      "calib_file": "calib/calib_date_sensor_3.csv"
+    }
+  ]
+}
