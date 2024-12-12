@@ -409,7 +409,7 @@
            style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
            x="47.593586"
            y="84.963188"
-           id="tspan2-8">id_meas_point INT (FK)</tspan><tspan
+           id="tspan2-8">meas_point_id INT (FK)</tspan><tspan
            sodipodi:role="line"
            style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
            x="47.593586"
