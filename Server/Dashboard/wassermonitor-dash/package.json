@@ -22,7 +22,6 @@
 	},
 	"dependencies": {
 		"echarts": "^5.5.1",
-		"svelte-echarts": "^1.0.0-rc3",
 		"svelte-table": "^0.6.3"
 	}
 }
