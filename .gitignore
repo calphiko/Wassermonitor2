@@ -5,3 +5,4 @@ Doc/template/
 /Doc/hugo/.gitmodules
 /Server/Dashboard/wassermonitor-dash/node_modules/
 .idea/
+/Test/Server/Data/12-2024.sqlite
