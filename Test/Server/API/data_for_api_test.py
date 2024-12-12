@@ -7,8 +7,8 @@ test_meas_dict_list = [
         'meas_point': 'raspi1',
         'sensor_name': 'tank_links',
         'max_val': 155,
-        'warn': 70,
-        'alarm': 90,
+        'warn': 90,
+        'alarm': 70,
         'values': [
             31.34562,
             31.34561,
@@ -22,21 +22,21 @@ test_meas_dict_list = [
         'meas_point': 'raspi1',
         'sensor_name': 'tank_rechts',
         'max_val': 155,
-        'warn': 70,
-        'alarm': 90,
+        'warn': 90,
+        'alarm': 70,
         'values': [
-            29.34562,
-            29.34561,
-            29.34562,
-            29.34563,
-            29.345625
+            81.34562,
+            81.34561,
+            81.34562,
+            81.34563,
+            81.345625
         ]
     },
 {
         'datetime': datetime.now(tz=pytz.utc).isoformat(),
         'meas_point': 'raspi2',
         'sensor_name': 'tank1',
-        'max_val': 155,
+        'max_val': 145,
         'warn': 40,
         'alarm': 20,
         'values': [

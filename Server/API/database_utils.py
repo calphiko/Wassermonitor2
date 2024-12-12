@@ -94,11 +94,28 @@ def create_sqlite_database(conn, cur):
 
     template = list()
     template.append("""
+        CREATE TABLE IF NOT EXISTS meas_point (
+            id INTEGER NOT NULL PRIMARY KEY,
+            name VARCHAR(1024) NOT NULL
+        );
+    """)
+
+    template.append("""
+        CREATE TABLE IF NOT EXISTS sensor (
+            id INTEGER NOT NULL PRIMARY KEY,
+            meas_point_id INTEGER NOT NULL REFERENCES meas_point(id),
+            name VARCHAR(1024) NOT NULL,
+            max_val FLOAT NOT NULL,
+            warn FLOAT NOT NULL,
+            alarm FLOAT NOT NULL
+        );
+    """)
+
+    template.append("""
         CREATE TABLE IF NOT EXISTS measurement (
             id INTEGER NOT NULL PRIMARY KEY,
             dt DATETIME NOT NULL,
-            pi_name VARCHAR(1024) NOT NULL,
-            sensor_id INTEGER,
+            sensor_id INTEGER NOT NULL REFERENCES sensor(id),
             comment TEXT    
         );
     """)
@@ -120,6 +137,7 @@ def create_sqlite_database(conn, cur):
 
     except Error as e:
         print(f"Database_creation: SQL Error: {e}\n {line}")
+
 
 
 def insert_and_get_id(db_conf, dt, sql, sql_args):
@@ -160,54 +178,87 @@ def insert_and_get_id(db_conf, dt, sql, sql_args):
             conn.close()
         return ins_id
 
+def sqlite_get_sensor_id(db_conf, mp_id, s_name, s_max_val, s_warn, s_alarm, dt):
+    if db_conf['engine'] == "sqlite":
+        sqlite_file_name = db_conf['sqlite_path'] + get_sqlite3_file_name_from_conf(dt)
+        try:
+            # Check if Sensor exists
+            sql = "SELECT max(id) FROM sensor WHERE meas_point_id = ? AND name = ? AND max_val = ? AND warn = ? AND alarm = ?"
+
+            conn, cur = get_sqlite3_connection(sqlite_file_name)
+            cur.execute(sql, [mp_id, s_name, s_max_val, s_warn, s_alarm])
+            res = cur.fetchall()
+            if res == None or res == [] or res[0][0] == None: # If not: Insert Sensor
+                sql = "INSERT INTO sensor(meas_point_id, name, max_val, warn, alarm) VALUES (?, ?, ?, ?, ?)"
+                cur.execute(sql, [mp_id, s_name, s_max_val, s_warn, s_alarm])
+                s_id = cur.lastrowid
+                conn.commit()
+            else:
+                s_id = res[0][0]
+        except Error as e:
+            print("SQL ERROR: %s\n%s" % (e, sql))
+            s_id = None
+            return e
+        finally:
+            conn.close()
+        return s_id
+
+def sqlite_get_meas_point_id(db_conf, mp_name,dt):
+    if db_conf['engine'] == "sqlite":
+        sqlite_file_name = db_conf['sqlite_path'] + get_sqlite3_file_name_from_conf(dt)
+        try:
+            # Check if Meas Point exists
+            sql = "SELECT max(id) FROM meas_point WHERE name = ?"
+            conn, cur = get_sqlite3_connection(sqlite_file_name)
+            cur.execute(sql, [mp_name])
+            res = cur.fetchall()
+
+            if res == None or res == [] or res[0][0] == None: # If not Insert Meas Point
+                sql = "INSERT INTO meas_point (name) VALUES (?)"
+                cur.execute(sql, [mp_name])
+                mp_id = cur.lastrowid
+                conn.commit()
+            else:
+                mp_id = res[0][0]
+        except Error as e:
+            print("SQL ERROR: %s\n%s" % (e, sql))
+            mp_id = None
+            return e
+        finally:
+            conn.close()
+        return mp_id
+
 
 def insert_value(db_conf, val_dict):
-    """
-    Inserts a measurement and its associated values into the database.
-
-    Parameters:
-    db_conf (dict): A dictionary containing the database configuration parameters.
-    val_dict (dict): A dictionary containing the measurement details and values:
-        - 'datetime' (str): The datetime of the measurement in ISO format.
-        - 'pi_name' (str): The name of the Raspberry Pi or device.
-        - 'sensor_id' (int): The ID of the sensor.
-        - 'values' (list): A list of measurement values to be inserted.
-
-    Returns:
-    bool: Always returns False.
-
-    Example:
-    >>> db_conf = {'engine': 'sqlite', 'sqlite_path': '/path/to/db/'}
-    >>> val_dict = {
-    ...     'datetime': '2024-12-05T07:11:32+00:00',
-    ...     'pi_name': 'sensor_1',
-    ...     'sensor_id': 1,
-    ...     'values': [23.5, 24.0, 22.8]
-    ... }
-    >>> insert_value(db_conf, val_dict)
-    False
-    """
-
-    #now = datetime.utcnow() # Decrepatet
+    meas_dt = datetime.fromisoformat(val_dict['datetime'])
+    mp_id = sqlite_get_meas_point_id(db_conf, val_dict['meas_point'], meas_dt)
+    s_id = sqlite_get_sensor_id(
+        db_conf,
+        mp_id,
+        val_dict['sensor_name'],
+        val_dict['max_val'],
+        val_dict['warn'],
+        val_dict['alarm'],
+        meas_dt
+    )
     now = datetime.now(timezone.utc)
     now = now.replace(tzinfo=pytz.utc)
     # CREATE MEASUREMENT
     sql = ("""
         INSERT INTO measurement(
-            dt, pi_name, sensor_id, comment
+            dt, sensor_id, comment
         ) VALUES (
-            ?, ?, ?, ?
+            ?, ?, ?
         ); 
     """)
-    meas_dt = datetime.fromisoformat(val_dict['datetime'])
+
     meas_id = insert_and_get_id(
         db_conf,
         meas_dt,
         sql,
         [
             meas_dt,
-            val_dict['pi_name'],
-            val_dict['sensor_id'],
+            s_id,
             f'received at {now.isoformat()}'
         ]
     )
@@ -372,6 +423,17 @@ def get_latest_database_file(path):
             )
     return max(datetime_list).strftime("%m-%Y.sqlite")
 
+def assign_color(value, warn, alarm):
+    if value < alarm:
+        #return "red"
+        return 'alarm'
+    elif value < warn:
+        #return "orange"
+        return 'warning'
+    else:
+        #return "#0055bb"
+        return 'normal'
+
 def get_last_meas_data_from_sqlite_db(db_conf):
     """
         Retrieves the latest measurement data from the SQLite database for each sensor.
@@ -407,25 +469,36 @@ def get_last_meas_data_from_sqlite_db(db_conf):
     db_path = db_conf['sqlite_path'] + get_latest_database_file(db_conf['sqlite_path'])
 
     sql = """
-        SELECT m.dt, m.pi_name, m.sensor_id, AVG(v.value) 
+        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s. warn, s.alarm, AVG(v.value)
         FROM meas_val v 
-        INNER JOIN measurement m ON v.measurement_id = m.id 
-        WHERE (m.id, m.dt) IN (SELECT id, max(dt) FROM measurement GROUP BY sensor_id ) 
-        GROUP BY m.sensor_id ;
+        INNER JOIN measurement m ON v.measurement_id=m.id 
+        INNER JOIN sensor s ON m.sensor_id = s.id 
+        INNER JOIN meas_point mp ON s.meas_point_id = mp.id 
+        WHERE m.id IN (SELECT max(id) FROM measurement GROUP BY sensor_id)
+        GROUP BY m.id;
     """
-
+    output = {}
     if os.path.exists(db_path):
         conn, cur = get_sqlite3_connection(db_path)
         cur.execute(sql)
-        res = pd.DataFrame(cur.fetchall())
-        res.columns = ['dt', 'pi_name', 'sensor_id', 'value']
-        res['value'] = 158.0 - res['value']
-        conn.close()
-        return res
-    else:
-        res =pd.DataFrame()
-        res.columns = ['dt', 'pi_name', 'sensor_id', 'value']
-        return res
+        res = cur.fetchall()
+        for row in res:
+            if not row[2] in output:
+                output[row[2]] = {}
+            if not row[3] in output[row[2]]:
+                output[row[2]][row[3]] = {}
+            output[row[2]][row[3]]['dt'] = row[1]
+            output[row[2]][row[3]]['value'] = round(row[4] - row[7],1)
+            output[row[2]][row[3]]['color'] = assign_color(
+                output[row[2]][row[3]]['value'],
+                row[5],
+                row[6]
+            )
+        #res.columns = ['dt', 'pi_name', 'sensor_id', 'value']
+        #res['value'] = 158.0 - res['value']
+        #conn.close()
+        #return res
+    return output
 
 
 #if __name__ == '__main__':

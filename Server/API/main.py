@@ -63,8 +63,11 @@ class SensorData(BaseModel):
         values (List[int]): A list of integer values measured by the sensor.
     """
     datetime: datetime
-    pi_name: str
-    sensor_id: int
+    meas_point: str
+    sensor_name: str
+    max_val: float
+    warn: float
+    alarm: float
     values: list[float]
 
 class request_json(BaseModel):
@@ -184,31 +187,22 @@ def request_measurement_data(request_dict):
     }
     return JSONResponse(content=data_json)
 
-def assign_color(value):
-    if value < float(config['threshold']['alarm']):
-        #return "red"
-        return 'alarm'
-    elif value < float(config['threshold']['warning']):
-        #return "orange"
-        return 'warning'
-    else:
-        #return "#0055bb"
-        return 'normal'
-
 def request_last_measurements():
     data = dbu.get_last_meas_data_from_sqlite_db(
         config['database']
     )
-    data['color'] = data['value'].apply(assign_color)
+    output = json.dumps(data, indent=4)
+    print(output)
+    #data['color'] = data['value'].apply(assign_color)
     #print(data)
-    data_json = {
-        'dt':data['dt'].tolist(),
-        'sensor_id': data['sensor_id'].tolist(),
-        'pi_name': data['pi_name'].tolist(),
-        'value': data['value'].tolist(),
-        'color': data['color'].tolist(),
-    }
-    return JSONResponse(content=data_json)
+    #data_json = {
+    #    'dt':data['dt'].tolist(),
+    #    'sensor_id': data['sensor_id'].tolist(),
+    #    'pi_name': data['pi_name'].tolist(),
+    #    'value': data['value'].tolist(),
+    #    'color': data['color'].tolist(),
+    #}
+    #return JSONResponse(content=data_json)
 
 
 origins = [
