@@ -191,8 +191,20 @@ def request_last_measurements():
     data = dbu.get_last_meas_data_from_sqlite_db(
         config['database']
     )
-    output = json.dumps(data, indent=4)
-    print(output)
+    data_json = {}
+    print (data)
+    for mp in data:
+        print(mp)
+        print(data[mp])
+        [print (x for x in data[mp])]
+        data_json[mp] = {
+            "mp_name":[x for x in data[mp]],
+            "dt":[data[mp][x]["dt"] for x in data[mp]],
+            "value": [data[mp][x]["value"] for x in data[mp]],
+            "color": [data[mp][x]["color"] for x in data[mp]],
+            "warn": [data[mp][x]["warn"] for x in data[mp]],
+            "alarm": [data[mp][x]["alarm"] for x in data[mp]],
+        }
     #data['color'] = data['value'].apply(assign_color)
     #print(data)
     #data_json = {
@@ -202,7 +214,7 @@ def request_last_measurements():
     #    'value': data['value'].tolist(),
     #    'color': data['color'].tolist(),
     #}
-    #return JSONResponse(content=data_json)
+    return JSONResponse(content=json.dumps(data_json, indent=4))
 
 
 origins = [
