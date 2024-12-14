@@ -71,29 +71,12 @@ class SensorData(BaseModel):
     values: list[float]
 
 class request_json(BaseModel):
-    """
-        request_json represents the structure of the expected JSON to request data from the database.
 
-        Attributes:
-            dt_begin (datetime): The earliest data to request.
-            dt_end (datetime): The latest data to request
-        """
     dt_begin: datetime
     dt_end: datetime
 
 def validate_json(data: dict):
-    """
-    Validates the JSON data against the SensorData model.
 
-    Args:
-        data (dict): The JSON data to be validated.
-
-    Raises:
-        ValidationError: If the data does not conform to the SensorData model.
-
-    Returns:
-        None
-    """
     try:
         sensor_data = SensorData(**data)
         return True
@@ -104,18 +87,7 @@ def validate_json(data: dict):
         )
 
 def validate_request_json(data: dict):
-    """
-    Validates the JSON data against the request_json model.
 
-    Args:
-        data (dict): The JSON data to be validated.
-
-    Raises:
-        ValidationError: If the data does not conform to the SensorData model.
-
-    Returns:
-        True if request_json structure is valid
-    """
     try:
         sensor_data = request_json(**data)
         return True
@@ -125,20 +97,7 @@ def validate_request_json(data: dict):
             detail="Invalid JSON Structure",
         )
 def verify_token(token: str = Depends(oauth2_scheme)):
-    """
-     Verifies the provided token against the expected token from the configuration.
 
-     Parameters:
-     token (str): The token to be verified, obtained from the OAuth2 scheme.
-
-     Raises:
-     HTTPException: If the token is invalid, an HTTP 401 Unauthorized exception is raised with a delay.
-
-     Example:
-     >>> from fastapi import Depends, HTTPException
-     >>> token = "example_token"
-     >>> verifiy_token(token)
-     """
     if token != config['API']['token']:
         time.sleep(5)
         raise HTTPException(
@@ -148,26 +107,7 @@ def verify_token(token: str = Depends(oauth2_scheme)):
         )
 
 def insert_to_db(measurement):
-    """
-    Inserts a measurement into the database if it is a dictionary, otherwise returns a default message.
 
-    Parameters:
-    measurement (dict): The measurement data to be inserted into the database.
-
-    Returns:
-    dict: The result of the dbu.insert_value function if the measurement is a dictionary.
-    dict: A default message if the measurement is not a dictionary.
-
-    Example:
-    >>> measurement = {
-    ...     'datetime': '2024-12-05T07:11:32+00:00',
-    ...     'pi_name': 'pi_1',
-    ...     'sensor_id': 1,
-    ...     'values': [23.5, 24.0, 22.8]
-    ... }
-    >>> insert_to_db(measurement)
-    {'message': 'Measurement inserted successfully'}
-    """
     if isinstance(measurement, dict):
         return dbu.insert_value(config['database'], measurement)
     return {'message':'Received'}
@@ -180,11 +120,23 @@ def request_measurement_data(request_dict):
         datetime.fromisoformat(request_dict['dt_end'])
     )
     data_json = {
-        'dt': data['dt'].tolist(),
-        'sensor_id': data['sensor_id'].tolist(),
-        'pi_name': data['pi_name'].tolist(),
-        'value': data['value'].tolist()
     }
+    for mp in data['mpName'].unique():
+        d_mp = data[data['mpName']==mp]
+        data_json[mp] = list()
+        for s in d_mp['sensorId'].unique():
+            d_s = d_mp[d_mp['sensorId'] == s]
+            data_json[mp].append(
+                {
+                    'sensorID':s,
+                    'dt': d_s['dt'].tolist(),
+                    'values': d_s['value'].to_list(),
+                    'max_val':d_s['max_val'].to_list(),
+                    'warn': d_s['warn'].to_list(),
+                    'alarm': d_s['alarm'].to_list(),
+                }
+            )
+
     return JSONResponse(content=data_json)
 
 def request_last_measurements():
@@ -203,15 +155,7 @@ def request_last_measurements():
             "alarm": [data[mp][x]["alarm"] for x in data[mp]],
             "max_val": [data[mp][x]["max_val"] for x in data[mp]],
         }
-    #data['color'] = data['value'].apply(assign_color)
-    #print(data)
-    #data_json = {
-    #    'dt':data['dt'].tolist(),
-    #    'sensor_id': data['sensor_id'].tolist(),
-    #    'pi_name': data['pi_name'].tolist(),
-    #    'value': data['value'].tolist(),
-    #    'color': data['color'].tolist(),
-    #}
+
     return JSONResponse(content=json.dumps(data_json, indent=4))
 
 
@@ -232,17 +176,6 @@ app.add_middleware(
 
 @app.post("/insert/")
 async def receive_data(request: Request, token: str = Depends(verify_token)):
-    """
-    Receives JSON data from a POST request, verifies the token, and inserts the data into the database.
-
-    Parameters:
-    request (Request): The request object containing the JSON data.
-    token (str): The token for authentication, verified by the verifiy_token function.
-
-    Returns:
-    dict: The result of the insert_to_db function.
-
-    """
 
     json_obj = await request.json()
     json_dict = json.loads(json_obj)
@@ -253,14 +186,14 @@ async def receive_data(request: Request, token: str = Depends(verify_token)):
     #return False
 
 @app.post("/get/")
-async def receive_data(request:Request, token: str = Depends(verify_token)):
+async def post_data(request:Request):
     json_obj = await request.json()
     json_dict = json.loads(json_obj)
     if validate_request_json(json_dict):
         return request_measurement_data(json_dict)
 
 @app.post("/get_latest/")
-async def receive_last_data(token: str = Depends(verify_token)):
+async def post_last_data():
     return request_last_measurements()
 
 if __name__ == '__main__':
