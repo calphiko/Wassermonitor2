@@ -490,6 +490,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
             output[row[2]][row[3]]['dt'] = row[1]
             output[row[2]][row[3]]['warn'] = row[5]
             output[row[2]][row[3]]['alarm'] = row[6]
+            output[row[2]][row[3]]['max_val'] = row[4]
             output[row[2]][row[3]]['value'] = round(row[4] - row[7],1)
             output[row[2]][row[3]]['color'] = assign_color(
                 output[row[2]][row[3]]['value'],

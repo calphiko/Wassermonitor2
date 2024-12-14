@@ -2,18 +2,22 @@
     import * as echarts from 'echarts';
     import { onMount } from 'svelte';
 
+    import { DatePicker } from '@svelte-plugins/datepicker';
+
+
 
     let data_fill = [];
     let chartDiv;
     let colorGradients = {};
     let cConfig = {};
+    let mpName;
 
     onMount(async () => {
         const [loadedColors, loadedApiData] = await Promise.all([
           fetchChartConfig(),
           loadDataFromAPI()
         ]);
-        updateChart();
+        updateFillChart();
     });
 
     async function loadDataFromAPI () {
@@ -29,8 +33,13 @@
             if (!response.ok) {
                 throw new Error("Invalid Network response!");
             }
-            data_fill  = await response.json();
-            console.log('Data fetched:', data_fill);
+            var data_f = await response.json();
+            data_f = JSON.parse(data_f);
+            console.log('Data fetched:', JSON.stringify(data_f,null,2));
+            mpName = "raspi1";
+            data_fill = data_f[mpName];
+
+            console.log('Data selected:', data_fill);
         } catch (error) {
             console.error('Error while fetching data from API:',error);
         }
@@ -63,17 +72,27 @@
         return "blue";
     }
 
-    async function updateChart(chartData) {
-        const sensorIDs = data_fill.sensor_id;
+    async function updateFillChart(chartData) {
+        console.log("chartData:",chartData);
+        const sensorIDs = data_fill.mp_name;
+        console.log ('Sensor IDs:',sensorIDs);
         const values = data_fill.value;
         const colors = data_fill.color;
-        const chartCols = colors.map(getLinearGradient)
+        const chartCols = colors.map(getLinearGradient);
+        const maxVal = data_fill.max_val;
+        const thWarn = data_fill.warn;
+        const thAlarm = data_fill.alarm;
 
         const chart = echarts.init(document.getElementById('myChart'),'dark');
-        console.log ('Sensor IDs:',sensorIDs);
+
         console.log ('Colors c1:',chartCols);
 
         const chartOptions = {
+              title: {
+                text: mpName,
+                subtext: 'bla',
+                left: 'center',
+              },
               backgroundColor:'rgba(255,255,255,0)',
               xAxis: {
                 data: sensorIDs,
@@ -120,32 +139,54 @@
 
                   data: values,
                   barWidth: '90%',
-                  markLine: {
-                    data: [
-                        {
-                          yAxis: cConfig['thresholds']['alarm'],
-                          lineStyle: {
-                            color:'red',
-                            type: 'dashed'
-                          },
-                          label:{
-                            formatter: 'Alarmschwelle'
-                          },
-                        },
-                        {
-                          yAxis: cConfig['thresholds']['warning'],
-                          lineStyle: {
-                            color:'orange',
-                            type: 'dashed'
-                          },
-                          label:{
-                            formatter: 'Warnschwelle'
-                          },
-                        },
-
-                      ]
-                  },
                 },
+
+                {
+                  name: 'Warn',
+                  type: 'bar',
+                  showBackground: false,
+                  itemStyle: {
+                    color:  'rgba(0,0,0,0)',
+                    borderColor: 'orange',
+                    borderWidth: 1,
+                    borderType: 'dashed',
+                  },
+                  data: thWarn,
+                  barWidth: '90%',
+                  barGap: '-100%',
+                },
+                {
+                  name: 'Alarm',
+                  type: 'bar',
+                  showBackground: false,
+                  itemStyle: {
+                    color:  'rgba(0,0,0,0)',
+                    borderColor: 'red',
+                    borderWidth: 1,
+                    borderType: 'dashed',
+                  },
+
+                  data: thAlarm,
+                  barWidth: '90%',
+                  barGap: '-100%',
+                },
+
+                {
+                  name: 'Max',
+                  type: 'bar',
+                  showBackground: false,
+                  itemStyle: {
+                    color:  'rgba(0,0,0,0)',
+                    borderColor: 'rgba(0,191,255,255)',
+                    borderWidth: 1,
+                    borderStyle: 'solid',
+                  },
+
+                  data: maxVal,
+                  barWidth: '90%',
+                  barGap: '-100%',
+                },
+
               ]
         };
         chart.setOption(chartOptions);
@@ -154,13 +195,19 @@
 
 <main>
     <h1>Wassermonitor</h1>
+
     <div id='myChart' style='width: 100%;'></div>
+
+    <div id='timeChart' style='width:100%;'>TimeChart</div>
 </main>
 
 <style>
     div{
         width: 100%;
         height: 600px;
+    }
+    main {
+        text-align: center;
     }
 </style>
 

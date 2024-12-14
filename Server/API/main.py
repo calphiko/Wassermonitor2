@@ -44,7 +44,7 @@ import pandas as pd
 config_file = "../config.cfg"
 
 # Parse Config File
-config = configparser.ConfigParser()
+config = configparser.RawConfigParser()
 config.read(config_file)
 
 PORT = int(config['API']['port'])
@@ -192,18 +192,16 @@ def request_last_measurements():
         config['database']
     )
     data_json = {}
-    print (data)
+
     for mp in data:
-        print(mp)
-        print(data[mp])
-        [print (x for x in data[mp])]
         data_json[mp] = {
-            "mp_name":[x for x in data[mp]],
+            "mp_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]["dt"]).strftime(f"{config["API"]['dtformat']}")}" for x in data[mp]],
             "dt":[data[mp][x]["dt"] for x in data[mp]],
             "value": [data[mp][x]["value"] for x in data[mp]],
             "color": [data[mp][x]["color"] for x in data[mp]],
             "warn": [data[mp][x]["warn"] for x in data[mp]],
             "alarm": [data[mp][x]["alarm"] for x in data[mp]],
+            "max_val": [data[mp][x]["max_val"] for x in data[mp]],
         }
     #data['color'] = data['value'].apply(assign_color)
     #print(data)
