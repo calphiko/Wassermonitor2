@@ -369,13 +369,13 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
     if dt_begin > dt_end:
         raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
     sql = """
-        SELECT m.dt, m.sensor_id, m.pi_name, AVG(v.value) 
-        FROM meas_val v
-        INNER JOIN measurement m ON v.measurement_id = m.id 
-        WHERE m.dt > ? 
-        AND m.dt < ? 
-
-        GROUP BY m.dt;
+        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value)
+        FROM meas_val v 
+        INNER JOIN measurement m ON v.measurement_id=m.id 
+        INNER JOIN sensor s ON m.sensor_id = s.id 
+        INNER JOIN meas_point mp ON s.meas_point_id = mp.id 
+        WHERE m.dt > ? AND m.dt < ?
+        GROUP BY m.dt
     """
 
     output = pd.DataFrame()
@@ -386,10 +386,10 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
             conn, cur = get_sqlite3_connection(db_path)
             cur.execute(sql,[dt_begin, dt_end])
             res = pd.DataFrame(cur.fetchall())
-            res.columns = ['dt','sensor_id', 'pi_name', 'value']
+            res.columns = ['mid','dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val']
             conn.close()
             output = pd.concat([output, res], ignore_index=True)
-
+    output['value'] = round(output['max_val'] - output['meas_val'], 1)
     return output
 
 def get_latest_database_file(path):
@@ -436,32 +436,7 @@ def assign_color(value, warn, alarm):
 
 def get_last_meas_data_from_sqlite_db(db_conf):
     """
-        Retrieves the latest measurement data from the SQLite database for each sensor.
 
-        This function connects to an SQLite database specified in the `db_conf` dictionary,
-        executes a query to fetch the latest measurement data for each sensor, and returns
-        the results as a pandas DataFrame.
-
-        Parameters:
-        db_conf (dict): A dictionary containing the database configuration. It must include:
-            - 'engine': A string specifying the database engine. Must be 'sqlite'.
-            - 'path': A string specifying the path to the database directory.
-
-        Returns:
-        pandas.DataFrame: A DataFrame containing the latest measurement data for each sensor.
-        The DataFrame has the following columns:
-            - 'dt': The datetime of the measurement.
-            - 'pi_name': The name of the PI.
-            - 'sensor_id': The ID of the sensor.
-            - 'value': The average value of the measurements.
-
-        Raises:
-        ValueError: If the 'engine' specified in `db_conf` is not 'sqlite'.
-
-        Example:
-        >>> db_conf = {'engine': 'sqlite', 'sqlite_path': '/path/to/db/'}
-        >>> df = get_last_meas_data_from_sqlite_db(db_conf)
-        >>> print(df)
     """
 
     if not db_conf['engine'] == 'sqlite':
@@ -475,7 +450,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
         INNER JOIN sensor s ON m.sensor_id = s.id 
         INNER JOIN meas_point mp ON s.meas_point_id = mp.id 
         WHERE m.id IN (SELECT max(id) FROM measurement GROUP BY sensor_id)
-        GROUP BY m.id;
+        GROUP BY m.dt;
     """
     output = {}
     if os.path.exists(db_path):

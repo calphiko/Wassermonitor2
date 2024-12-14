@@ -71,7 +71,6 @@ class SensorData(BaseModel):
     values: list[float]
 
 class request_json(BaseModel):
-
     dt_begin: datetime
     dt_end: datetime
 
@@ -86,7 +85,7 @@ def validate_json(data: dict):
             detail="Invalid JSON Structure",
         )
 
-def validate_request_json(data: dict):
+def validate_request_json(data):
 
     try:
         sensor_data = request_json(**data)
@@ -123,21 +122,28 @@ def request_measurement_data(request_dict):
     }
     for mp in data['mpName'].unique():
         d_mp = data[data['mpName']==mp]
-        data_json[mp] = list()
+        data_json[mp] = []
         for s in d_mp['sensorId'].unique():
             d_s = d_mp[d_mp['sensorId'] == s]
             data_json[mp].append(
                 {
-                    'sensorID':s,
-                    'dt': d_s['dt'].tolist(),
-                    'values': d_s['value'].to_list(),
-                    'max_val':d_s['max_val'].to_list(),
-                    'warn': d_s['warn'].to_list(),
-                    'alarm': d_s['alarm'].to_list(),
+                    'sensorID': s,
+                    'values': [
+                        {
+                            'timestamp': d_s['dt'].iloc[x],
+                            'value': d_s['value'].iloc[x],
+                            'max_val':d_s['max_val'].iloc[x],
+                            'warn':d_s['warn'].iloc[x],
+                            'alarm':d_s['alarm'].iloc[x],
+                        }
+                    for x in range(len(d_s))],
+                    'y_max':max(d_s['max_val'].to_list())+10,
+
                 }
             )
 
-    return JSONResponse(content=data_json)
+
+    return JSONResponse(content=json.dumps(data_json, indent=4))
 
 def request_last_measurements():
     data = dbu.get_last_meas_data_from_sqlite_db(
@@ -147,7 +153,7 @@ def request_last_measurements():
 
     for mp in data:
         data_json[mp] = {
-            "mp_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(config['API']['dtformat'])}" for x in data[mp]],
+            "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(config['API']['dtformat'])}" for x in data[mp]],
             "dt":[data[mp][x]["dt"] for x in data[mp]],
             "value": [data[mp][x]["value"] for x in data[mp]],
             "color": [data[mp][x]["color"] for x in data[mp]],
@@ -186,11 +192,14 @@ async def receive_data(request: Request, token: str = Depends(verify_token)):
     #return False
 
 @app.post("/get/")
-async def post_data(request:Request):
+async def post_data(request: Request):
     json_obj = await request.json()
-    json_dict = json.loads(json_obj)
-    if validate_request_json(json_dict):
-        return request_measurement_data(json_dict)
+    print (json_obj)
+    #json_dict = json.loads(json_obj)
+    #json_dict = json.loads(json_obj)
+    #print (json_dict)
+    if validate_request_json(json_obj):
+        return request_measurement_data(json_obj)
 
 @app.post("/get_latest/")
 async def post_last_data():
