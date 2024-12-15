@@ -180,6 +180,54 @@ def insert_and_get_id(db_conf, dt, sql, sql_args):
         return ins_id
 
 def sqlite_get_sensor_id(db_conf, mp_id, s_name, s_max_val, s_warn, s_alarm, dt):
+    """
+     Retrieves or inserts a sensor ID based on the sensor details.
+
+     This function checks if a sensor with the given name, measurement point ID,
+     maximum value, warning threshold, and alarm threshold already exists in the
+     SQLite database. If the sensor exists, it retrieves the corresponding ID.
+     If it does not exist, the function inserts a new record for the sensor and
+     returns the newly inserted ID.
+
+     Args:
+         db_conf (dict): A dictionary containing the database configuration.
+                          It should have the following keys:
+                          - 'engine': Should be 'sqlite' for this function to work.
+                          - 'sqlite_path': The file path to the SQLite database directory.
+
+         mp_id (int): The ID of the measurement point to which the sensor is associated.
+
+         s_name (str): The name of the sensor.
+
+         s_max_val (float): The maximum allowed value for the sensor.
+
+         s_warn (float): The warning threshold for the sensor.
+
+         s_alarm (float): The alarm threshold for the sensor.
+
+         dt (datetime): The datetime object used to derive the SQLite file name from the configuration.
+
+     Returns:
+         int: The ID of the sensor. If the sensor does not exist, it is created and
+              the new ID is returned.
+
+     Raises:
+         Error: If any SQLite database errors occur during the query or insertion.
+
+     Example:
+         db_conf = {
+             'engine': 'sqlite',
+             'sqlite_path': '/path/to/db/'
+         }
+         mp_id = 1
+         s_name = 'TemperatureSensor'
+         s_max_val = 100.0
+         s_warn = 80.0
+         s_alarm = 90.0
+         dt = datetime(2024, 12, 15)
+         s_id = sqlite_get_sensor_id(db_conf, mp_id, s_name, s_max_val, s_warn, s_alarm, dt)
+     """
+
     if db_conf['engine'] == "sqlite":
         sqlite_file_name = db_conf['sqlite_path'] + get_sqlite3_file_name_from_conf(dt)
         try:
@@ -205,6 +253,40 @@ def sqlite_get_sensor_id(db_conf, mp_id, s_name, s_max_val, s_warn, s_alarm, dt)
         return s_id
 
 def sqlite_get_meas_point_id(db_conf, mp_name,dt):
+    """
+        Retrieves or inserts a measurement point ID based on the measurement point name.
+
+        This function checks if a measurement point with the given name already exists in the
+        SQLite database. If the measurement point exists, it retrieves the corresponding ID.
+        If it does not exist, the function inserts a new record for the measurement point and
+        returns the newly inserted ID.
+
+        Args:
+            db_conf (dict): A dictionary containing the database configuration.
+                             It should have the following keys:
+                             - 'engine': Should be 'sqlite' for this function to work.
+                             - 'sqlite_path': The file path to the SQLite database directory.
+
+            mp_name (str): The name of the measurement point.
+
+            dt (datetime): The datetime object used to derive the SQLite file name from the configuration.
+
+        Returns:
+            int: The ID of the measurement point. If the point does not exist, it is created and
+                 the new ID is returned.
+
+        Raises:
+            Error: If any SQLite database errors occur during the query or insertion.
+
+        Example:
+            db_conf = {
+                'engine': 'sqlite',
+                'sqlite_path': '/path/to/db/'
+            }
+            mp_name = 'Temperature'
+            dt = datetime(2024, 12, 15)
+            mp_id = sqlite_get_meas_point_id(db_conf, mp_name, dt)
+    """
     if db_conf['engine'] == "sqlite":
         sqlite_file_name = db_conf['sqlite_path'] + get_sqlite3_file_name_from_conf(dt)
         try:
@@ -231,6 +313,54 @@ def sqlite_get_meas_point_id(db_conf, mp_name,dt):
 
 
 def insert_value(db_conf, val_dict):
+    """
+    Inserts a new measurement and associated values into the SQLite database.
+
+    This function inserts a new measurement record into the database, along with
+    associated values, such as sensor values and their corresponding timestamps.
+    It first retrieves or generates the necessary sensor and measurement point IDs,
+    then creates a new measurement entry, and finally inserts the actual measurement
+    values.
+
+    Args:
+        db_conf (dict): A dictionary containing the database configuration.
+                         It should have the following keys:
+                         - 'engine': Should be 'sqlite' for this function to work.
+                         - 'sqlite_path': The file path to the SQLite database directory.
+
+        val_dict (dict): A dictionary containing the measurement data to insert.
+                         It should have the following keys:
+                         - 'datetime': ISO formatted datetime string for the measurement timestamp.
+                         - 'meas_point': The name of the measurement point.
+                         - 'sensor_name': The name of the sensor.
+                         - 'max_val': The maximum allowed value for the sensor.
+                         - 'warn': The warning threshold for the sensor.
+                         - 'alarm': The alarm threshold for the sensor.
+                         - 'values': A list of sensor values to insert.
+
+    Returns:
+        bool: Always returns `False`. The return value is not used in this function.
+
+    Raises:
+        ValueError: If the necessary database configuration or values are invalid.
+        sqlite3.Error: If any SQLite database errors occur during insertion.
+
+    Example:
+        db_conf = {
+            'engine': 'sqlite',
+            'sqlite_path': '/path/to/db/'
+        }
+        val_dict = {
+            'datetime': '2024-12-15T10:00:00',
+            'meas_point': 'Temperature',
+            'sensor_name': 'Sensor1',
+            'max_val': 100.0,
+            'warn': 80.0,
+            'alarm': 90.0,
+            'values': [75.0, 76.0, 77.5]
+        }
+        result = insert_value(db_conf, val_dict)
+    """
     meas_dt = datetime.fromisoformat(val_dict['datetime'])
     mp_id = sqlite_get_meas_point_id(db_conf, val_dict['meas_point'], meas_dt)
     s_id = sqlite_get_sensor_id(
@@ -326,36 +456,62 @@ def datetime_to_hours(x):
 
 def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
     """
-       Retrieves measurement data from an SQLite database within a specified date range.
+    Retrieve measurement data from SQLite database within a specified date range.
 
-       This function connects to an SQLite database specified in the `db_conf` dictionary,
-       executes a query to fetch measurement data for each sensor within the date range
-       defined by `dt_begin` and `dt_end`, and returns the results as a pandas DataFrame.
+    This function is designed specifically for SQLite databases. It queries the data for a given
+    date range (`dt_begin` to `dt_end`) and calculates additional metrics such as the slope and
+    derivation of measurements. The results are returned as a pandas DataFrame.
 
-       Parameters:
-       db_conf (dict): A dictionary containing the database configuration. It must include:
-           - 'engine': A string specifying the database engine. Must be 'sqlite'.
-           - 'sqlite_path': A string specifying the path to the database directory.
-       dt_begin (datetime, optional): The start datetime for the data retrieval. Defaults to 60 days before `dt_end`.
-       dt_end (datetime, optional): The end datetime for the data retrieval. Defaults to the current datetime.
+    Args:
+        db_conf (dict):
+            Configuration dictionary containing database connection settings.
+            Must include the key `engine` with value `sqlite` and `sqlite_path` specifying the path
+            to the database files.
+        dt_begin (datetime, optional):
+            Start of the date range for the query. If not provided, defaults to 60 days before `dt_end`.
+        dt_end (datetime, optional):
+            End of the date range for the query. If not provided, defaults to the current time in UTC.
 
-       Returns:
-       pandas.DataFrame: A DataFrame containing the measurement data within the specified date range.
-       The DataFrame has the following columns:
-           - 'dt': The datetime of the measurement.
-           - 'sensor_id': The ID of the sensor.
-           - 'pi_name': The name of the PI.
-           - 'value': The average value of the measurements.
+    Returns:
+        pd.DataFrame:
+            A DataFrame containing the queried data with the following columns:
+            - `mid`: Measurement ID
+            - `dt`: Timestamp of the measurement
+            - `mpName`: Measurement point name
+            - `sensorId`: Sensor ID
+            - `max_val`: Maximum value for the sensor
+            - `warn`: Warning threshold
+            - `alarm`: Alarm threshold
+            - `meas_val`: Measured value
+            - `slope`: Gradient of measured values over time
+            - `derivation`: Derived metric calculated as `-slope / slope_date`
+            - `value`: Difference between `max_val` and `meas_val`, rounded to 1 decimal place
 
-       Raises:
-       ValueError: If the 'engine' specified in `db_conf` is not 'sqlite'.
-       ValueError: If `dt_begin` or `dt_end` are not datetime objects.
-       ValueError: If `dt_begin` is after `dt_end`.
+    Raises:
+        ValueError: If the database engine is not SQLite, or if the inputs `dt_begin` or `dt_end` are
+                    not of type `datetime`, or if `dt_begin` is after `dt_end`.
 
-       Example:
-       >>> db_conf = {'engine': 'sqlite', 'sqlite_path': '/path/to/db/'}
-       >>> df = get_meas_data_from_sqlite_db(db_conf, dt_begin=datetime(2024, 1, 1), dt_end=datetime(2024, 2, 1))
-       >>> print(df)
+    Notes:
+        - The function splits the query by months and looks for SQLite files in the paths
+          specified by `db_conf['sqlite_path']`.
+        - Requires external helper functions:
+            - `get_months_between(dt_begin, dt_end)` to determine months in the range.
+            - `get_sqlite3_connection(db_path)` to establish SQLite connections.
+
+    Example:
+        ```python
+        from datetime import datetime
+
+        db_conf = {
+            'engine': 'sqlite',
+            'sqlite_path': '/path/to/sqlite/files'
+        }
+        dt_begin = datetime(2024, 1, 1)
+        dt_end = datetime(2024, 2, 1)
+
+        result = get_meas_data_from_sqlite_db(db_conf, dt_begin, dt_end)
+        print(result.head())
+        ```
     """
 
     if not db_conf['engine'] == 'sqlite':
@@ -409,22 +565,27 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
 
 def get_latest_database_file(path):
     """
-        Retrieves the latest SQLite database file from a specified directory.
+        Retrieve the latest SQLite database file from a given directory based on its timestamp.
 
-        This function scans the specified directory for SQLite database files,
-        extracts the date from the filenames, and returns the filename of the
-        most recent database file.
+        This function searches the specified directory for files with the `.sqlite` extension, extracts
+        the timestamp from the filename (in the format `MM-YYYY`), and identifies the most recent file.
 
-        Parameters:
-        path (str): The path to the directory containing the SQLite database files.
+        Args:
+            path (str):
+                The directory path containing the SQLite files.
 
         Returns:
-        str: The filename of the latest SQLite database file in the format 'MM-YYYY.sqlite'.
+            str:
+                The filename of the most recent SQLite database, formatted as `MM-YYYY.sqlite`.
+
+        Raises:
+            ValueError: If no `.sqlite` files are found in the specified directory.
 
         Example:
-        >>> latest_db_file = get_latest_database_file('/path/to/db/')
-        >>> print(latest_db_file)
-        '12-2024.sqlite'
+            ```python
+            latest_file = get_latest_database_file('/path/to/sqlite/files')
+            print(f"The latest database file is: {latest_file}")
+            ```
     """
 
     datetime_list = []
@@ -451,7 +612,43 @@ def assign_color(value, warn, alarm):
 
 def get_last_meas_data_from_sqlite_db(db_conf):
     """
+    Retrieves the most recent measurement data from a SQLite database.
 
+    This function connects to a SQLite database, executes an SQL query to fetch
+    the latest measurement data for each sensor, and processes the results into
+    a nested dictionary structure. The dictionary is organized by measurement
+    point names and sensor names, and contains information about the measurement
+    datetime, warning and alarm thresholds, maximum allowed values, and calculated
+    values (the difference between the maximum value and the actual value).
+
+    Args:
+        db_conf (dict): A dictionary containing the database configuration.
+                        It should have the following keys:
+                        - 'engine': Should be 'sqlite' for this function to work.
+                        - 'sqlite_path': The file path to the SQLite database directory.
+
+    Returns:
+        dict: A nested dictionary structure with measurement data.
+              The structure is as follows:
+              output[measurement_point_name][sensor_name] = {
+                  'dt': datetime,          # Measurement timestamp
+                  'warn': warning_threshold,  # Warning threshold
+                  'alarm': alarm_threshold,  # Alarm threshold
+                  'max_val': max_value,      # Maximum allowed value for the sensor
+                  'value': calculated_value,  # Difference between max_val and actual value
+                  'color': assigned_color   # Color assigned based on value and thresholds
+              }
+
+    Raises:
+        ValueError: If the 'engine' in db_conf is not 'sqlite'.
+        FileNotFoundError: If the SQLite database file does not exist.
+
+    Example:
+        db_conf = {
+            'engine': 'sqlite',
+            'sqlite_path': '/path/to/db/'
+        }
+        result = get_last_meas_data_from_sqlite_db(db_conf)
     """
 
     if not db_conf['engine'] == 'sqlite':
@@ -487,19 +684,6 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                 row[5],
                 row[6]
             )
-        #res.columns = ['dt', 'pi_name', 'sensor_id', 'value']
-        #res['value'] = 158.0 - res['value']
-        #conn.close()
-        #return res
     return output
 
 
-#if __name__ == '__main__':
-#    print(
- #       get_last_meas_data_from_sqlite_db(
-#            {
-#                'engine': 'sqlite',
-#                'path': "../../Test/Server/Data/"
-#            }
-#        )
-#    )
