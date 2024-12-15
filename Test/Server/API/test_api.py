@@ -54,7 +54,7 @@ class Test_api_request(unittest.TestCase):
             'dt_begin': datetime(year=2024, month=12, day=1, hour=0, minute=0, second=0).isoformat(),
             'dt_end': datetime(year=2024, month=12, day=30, hour=23, minute=59, second=59).isoformat()
         }
-        r = post(test_url_get, json=json.dumps(test_request_dict), headers=headers)
+        r = post(test_url_get, json=test_request_dict, headers=headers)
         print (r.json())
         assert r.status_code == 200, "Unexpected status code: " + str(r.status_code)
 
