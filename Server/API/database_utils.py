@@ -27,6 +27,7 @@ from sqlite3 import Error
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 import pytz
+import numpy as np
 
 def get_mysql_connection(conf):
     """
@@ -319,6 +320,10 @@ def get_months_between(start_date, end_date):
 
     return months
 
+def datetime_to_hours(x):
+    output =x/3600.0
+    return output
+
 def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
     """
        Retrieves measurement data from an SQLite database within a specified date range.
@@ -386,9 +391,19 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
             conn, cur = get_sqlite3_connection(db_path)
             cur.execute(sql,[dt_begin, dt_end])
             res = pd.DataFrame(cur.fetchall())
-            res.columns = ['mid','dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val']
+            res.columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val']
+            for sens in res.sensorId.unique():
+                res_sens = res[res['sensorId'] == sens].copy().reset_index(drop=True)
+                slope_val = pd.Series(np.gradient(res_sens.meas_val), name='slope')
+                #print (slope_val)
+                slope_date = pd.to_datetime(res_sens.dt)
+                slope_date = slope_date.astype('int64') // 10**9 / 3600 # in hours
+                slope_date = pd.Series(np.gradient(slope_date), name='slope')
+                #slope_date = slope_date.apply(datetime_to_hours)
+                res_sens['derivation'] = -slope_val / slope_date
+                output = pd.concat([output, res_sens], ignore_index=True)
             conn.close()
-            output = pd.concat([output, res], ignore_index=True)
+
     output['value'] = round(output['max_val'] - output['meas_val'], 1)
     return output
 

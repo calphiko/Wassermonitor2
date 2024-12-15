@@ -137,12 +137,19 @@ def request_measurement_data(request_dict):
                             'alarm':d_s['alarm'].iloc[x],
                         }
                     for x in range(len(d_s))],
+                    'deriv': [
+                        {
+                            'timestamp': d_s['dt'].iloc[x],
+                            'value': d_s['derivation'].iloc[x],
+                        }
+                    for x in range(len(d_s))],
+
                     'y_max':max(d_s['max_val'].to_list())+10,
 
                 }
             )
 
-
+    #print (json.dumps(data_json, indent=4))
     return JSONResponse(content=json.dumps(data_json, indent=4))
 
 def request_last_measurements():
