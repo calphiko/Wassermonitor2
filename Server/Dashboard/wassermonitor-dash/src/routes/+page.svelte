@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import { Button, Dropdown, DropdownItem } from 'flowbite-svelte';
     import { ChevronDownOutline } from 'flowbite-svelte-icons';
-    import { DatePicker } from '@svelte-plugins/datepicker';
+    //import { DatePicker } from '@svelte-plugins/datepicker';
 
     function formatDateForInput(date) {
        //return date.toISOString().slice(0, 16); // Nur 'YYYY-MM-DDTHH:mm'
@@ -56,8 +56,8 @@
         console.log("From: ", dtFrom);
         console.log("Until: ", dtUntil);
         const loadedApiTimeData = await loadTimeDataFromAPI();
-        updateTimeChart(loadedApiTimeData, 'values',  'timeChart', true);
-        updateTimeChart(loadedApiTimeData, 'deriv',  'derivChart', false);
+        updateTimeChart(loadedApiTimeData, 'values',  'timeChart', 'value');
+        updateTimeChart(loadedApiTimeData, 'deriv',  'derivChart', 'deriv');
     }
 
     async function loadTimeDataFromAPI() {
@@ -97,6 +97,10 @@
         }
         chartInstances[divName] = echarts.init(document.getElementById(divName),'dark');
 
+        if (loadedApiTimeData == null) {
+            return
+        }
+
         const gridConfigs = [];
         const xAxisConfigs = [];
         const yAxisConfigs = [];
@@ -135,20 +139,22 @@
                 axisLabel: { formatter: '{yyyy}-{MM}-{dd} {HH}:{mm}', rotate: 45 },
                 gridIndex: index,
             });
-            if (bPrintLines) {
+            if (bPrintLines == 'value') {
                 yAxisConfigs.push({
                    type: 'value',
                    min: 0,
                    max: chart.y_max,
                    gridIndex: index,
                 });
-            } else {
+            } else if (bPrintLines == 'deriv') {
                 yAxisConfigs.push({
                    type: 'value',
+                   min: chart.deriv_y_min,
+                   max: chart.deriv_y_max,
                    gridIndex: index,
                 });
             }
-            if (bPrintLines) {
+            if (bPrintLines == 'value') {
                 seriesConfigs.push(
                   {
                     name: chart.name,
@@ -157,7 +163,7 @@
                     data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value]),
                     xAxisIndex: index,
                     yAxisIndex: index,
-                    //symbol: 'none',
+                    symbol: 'none',
                     lineStyle:{
                         color:'lightblue',
                         width:3
@@ -219,7 +225,7 @@
                     data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value]),
                     xAxisIndex: index,
                     yAxisIndex: index,
-                    //symbol: 'none',
+                    symbol: 'none',
                     lineStyle:{
                         color:'lightblue',
                         width:3
