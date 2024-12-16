@@ -309,37 +309,48 @@ def request_measurement_data(request_dict):
     )
     data_json = {
     }
-    for mp in data['mpName'].unique():
-        d_mp = data[data['mpName']==mp]
-        data_json[mp] = []
-        for s in d_mp['sensorId'].unique():
-            d_s = d_mp[d_mp['sensorId'] == s]
-            data_json[mp].append(
-                {
-                    'sensorID': s,
-                    'values': [
-                        {
-                            'timestamp': d_s['dt'].iloc[x],
-                            'value': d_s['value'].iloc[x],
-                            'max_val':d_s['max_val'].iloc[x],
-                            'warn':d_s['warn'].iloc[x],
-                            'alarm':d_s['alarm'].iloc[x],
-                        }
-                    for x in range(len(d_s))],
-                    'deriv': [
-                        {
-                            'timestamp': d_s['dt'].iloc[x],
-                            'value': d_s['derivation'].iloc[x],
-                        }
-                    for x in range(len(d_s))],
+    if not data.empty:
+        for mp in data['mpName'].unique():
+            d_mp = data[data['mpName']==mp]
+            max_d = max(d_mp['derivation'])
+            min_d = min(d_mp['derivation'])
+            if d_mp.empty:
+                continue
+            data_json[mp] = []
+            for s in d_mp['sensorId'].unique():
+                d_s = d_mp[d_mp['sensorId'] == s]
+                if d_s.empty or not 'value' in list(d_s.keys()):
+                    continue
 
-                    'y_max':max(d_s['max_val'].to_list())+10,
+                data_json[mp].append(
+                    {
+                        'sensorID': s,
+                        'values': [
+                            {
+                                'timestamp': d_s['dt'].iloc[x],
+                                'value': d_s['value'].iloc[x],
+                                'max_val':d_s['max_val'].iloc[x],
+                                'warn':d_s['warn'].iloc[x],
+                                'alarm':d_s['alarm'].iloc[x],
+                            }
+                        for x in range(len(d_s))],
+                        'deriv': [
+                            {
+                                'timestamp': d_s['dt'].iloc[x],
+                                'value': d_s['derivation'].iloc[x],
+                            }
+                        for x in range(len(d_s))],
 
-                }
-            )
+                        'y_max':max(d_s['max_val'].to_list())+10,
+                        'deriv_y_max': max_d + 10,
+                        'deriv_y_min': min_d - 10,
+                    }
+                )
 
-    #print (json.dumps(data_json, indent=4))
-    return JSONResponse(content=json.dumps(data_json, indent=4))
+        #print (json.dumps(data_json, indent=4))
+        return JSONResponse(content=json.dumps(data_json, indent=4))
+    else:
+        return JSONResponse(content=json.dumps({}, indent=4))
 
 def request_last_measurements():
     """
@@ -361,7 +372,7 @@ def request_last_measurements():
         config['database']
     )
     data_json = {}
-
+    print (data)
     for mp in data:
         data_json[mp] = {
             "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(config['API']['dtformat'])}" for x in data[mp]],
@@ -398,9 +409,8 @@ async def receive_data(request: Request, token: str = Depends(verify_token)):
     json_dict = json.loads(json_obj)
     if validate_json(json_dict):
         x = insert_to_db(json_dict)
-    #print (x)
         return x
-    #return False
+
 
 @app.post("/get/")
 async def post_data(request: Request):

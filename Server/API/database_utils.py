@@ -547,20 +547,29 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
             conn, cur = get_sqlite3_connection(db_path)
             cur.execute(sql,[dt_begin, dt_end])
             res = pd.DataFrame(cur.fetchall())
+            if res.empty:
+                continue
             res.columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val']
+            #res['value']
             for sens in res.sensorId.unique():
                 res_sens = res[res['sensorId'] == sens].copy().reset_index(drop=True)
-                slope_val = pd.Series(np.gradient(res_sens.meas_val), name='slope')
-                #print (slope_val)
-                slope_date = pd.to_datetime(res_sens.dt)
-                slope_date = slope_date.astype('int64') // 10**9 / 3600 # in hours
-                slope_date = pd.Series(np.gradient(slope_date), name='slope')
-                #slope_date = slope_date.apply(datetime_to_hours)
-                res_sens['derivation'] = -slope_val / slope_date
+                try:
+                    slope_val = pd.Series(np.gradient(res_sens.meas_val), name='slope')
+                    #print (slope_val)
+
+                    slope_date = pd.to_datetime(res_sens.dt)
+                    slope_date = slope_date.astype('int64') // 10**9 / 3600 # in hours
+                    slope_date = pd.Series(np.gradient(slope_date), name='slope')
+                    #slope_date = slope_date.apply(datetime_to_hours)
+                    res_sens['derivation'] = -slope_val / slope_date
+                except ValueError:
+                    res_sens['derivation'] = 0
                 output = pd.concat([output, res_sens], ignore_index=True)
             conn.close()
-
-    output['value'] = round(output['max_val'] - output['meas_val'], 1)
+        else:
+            continue
+    if 'max_val' in list(output.keys()) and 'meas_val' in list(output.keys()):
+        output['value'] = round(output['max_val'] - output['meas_val'], 1)
     return output
 
 def get_latest_database_file(path):
@@ -598,6 +607,18 @@ def get_latest_database_file(path):
                 )
             )
     return max(datetime_list).strftime("%m-%Y.sqlite")
+
+def get_all_sqlite_files(path):
+    datetime_list = []
+    for file in os.listdir(path):
+        if file.endswith(".sqlite"):
+            datetime_list.append(
+                datetime.strptime(
+                    file.replace(".sqlite", ""),
+                    "%m-%Y"
+                )
+            )
+    return [x.strftime("%m-%Y.sqlite") for x in sorted(datetime_list)]
 
 def assign_color(value, warn, alarm):
     if value < alarm:
@@ -653,7 +674,8 @@ def get_last_meas_data_from_sqlite_db(db_conf):
 
     if not db_conf['engine'] == 'sqlite':
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
-    db_path = db_conf['sqlite_path'] + get_latest_database_file(db_conf['sqlite_path'])
+    db_path_list = [db_conf['sqlite_path'] + x for x in get_all_sqlite_files(db_conf['sqlite_path'])]
+    print (db_path_list)
 
     sql = """
         SELECT m.id,m.dt, mp.name, s.name, s.max_val, s. warn, s.alarm, AVG(v.value)
@@ -665,25 +687,27 @@ def get_last_meas_data_from_sqlite_db(db_conf):
         GROUP BY m.dt;
     """
     output = {}
-    if os.path.exists(db_path):
-        conn, cur = get_sqlite3_connection(db_path)
-        cur.execute(sql)
-        res = cur.fetchall()
-        for row in res:
-            if not row[2] in output:
-                output[row[2]] = {}
-            if not row[3] in output[row[2]]:
+    for db_path in db_path_list:
+        if os.path.exists(db_path):
+            conn, cur = get_sqlite3_connection(db_path)
+            cur.execute(sql)
+            res = cur.fetchall()
+            #print (res)
+            for row in res:
+                if not row[2] in output:
+                    output[row[2]] = {}
                 output[row[2]][row[3]] = {}
-            output[row[2]][row[3]]['dt'] = row[1]
-            output[row[2]][row[3]]['warn'] = row[5]
-            output[row[2]][row[3]]['alarm'] = row[6]
-            output[row[2]][row[3]]['max_val'] = row[4]
-            output[row[2]][row[3]]['value'] = round(row[4] - row[7],1)
-            output[row[2]][row[3]]['color'] = assign_color(
-                output[row[2]][row[3]]['value'],
-                row[5],
-                row[6]
-            )
+
+                output[row[2]][row[3]]['dt'] = row[1]
+                output[row[2]][row[3]]['warn'] = row[5]
+                output[row[2]][row[3]]['alarm'] = row[6]
+                output[row[2]][row[3]]['max_val'] = row[4]
+                output[row[2]][row[3]]['value'] = round(row[4] - row[7],1)
+                output[row[2]][row[3]]['color'] = assign_color(
+                    output[row[2]][row[3]]['value'],
+                    row[5],
+                    row[6]
+                )
     return output
 
 
