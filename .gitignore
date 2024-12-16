@@ -6,3 +6,4 @@ Doc/template/
 /Server/Dashboard/wassermonitor-dash/node_modules/
 .idea/
 /Test/Server/Data/12-2024.sqlite
+/Server/Dashboard/wassermonitor-dash/package-lock.json
