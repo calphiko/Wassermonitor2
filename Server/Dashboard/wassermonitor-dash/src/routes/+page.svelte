@@ -1,8 +1,8 @@
 <script>
     import * as echarts from 'echarts';
     import { onMount } from 'svelte';
-    import { Button, Dropdown, DropdownItem } from 'flowbite-svelte';
-    import { ChevronDownOutline } from 'flowbite-svelte-icons';
+    //import { Button, Dropdown, DropdownItem } from 'flowbite-svelte';
+    //import { ChevronDownOutline } from 'flowbite-svelte-icons';
     //import { DatePicker } from '@svelte-plugins/datepicker';
 
     function formatDateForInput(date) {
@@ -452,8 +452,8 @@
 </script>
 
 <main>
-    <h1>Wassermonitor</h1>
-    <select bind:value={mpName} on:change={loadCharts}>
+    <h1  class="text-3xl font-bold underline">Wassermonitor</h1>
+    <select bind:value={mpName} on:change={loadCharts} class="w-6 h-6 ms-2 text-white dark:text-white" >
         {#each mpNameOptions as option}
            <option value={option}>{option}</option>
         {/each}
@@ -466,6 +466,7 @@
         <input
           id="from-picker"
           type="datetime-local"
+          class="input input-lg bg-neutral text-neutral-content"
           bind:value={dtFrom}
           on:blur={loadTimeChart}
         />
