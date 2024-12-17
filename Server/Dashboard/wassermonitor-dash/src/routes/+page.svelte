@@ -1,13 +1,9 @@
 <script>
     import * as echarts from 'echarts';
     import { onMount } from 'svelte';
-    //import { Button, Dropdown, DropdownItem } from 'flowbite-svelte';
-    //import { ChevronDownOutline } from 'flowbite-svelte-icons';
-    //import { DatePicker } from '@svelte-plugins/datepicker';
 
     function formatDateForInput(date) {
-       //return date.toISOString().slice(0, 16); // Nur 'YYYY-MM-DDTHH:mm'
-       //return date.toLocaleString()
+
        const year = date.getFullYear();
        const month = String(date.getMonth() + 1).padStart(2, "0");
        const day = String(date.getDate()).padStart(2, "0");
@@ -23,7 +19,6 @@
     const now = new Date();
     const twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 14));
 
-    // Initialwerte für DateTime-Picker
     let dtFrom = formatDateForInput(twoWeeksAgo);
     let dtUntil = formatDateForInput(now);
 
@@ -289,7 +284,7 @@
                         trigger: 'axis',
                         formatter: function(params) {
                             let tooltipContent = '';
-                            tooltipContent += `Value: ${params[0].data[1]} cm/h<br>`;
+                            tooltipContent += `Derivation: <br>${params[0].data[1]} cm/h<br>`;
                             return tooltipContent;
                         }
                     }
@@ -571,7 +566,7 @@
 
 <main>
     <h1  class="text-3xl font-bold underline">Wassermonitor</h1>
-    <select bind:value={mpName} on:change={loadCharts} class="w-6 h-6 ms-2 text-white dark:text-white" >
+    <select bind:value={mpName} on:change={loadCharts} class="w-6 h-6 ms-2 text-white dark:text-black" >
         {#each mpNameOptions as option}
            <option value={option}>{option}</option>
         {/each}
