@@ -342,8 +342,8 @@ def request_measurement_data(request_dict):
                         for x in range(len(d_s))],
 
                         'y_max':max(d_s['max_val'].to_list())+10,
-                        'deriv_y_max': max_d + 10,
-                        'deriv_y_min': min_d - 10,
+                        'deriv_y_max': round(max_d,0) + 10,
+                        'deriv_y_min': round(min_d,0) - 10,
                     }
                 )
 
