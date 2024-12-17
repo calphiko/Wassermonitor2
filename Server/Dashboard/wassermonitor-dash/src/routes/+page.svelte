@@ -56,8 +56,37 @@
         console.log("From: ", dtFrom);
         console.log("Until: ", dtUntil);
         const loadedApiTimeData = await loadTimeDataFromAPI();
-        updateTimeChart(loadedApiTimeData, 'values',  'timeChart', 'value');
-        updateTimeChart(loadedApiTimeData, 'deriv',  'derivChart', 'deriv');
+        await updateTimeChart(loadedApiTimeData, 'values',  'timeChart', 'value');
+        await updateTimeChart(loadedApiTimeData, 'deriv',  'derivChart', 'deriv');
+
+        chartInstances['timeChart'].on('dataZoom', function (event) {
+            console.log(event)
+
+            if (event.dataZoomId === '\u0000series\u00000\u00000') {
+                console.log("Zoom xAxis 0");
+                chartInstances['derivChart'].dispatchAction({
+                    type: 'dataZoom',
+                    dataZoomId: event.dataZoomId,
+                    gridIndex: 0,
+                    xAxisIndex: 0, // Synchronisiere x-Achse 0
+                    xAxisIndex: 0,
+                    start: event.start,
+                    end: event.end
+                });
+
+            } else if (event.dataZoomId === '\u0000series\u00002\u00000') {
+                console.log("Zoom xAxis 1");
+                chartInstances['derivChart'].dispatchAction({
+                    type: 'dataZoom',
+                    dataZoomId: event.dataZoomId,
+                    gridIndex:1,
+                    xAxisIndex: 1, // Synchronisiere x-Achse 1
+                    xAxisIndex: 0,
+                    start: event.start,
+                    end: event.end
+                });
+            }
+        });
     }
 
     async function loadTimeDataFromAPI() {
@@ -82,7 +111,7 @@
             data_t = JSON.parse(data_t);
             //console.log('Data fetched:', JSON.stringify(data_f,null,2));
             const data_time = data_t[mpName];
-            console.log("data_time: ",data_time)
+
             return data_time
         } catch (error) {
             console.error('Error while fetching time data from API:',error);
@@ -101,12 +130,14 @@
             return
         }
 
+        const tooltipConfigs = [];
         const gridConfigs = [];
         const xAxisConfigs = [];
         const yAxisConfigs = [];
         const seriesConfigs = [];
         const dataZoomConfigs = [];
         const titleConfigs = [];
+        const toolboxConfigs = [];
         const countOfSubplots = loadedApiTimeData.length;
 
         console.log('Counts of plots:', countOfSubplots);
@@ -121,6 +152,17 @@
                 fontWeight: 'bold',
                },
                gridIndex: index,
+            });
+            toolboxConfigs.push({
+                toolbox: {
+                    feature: {
+                        dataZoom: {
+                            yAxisIndex: 'none'
+                        },
+                    restore: {},
+                    saveAsImage: {}
+                    }
+                },
             });
             gridConfigs.push({
                left: `${5+ index * (100.0/countOfSubplots)}%`,
@@ -155,6 +197,16 @@
                 });
             }
             if (bPrintLines == 'value') {
+                tooltipConfigs.push(
+                    {
+                        trigger: 'axis',
+                        formatter: function(params) {
+                            let tooltipContent = '';
+                            tooltipContent += `Value: ${params[0].data[1]} cm<br>`;
+                            return tooltipContent;
+                        }
+                    }
+                );
                 seriesConfigs.push(
                   {
                     name: chart.name,
@@ -232,18 +284,47 @@
                     },
                   },
                 );
+                tooltipConfigs.push(
+                    {
+                        trigger: 'axis',
+                        formatter: function(params) {
+                            let tooltipContent = '';
+                            tooltipContent += `Value: ${params[0].data[1]} cm/h<br>`;
+                            return tooltipContent;
+                        }
+                    }
+                );
             }
-
-            // Optionen für eCharts dynamisch anpassen
-            dataZoomConfigs.push({
-              type: 'slider',
-              show: true,
-              xAxisIndex: index,
-              start: 0,
-              end: 100,
-              height: '12%',
-              bottom: '3%',
-            });
+            if (bPrintLines == 'value') {
+                dataZoomConfigs.push({
+                  type: 'slider',
+                  show: true,
+                  xAxisIndex: index,
+                  start: 0,
+                  end: 100,
+                  height: '12%',
+                  bottom: '3%',
+                });
+                dataZoomConfigs.push({
+                  type: 'inside',
+                  yAxisIndex:0,
+                  start: 0,
+                  end: 100,
+                  show:false
+                });
+            } else {
+                dataZoomConfigs.push({
+                  type: 'slider',
+                  show: false,
+                  xAxisIndex: index
+                });
+                dataZoomConfigs.push({
+                  type: 'inside',
+                  yAxisIndex: 0,
+                  start: 0,
+                  end: 100,
+                });
+            }
         });
 
         const chartOptions = {
@@ -261,8 +342,45 @@
           yAxis: yAxisConfigs,
           series: seriesConfigs,
           dataZoom: dataZoomConfigs,
+          tooltip: tooltipConfigs,
+          /*graphic: [
+            {
+              type: 'group',
+              rotation: Math.PI / 4,
+              bounding: 'raw',
+              right: 110,
+              bottom: 110,
+              z: 100,
+              children: [
+                {
+                  type: 'rect',
+                  left: 'center',
+                  top: 'center',
+                  z: 100,
+                  shape: {
+                    width: 400,
+                    height: 50
+                  },
+                  style: {
+                    fill: 'rgba(0,0,0,0.3)'
+                  }
+                },
+                {
+                  type: 'text',
+                  left: 'center',
+                  top: 'center',
+                  z: 100,
+                  style: {
+                    fill: '#fff',
+                    text: 'ECHARTS LINE CHART',
+                    font: 'bold 26px sans-serif'
+                  }
+                }
+              ]
+            }
+          ]*/
         };
-        console.log("gridConfigs", gridConfigs);
+        console.log("gridConfigs", chartOptions);
         chartInstances[divName].setOption(chartOptions);
     }
 
