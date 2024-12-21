@@ -225,41 +225,82 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
  * @returns {Promise<void>}
  */
 export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUntil, mpName) {
+    console.log ('chartConfig: ', chartConfig );
+    console.log ('chartConfig: ', mpName );
     const loadedApiTimeData = await loadTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
-    console.log ('time data: ', dtFrom, dtUntil);
+    console.log ('time data: ', loadedApiTimeData );
 
     const chartInstances  =  {
         'timeChart': reInitEchart('timeChart', chartDivs[1].divName, charts, chartConfig["plotTheme"]),
         'derivChart': reInitEchart('derivChart', chartDivs[2].divName, charts, chartConfig["plotTheme"]),
     };
+    if (loadedApiTimeData) {
+        await updateTimeChart(chartInstances['timeChart'], loadedApiTimeData, 'values', 'value');
+        await updateTimeChart(chartInstances['derivChart'], loadedApiTimeData, 'deriv', 'deriv');
 
-    await updateTimeChart(chartInstances['timeChart'], loadedApiTimeData, 'values', 'value');
-    await updateTimeChart(chartInstances['derivChart'], loadedApiTimeData, 'deriv', 'deriv');
+        chartInstances['timeChart'].on('dataZoom', function (event) {
+            if (event.dataZoomId === '\u0000series\u00000\u00000') {
+                chartInstances['derivChart'].dispatchAction({
+                    type: 'dataZoom',
+                    dataZoomId: event.dataZoomId,
+                    gridIndex: 0,
+                    xAxisIndex: 0, // Synchronisiere x-Achse 0
+                    xAxisIndex: 0,
+                    start: event.start,
+                    end: event.end
+                });
 
-    chartInstances['timeChart'].on('dataZoom', function (event) {
-        if (event.dataZoomId === '\u0000series\u00000\u00000') {
-            chartInstances['derivChart'].dispatchAction({
-                type: 'dataZoom',
-                dataZoomId: event.dataZoomId,
-                gridIndex: 0,
-                xAxisIndex: 0, // Synchronisiere x-Achse 0
-                xAxisIndex: 0,
-                start: event.start,
-                end: event.end
-            });
-
-        } else if (event.dataZoomId === '\u0000series\u00002\u00000') {
-            chartInstances['derivChart'].dispatchAction({
-                type: 'dataZoom',
-                dataZoomId: event.dataZoomId,
-                gridIndex:1,
-                xAxisIndex: 1, // Synchronisiere x-Achse 1
-                xAxisIndex: 0,
-                start: event.start,
-                end: event.end
-            });
-        }
-    });
+            } else if (event.dataZoomId === '\u0000series\u00002\u00000') {
+                chartInstances['derivChart'].dispatchAction({
+                    type: 'dataZoom',
+                    dataZoomId: event.dataZoomId,
+                    gridIndex:1,
+                    xAxisIndex: 1, // Synchronisiere x-Achse 1
+                    xAxisIndex: 0,
+                    start: event.start,
+                    end: event.end
+                });
+            }
+        });
+    } else {
+        console.log("Empty Graphes!")
+        const tooltipConfigs = [];
+        const gridConfigs = [];
+        const xAxisConfigs = [];
+        const yAxisConfigs = [];
+        const seriesConfigs = [];
+        const dataZoomConfigs = [];
+        const titleConfigs = [];
+        const toolboxConfigs = [];
+        const chartOptions = {
+            grid: gridConfigs,
+            backgroundColor:'rgba(255,255,255,0)',
+            title: titleConfigs,
+            xAxis: xAxisConfigs,
+            yAxis: yAxisConfigs,
+            series: seriesConfigs,
+            dataZoom: dataZoomConfigs,
+            tooltip: tooltipConfigs,
+            legend:{},
+            toolbox: {
+              show: true,
+              orient: 'horizontal',
+              feature: {
+                dataZoom: {
+                  yAxisIndex: 'none'
+                },
+                dataView: { readOnly: false },
+                //magicType: { type: ['line', 'bar'] },
+                restore: {},
+                saveAsImage: {}
+              }
+            }
+        };
+        chartInstances['timeChart'].clear();
+        chartInstances['derivChart'].clear();
+        chartInstances['timeChart'].setOption(chartOptions);
+        chartInstances['derivChart'].setOption(chartOptions);
+    };
 }
 
 /**

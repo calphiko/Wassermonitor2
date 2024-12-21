@@ -28,12 +28,15 @@
 
 
     onMount(async () => {
-        mpNameOptions = await getAvailableMeasPointsFromApi(apiUrl);
         await loadCharts();
     });
 
-    async function loadCharts(chartInstances) {
+    async function loadCharts() {
         const chartConfig = await fetchChartConfig(cConfigUrl);
+        mpNameOptions = await getAvailableMeasPointsFromApi(apiUrl);
+        if (!mpName) {
+            mpName = mpNameOptions[0];
+        };
         chartInstances = [
          {'name':'fillChart', 'divName': document.getElementById('fillChart')},
          {'name':'timeChart', 'divName': document.getElementById('timeChart')},
@@ -63,7 +66,7 @@
           type="datetime-local"
           class="input input-lg bg-neutral text-neutral-content"
           bind:value={dtFrom}
-          on:blur={loadTimeChart}
+          on:blur={loadCharts}
         />
       </div>
 
@@ -74,7 +77,7 @@
           id="until-picker"
           type="datetime-local"
           bind:value={dtUntil}
-          on:blur={loadTimeChart}
+          on:blur={loadCharts}
         />
       </div>
 </div>
