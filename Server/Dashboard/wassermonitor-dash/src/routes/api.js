@@ -1,5 +1,19 @@
 import {formatDateForISO} from './utils';
 
+
+/**
+ * Fetches the list of available measurement points from the API.
+ *
+ * This asynchronous function sends a POST request to the API to retrieve
+ * a list of available measurement points. The response data is parsed and returned.
+ *
+ * @async
+ * @function getAvailableMeasPointsFromApi
+ * @param {string} apiUrl - The base URL of the API.
+ * @returns {Promise<Object[]|null>} - Returns an array of available measurement points,
+ *                                     or null if an error occurs.
+ * @throws {Error} If the network response is not valid.
+ */
 export async function getAvailableMeasPointsFromApi(apiUrl) {
     try {
         const response = await fetch(apiUrl.concat('get_available_meas_points/'), {

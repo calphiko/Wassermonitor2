@@ -1,6 +1,34 @@
+/**
+ * ECharts-based visualization utilities for creating and updating charts.
+ *
+ * This module provides functions to:
+ * - Initialize and update bar and line charts using ECharts.
+ * - Load data from APIs and integrate it into chart visualizations.
+ * - Apply custom styling, themes, and interactions to charts.
+ *
+ * It is designed for flexible and dynamic chart generation, enabling seamless integration
+ * with external data sources and user interactions.
+ *
+ * @module charts
+ */
+
 import * as echarts from 'echarts';
 import { loadFillDataFromAPI, loadTimeDataFromAPI } from './api';
 
+
+/**
+ * Re-initializes an EChart instance.
+ *
+ * This function disposes of an existing EChart instance, if present, and creates a new one
+ * with the specified theme and container.
+ *
+ * @function reInitEchart
+ * @param {string} name - The name of the chart instance.
+ * @param {HTMLElement} divName - The DOM element to initialize the chart in.
+ * @param {Object} charts - A dictionary of existing chart instances.
+ * @param {string} plotTheme - The theme to apply to the chart.
+ * @returns {Object} - The newly created EChart instance.
+ */
 function reInitEchart(name, divName, charts, plotTheme) {
         console.log(name);
         if (charts[name]) {
@@ -10,6 +38,17 @@ function reInitEchart(name, divName, charts, plotTheme) {
         return c
     }
 
+/**
+ * Retrieves a linear gradient color for chart items.
+ *
+ * The function looks up a color gradient configuration by name and creates an ECharts linear gradient.
+ * If no gradient is found, a default color is returned.
+ *
+ * @function getLinearGradient
+ * @param {string} colorString - The name of the color gradient to retrieve.
+ * @param {Object} cConfig - The chart configuration object containing color gradients.
+ * @returns {string|Object} - The gradient object or a default color if not found.
+ */
 function getLinearGradient(colorString, cConfig) {
     const gradient = cConfig['colors'][colorString];
     if(gradient) {
@@ -18,6 +57,20 @@ function getLinearGradient(colorString, cConfig) {
     return "blue";
 }
 
+/**
+ * Loads and initializes the fill chart.
+ *
+ * This function fetches chart data from an API, initializes the fill chart,
+ * and updates its visualization.
+ *
+ * @async
+ * @function loadFillChart
+ * @param {HTMLElement} chartDiv - The DOM element to render the chart in.
+ * @param {Object} charts - A dictionary of existing chart instances.
+ * @param {Object} chartConfig - The configuration object for the chart.
+ * @param {string} mpName - The name of the measurement point.
+ * @returns {Promise<void>}
+ */
 export async function loadFillChart(chartDiv, charts, chartConfig, mpName) {
     const chartData = await loadFillDataFromAPI(chartConfig['APIUrl'], mpName);
     const chartObj = reInitEchart('fillChart', chartDiv, charts, chartConfig["plotTheme"]);
@@ -25,6 +78,19 @@ export async function loadFillChart(chartDiv, charts, chartConfig, mpName) {
     updateFillChart(chartObj, chartData, chartConfig, mpName);
 }
 
+/**
+ * Updates the fill chart with new data.
+ *
+ * Configures and updates the chart visualization using the provided data and settings.
+ *
+ * @async
+ * @function updateFillChart
+ * @param {Object} chart - The EChart instance to update.
+ * @param {Object} chartData - The data object containing chart values and thresholds.
+ * @param {Object} cConfig - The configuration object for the chart.
+ * @param {string} mpName - The name of the measurement point.
+ * @returns {Promise<void>}
+ */
 export async function updateFillChart(chart, chartData, cConfig, mpName) {
     const sensorIDs = chartData.sensor_name;
     const values = chartData.value;
@@ -143,6 +209,21 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
     chart.setOption(chartOptions);
 }
 
+/**
+ * Loads and initializes the time and derivative charts.
+ *
+ * Fetches data from an API, initializes the charts, and synchronizes interactions between them.
+ *
+ * @async
+ * @function loadTimeChart
+ * @param {Array<HTMLElement>} chartDivs - An array of DOM elements for the charts.
+ * @param {Object} charts - A dictionary of existing chart instances.
+ * @param {Object} chartConfig - The configuration object for the chart.
+ * @param {string} dtFrom - Start date for the data range.
+ * @param {string} dtUntil - End date for the data range.
+ * @param {string} mpName - The name of the measurement point.
+ * @returns {Promise<void>}
+ */
 export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUntil, mpName) {
     const loadedApiTimeData = await loadTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
     console.log ('time data: ', dtFrom, dtUntil);
@@ -181,6 +262,19 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
     });
 }
 
+/**
+ * Updates a time chart with new data.
+ *
+ * Configures and updates the time chart visualization with series and axes settings.
+ *
+ * @async
+ * @function updateTimeChart
+ * @param {Object} chartObj - The EChart instance to update.
+ * @param {Array<Object>} loadedApiTimeData - The data object containing chart values.
+ * @param {string} dDict - The key for accessing data within the loaded API data.
+ * @param {string} bPrintLines - Determines which series to render (e.g., value or deriv).
+ * @returns {Promise<void>}
+ */
 export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrintLines) {
     const tooltipConfigs = [];
     const gridConfigs = [];
