@@ -710,4 +710,18 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                 )
     return output
 
+def get_available_meas_points_from_sqlite_db(db_conf):
+    if not db_conf['engine'] == 'sqlite':
+        raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
+    db_path_list = [db_conf['sqlite_path'] + x for x in get_all_sqlite_files(db_conf['sqlite_path'])]
 
+    sql = "SELECT DISTINCT(name) FROM meas_point;"
+    output = []
+    for db_path in db_path_list:
+        conn, cur = get_sqlite3_connection(db_path)
+        cur.execute(sql)
+        res = cur.fetchall()
+        for row in res:
+            if not row[0] in output:
+                output.append(row[0])
+    return output
