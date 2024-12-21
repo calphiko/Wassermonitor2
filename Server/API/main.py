@@ -372,7 +372,7 @@ def request_last_measurements():
         config['database']
     )
     data_json = {}
-    print (data)
+    #print (data)
     for mp in data:
         data_json[mp] = {
             "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(config['API']['dtformat'])}" for x in data[mp]],
@@ -385,6 +385,12 @@ def request_last_measurements():
         }
 
     return JSONResponse(content=json.dumps(data_json, indent=4))
+
+def request_measurement_points():
+    data = dbu.get_available_meas_points_from_sqlite_db(
+        config['database']
+    )
+    return JSONResponse(content=json.dumps(data, indent=4))
 
 
 origins = [
@@ -421,6 +427,10 @@ async def post_data(request: Request):
 @app.post("/get_latest/")
 async def post_last_data():
     return request_last_measurements()
+
+@app.post("/get_available_meas_points")
+async def post_meas_points():
+    return request_measurement_points()
 
 if __name__ == '__main__':
     import uvicorn
