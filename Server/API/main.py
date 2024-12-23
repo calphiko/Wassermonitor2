@@ -104,6 +104,7 @@ class SensorData(BaseModel):
     datetime: datetime
     meas_point: str
     sensor_name: str
+    tank_height: float
     max_val: float
     warn: float
     alarm: float
@@ -156,6 +157,7 @@ def validate_json(data: dict):
             "datetime": "2024-12-15T10:00:00",
             "meas_point": "Temperature",
             "sensor_name": "TempSensor1",
+            "tank_height": 120,
             "max_val": 100.0,
             "warn": 80.0,
             "alarm": 90.0,
@@ -329,6 +331,7 @@ def request_measurement_data(request_dict):
                             {
                                 'timestamp': d_s['dt'].iloc[x],
                                 'value': d_s['value'].iloc[x],
+                                'tank_height': d_s['tank_height'].iloc[x],
                                 'max_val':d_s['max_val'].iloc[x],
                                 'warn':d_s['warn'].iloc[x],
                                 'alarm':d_s['alarm'].iloc[x],
@@ -382,6 +385,7 @@ def request_last_measurements():
             "warn": [data[mp][x]["warn"] for x in data[mp]],
             "alarm": [data[mp][x]["alarm"] for x in data[mp]],
             "max_val": [data[mp][x]["max_val"] for x in data[mp]],
+            "tank_height": [data[mp][x]["tank_height"] for x in data[mp]],
         }
 
     return JSONResponse(content=json.dumps(data_json, indent=4))

@@ -99,6 +99,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
     const chartCols = colors.map(item => getLinearGradient(item,cConfig));
     console.log(chartCols)
     const maxVal = chartData.max_val;
+    const tankHeight= chartData.tank_height;
     const thWarn = chartData.warn;
     const thAlarm = chartData.alarm;
     console.log(chart)
@@ -187,9 +188,25 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
               barWidth: '90%',
               barGap: '-100%',
             },
-
+            ,
             {
               name: 'Max',
+              type: 'bar',
+              showBackground: false,
+              itemStyle: {
+                color:  'rgba(0,0,0,0)',
+                borderColor: 'blue',
+                borderWidth: 1,
+                borderType: 'dashed',
+              },
+
+              data: maxVal,
+              barWidth: '90%',
+              barGap: '-100%',
+            },
+
+            {
+              name: 'Tank Height',
               type: 'bar',
               showBackground: false,
               itemStyle: {
@@ -199,7 +216,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
                 borderStyle: 'solid',
               },
 
-              data: maxVal,
+              data: tankHeight,
               barWidth: '90%',
               barGap: '-100%',
             },

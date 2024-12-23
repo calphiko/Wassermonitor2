@@ -106,6 +106,7 @@ def create_sqlite_database(conn, cur):
             id INTEGER NOT NULL PRIMARY KEY,
             meas_point_id INTEGER NOT NULL REFERENCES meas_point(id),
             name VARCHAR(1024) NOT NULL,
+            tank_height FLOAT NOT NULL,
             max_val FLOAT NOT NULL,
             warn FLOAT NOT NULL,
             alarm FLOAT NOT NULL
@@ -179,7 +180,7 @@ def insert_and_get_id(db_conf, dt, sql, sql_args):
             conn.close()
         return ins_id
 
-def sqlite_get_sensor_id(db_conf, mp_id, s_name, s_max_val, s_warn, s_alarm, dt):
+def sqlite_get_sensor_id(db_conf, mp_id, s_name, s_tank_height, s_max_val, s_warn, s_alarm, dt):
     """
      Retrieves or inserts a sensor ID based on the sensor details.
 
@@ -198,6 +199,8 @@ def sqlite_get_sensor_id(db_conf, mp_id, s_name, s_max_val, s_warn, s_alarm, dt)
          mp_id (int): The ID of the measurement point to which the sensor is associated.
 
          s_name (str): The name of the sensor.
+
+         s_tank_height (float): The height of the tank
 
          s_max_val (float): The maximum allowed value for the sensor.
 
@@ -221,6 +224,7 @@ def sqlite_get_sensor_id(db_conf, mp_id, s_name, s_max_val, s_warn, s_alarm, dt)
          }
          mp_id = 1
          s_name = 'TemperatureSensor'
+         s_tank_height = 120
          s_max_val = 100.0
          s_warn = 80.0
          s_alarm = 90.0
@@ -232,14 +236,14 @@ def sqlite_get_sensor_id(db_conf, mp_id, s_name, s_max_val, s_warn, s_alarm, dt)
         sqlite_file_name = db_conf['sqlite_path'] + get_sqlite3_file_name_from_conf(dt)
         try:
             # Check if Sensor exists
-            sql = "SELECT max(id) FROM sensor WHERE meas_point_id = ? AND name = ? AND max_val = ? AND warn = ? AND alarm = ?"
+            sql = "SELECT max(id) FROM sensor WHERE meas_point_id = ? AND name = ? AND tank_height = ? AND max_val = ? AND warn = ? AND alarm = ?"
 
             conn, cur = get_sqlite3_connection(sqlite_file_name)
-            cur.execute(sql, [mp_id, s_name, s_max_val, s_warn, s_alarm])
+            cur.execute(sql, [mp_id, s_name, s_tank_height, s_max_val, s_warn, s_alarm])
             res = cur.fetchall()
             if res == None or res == [] or res[0][0] == None: # If not: Insert Sensor
-                sql = "INSERT INTO sensor(meas_point_id, name, max_val, warn, alarm) VALUES (?, ?, ?, ?, ?)"
-                cur.execute(sql, [mp_id, s_name, s_max_val, s_warn, s_alarm])
+                sql = "INSERT INTO sensor(meas_point_id, name, tank_height, max_val, warn, alarm) VALUES (?, ?, ?, ?, ?, ?)"
+                cur.execute(sql, [mp_id, s_name, s_tank_height, s_max_val, s_warn, s_alarm])
                 s_id = cur.lastrowid
                 conn.commit()
             else:
@@ -354,6 +358,7 @@ def insert_value(db_conf, val_dict):
             'datetime': '2024-12-15T10:00:00',
             'meas_point': 'Temperature',
             'sensor_name': 'Sensor1',
+            'tank_height': 120,
             'max_val': 100.0,
             'warn': 80.0,
             'alarm': 90.0,
@@ -367,6 +372,7 @@ def insert_value(db_conf, val_dict):
         db_conf,
         mp_id,
         val_dict['sensor_name'],
+        val_dict['tank_height'],
         val_dict['max_val'],
         val_dict['warn'],
         val_dict['alarm'],
@@ -479,13 +485,14 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
             - `dt`: Timestamp of the measurement
             - `mpName`: Measurement point name
             - `sensorId`: Sensor ID
+            - `tank_height`: Height of the tank
             - `max_val`: Maximum value for the sensor
             - `warn`: Warning threshold
             - `alarm`: Alarm threshold
             - `meas_val`: Measured value
             - `slope`: Gradient of measured values over time
             - `derivation`: Derived metric calculated as `-slope / slope_date`
-            - `value`: Difference between `max_val` and `meas_val`, rounded to 1 decimal place
+            - `value`: Difference between `tank_height` and `meas_val`, rounded to 1 decimal place
 
     Raises:
         ValueError: If the database engine is not SQLite, or if the inputs `dt_begin` or `dt_end` are
@@ -530,7 +537,7 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
     if dt_begin > dt_end:
         raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
     sql = """
-        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value)
+        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height
         FROM meas_val v 
         INNER JOIN measurement m ON v.measurement_id=m.id 
         INNER JOIN sensor s ON m.sensor_id = s.id 
@@ -549,7 +556,7 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
             res = pd.DataFrame(cur.fetchall())
             if res.empty:
                 continue
-            res.columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val']
+            res.columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
             #res['value']
             for sens in res.sensorId.unique():
                 res_sens = res[res['sensorId'] == sens].copy().reset_index(drop=True)
@@ -569,7 +576,7 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
         else:
             continue
     if 'max_val' in list(output.keys()) and 'meas_val' in list(output.keys()):
-        output['value'] = round(output['max_val'] - output['meas_val'], 1)
+        output['value'] = round(output['tank_height'] - output['meas_val'], 1)
     return output
 
 def get_latest_database_file(path):
@@ -655,8 +662,9 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                   'dt': datetime,          # Measurement timestamp
                   'warn': warning_threshold,  # Warning threshold
                   'alarm': alarm_threshold,  # Alarm threshold
+                  'tank_height': tank height # Height of the tank
                   'max_val': max_value,      # Maximum allowed value for the sensor
-                  'value': calculated_value,  # Difference between max_val and actual value
+                  'value': calculated_value,  # Difference between tank_height and actual value
                   'color': assigned_color   # Color assigned based on value and thresholds
               }
 
@@ -678,7 +686,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
     print (db_path_list)
 
     sql = """
-        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s. warn, s.alarm, AVG(v.value)
+        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s. warn, s.alarm, AVG(v.value), tank_height
         FROM meas_val v 
         INNER JOIN measurement m ON v.measurement_id=m.id 
         INNER JOIN sensor s ON m.sensor_id = s.id 
@@ -702,7 +710,8 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                 output[row[2]][row[3]]['warn'] = row[5]
                 output[row[2]][row[3]]['alarm'] = row[6]
                 output[row[2]][row[3]]['max_val'] = row[4]
-                output[row[2]][row[3]]['value'] = round(row[4] - row[7],1)
+                output[row[2]][row[3]]['tank_height'] = row[8]
+                output[row[2]][row[3]]['value'] = round(row[8] - row[7],1)
                 output[row[2]][row[3]]['color'] = assign_color(
                     output[row[2]][row[3]]['value'],
                     row[5],
