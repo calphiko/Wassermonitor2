@@ -314,8 +314,8 @@ def request_measurement_data(request_dict):
     if not data.empty:
         for mp in data['mpName'].unique():
             d_mp = data[data['mpName']==mp]
-            max_d = max(d_mp['derivation'])
-            min_d = min(d_mp['derivation'])
+            max_d = max(d_mp['derivation_10'])
+            min_d = min(d_mp['derivation_10'])
             if d_mp.empty:
                 continue
             data_json[mp] = []
@@ -341,6 +341,9 @@ def request_measurement_data(request_dict):
                             {
                                 'timestamp': d_s['dt'].iloc[x],
                                 'value': d_s['derivation'].iloc[x],
+                                'value_10': d_s['derivation_10'].iloc[x],
+                                'peaks_pos': d_s['peaks_pos'].iloc[x],
+                                'peaks_neg': d_s['peaks_neg'].iloc[x],
                             }
                         for x in range(len(d_s))],
 
@@ -349,8 +352,6 @@ def request_measurement_data(request_dict):
                         'deriv_y_min': round(min_d,0) - 10,
                     }
                 )
-
-        #print (json.dumps(data_json, indent=4))
         return JSONResponse(content=json.dumps(data_json, indent=4))
     else:
         return JSONResponse(content=json.dumps({}, indent=4))

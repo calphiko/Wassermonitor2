@@ -10,6 +10,7 @@ Description:
 Dependencies:
     - sqlite3  (for sqlite support)
     - pymysql (for mysql support)
+    - scipy.signal (for signale processing)
 
 Configuration:
     - Some parameters can be configured in the config_file ../config.cfg.
@@ -20,6 +21,7 @@ Author:
 """
 import os.path
 
+import numpy
 import pandas as pd
 import pymysql
 import sqlite3
@@ -28,6 +30,7 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 import pytz
 import numpy as np
+from scipy import signal
 
 def get_mysql_connection(conf):
     """
@@ -460,6 +463,16 @@ def datetime_to_hours(x):
     output =x/3600.0
     return output
 
+def convert_nan_to_none (x):
+    try:
+        if np.isnan(x):
+            return None
+    except TypeError:
+        pass
+    return x
+
+
+
 def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
     """
     Retrieve measurement data from SQLite database within a specified date range.
@@ -569,14 +582,39 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
                     slope_date = pd.Series(np.gradient(slope_date), name='slope')
                     #slope_date = slope_date.apply(datetime_to_hours)
                     res_sens['derivation'] = -slope_val / slope_date
-                except ValueError:
-                    res_sens['derivation'] = 0
+                    if len (res_sens['derivation']) > 100:
+                        res_sens['derivation_10'] = signal.savgol_filter(res_sens['derivation'], 10, 3)
+                    else:
+                        res_sens['derivation_10'] = 0.0
+                except ValueError as e:
+                    print (f"WARNING: Value Error: {e}")
+                    res_sens['derivation'] = 0.0
+                    res_sens['derivation_10'] = 0.0
+
+                try:
+                    inds = signal.find_peaks(res_sens['derivation'], height=10)[0]
+                    inds_neg = signal.find_peaks(0-res_sens['derivation'], height=10)[0]
+                    #print(inds)
+                    res_sens['peaks_pos'] = np.nan
+                    res_sens['peaks_neg'] = np.nan
+                    res_sens.loc[inds, 'peaks_pos'] = res_sens['derivation_10'].iloc[inds]
+                    res_sens.loc[inds_neg, 'peaks_neg'] = res_sens['derivation_10'].iloc[inds_neg]
+                except ValueError as e:
+                    print(f"Value Error:\t{e}")
+                    res_sens['peaks_pos'] = np.nan
+                    res_sens['peaks_neg'] = np.nan
+
+                res_sens['peaks_pos'] = res_sens['peaks_pos'].replace({np.nan: None})
+                res_sens['peaks_neg'] = res_sens['peaks_neg'].replace({np.nan: None})
                 output = pd.concat([output, res_sens], ignore_index=True)
             conn.close()
         else:
             continue
     if 'max_val' in list(output.keys()) and 'meas_val' in list(output.keys()):
         output['value'] = round(output['tank_height'] - output['meas_val'], 1)
+    #output['peaks_pos'] = output['peaks_pos'].apply(lambda x: None if np.isnan(x) else x)
+    #output['peaks_neg'] = output['peaks_neg'].apply(lambda x: None if np.isnan(x) else x)
+    #print(output['peaks_pos'].to_list())
     return output
 
 def get_latest_database_file(path):
