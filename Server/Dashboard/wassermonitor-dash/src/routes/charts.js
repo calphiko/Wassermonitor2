@@ -30,7 +30,7 @@ import { loadFillDataFromAPI, loadTimeDataFromAPI } from './api';
  * @returns {Object} - The newly created EChart instance.
  */
 function reInitEchart(name, divName, charts, plotTheme) {
-        console.log(name);
+        //console.log(name);
         if (charts[name]) {
             echarts.dispose(charts[name]);
         }
@@ -74,7 +74,7 @@ function getLinearGradient(colorString, cConfig) {
 export async function loadFillChart(chartDiv, charts, chartConfig, mpName) {
     const chartData = await loadFillDataFromAPI(chartConfig['APIUrl'], mpName);
     const chartObj = reInitEchart('fillChart', chartDiv, charts, chartConfig["plotTheme"]);
-    console.log("chartData:", chartData);
+    //console.log("chartData:", chartData);
     updateFillChart(chartObj, chartData, chartConfig, mpName);
 }
 
@@ -95,22 +95,22 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
     const sensorIDs = chartData.sensor_name;
     const values = chartData.value;
     const colors = chartData.color;
-    console.log(colors)
+    //console.log(colors)
     const chartCols = colors.map(item => getLinearGradient(item,cConfig));
-    console.log(chartCols)
+    //console.log(chartCols)
     const maxVal = chartData.max_val;
     const tankHeight= chartData.tank_height;
     const thWarn = chartData.warn;
     const thAlarm = chartData.alarm;
-    console.log(chart)
+    //console.log(chart)
 
-    console.log("chart:" ,chart)
+    //console.log("chart:" ,chart)
     const chartOptions = {
-          title: {
+          /*title: {
             text: mpName,
             //subtext: 'bla',
             left: 'center',
-          },
+          },*/
           backgroundColor:'rgba(255,255,255,0)',
           xAxis: {
             data: sensorIDs,
@@ -242,10 +242,10 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
  * @returns {Promise<void>}
  */
 export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUntil, mpName) {
-    console.log ('chartConfig: ', chartConfig );
-    console.log ('chartConfig: ', mpName );
+    //console.log ('chartConfig: ', chartConfig );
+    //console.log ('chartConfig: ', mpName );
     const loadedApiTimeData = await loadTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
-    console.log ('time data: ', loadedApiTimeData );
+    //console.log ('time data: ', loadedApiTimeData );
 
     const chartInstances  =  {
         'timeChart': reInitEchart('timeChart', chartDivs[1].divName, charts, chartConfig["plotTheme"]),
@@ -280,7 +280,7 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
             }
         });
     } else {
-        console.log("Empty Graphes!")
+        //console.log("Empty Graphes!")
         const tooltipConfigs = [];
         const gridConfigs = [];
         const xAxisConfigs = [];
@@ -343,14 +343,24 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
     const titleConfigs = [];
     const toolboxConfigs = [];
     const countOfSubplots = loadedApiTimeData.length;
+    let legendConfig;
+    let top;
+    if (bPrintLines == 'value' ) {
+        legendConfig = {top:'0%'};
+        top = '5%';
+    } else {
+        legendConfig = {top:'0%'};
+        top = '7%';
+    }
+    //console.log ('legenConfig', legendConfig)
 
-    console.log('Counts of plots:', countOfSubplots);
+    //console.log('Counts of plots:', countOfSubplots);
 
     loadedApiTimeData.forEach((chart, index) => {
         titleConfigs.push({
            text: chart.sensorID,
            left: `${92.0/countOfSubplots/2 + index * (100.0/countOfSubplots)}%`,
-           top:'0',
+           top:top,
            textStyle: {
             fontSize:14,
             fontWeight: 'bold',
@@ -372,7 +382,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
            left: `${5+ index * (100.0/countOfSubplots)}%`,
            //left: '5%',
            right: '2%',
-           top: '5%',
+           top: top,
            bottom: '35%',
            height: '65%',
            width: `${92.0/countOfSubplots}%`,
@@ -398,6 +408,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                min: chart.deriv_y_min,
                max: chart.deriv_y_max,
                gridIndex: index,
+               // logBase:1024,
             });
         }
         if (bPrintLines == 'value') {
@@ -475,17 +486,55 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
         } else {
             seriesConfigs.push(
               {
-                name: chart.name,
+                name: 'Derivation [cm/h]',
                 type: 'line',
                 smooth: true,
                 data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value]),
                 xAxisIndex: index,
                 yAxisIndex: index,
                 symbol: 'none',
+                silent:true,
                 lineStyle:{
-                    color:'lightblue',
+                    color:'grey',
+                    width:1
+                },
+              },
+              {
+                name: 'Avg of 10 of Derivation [cm/h]',
+                type: 'line',
+                smooth: true,
+                data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value_10]),
+                xAxisIndex: index,
+                yAxisIndex: index,
+                symbol: 'none',
+                lineStyle:{
+                    color:'orange',
                     width:3
                 },
+              },
+              {
+                name: 'Positive Peaks',
+                type: 'scatter',
+                data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.peaks_pos]),
+                xAxisIndex: index,
+                yAxisIndex: index,
+                symbol: 'triangle',
+                symbolSize: 15,
+                symbolColor: 'red',
+                //symbol: 'none',
+
+              },
+              {
+                name: 'Negative Peaks',
+                type: 'scatter',
+                data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.peaks_neg]),
+                xAxisIndex: index,
+                yAxisIndex: index,
+                symbol: 'triangle',
+                symbolSize: 15,
+                symbolColor: 'red',
+                //symbol: 'none',
+
               },
             );
             tooltipConfigs.push(
@@ -506,7 +555,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
               xAxisIndex: index,
               start: 0,
               end: 100,
-              height: '12%',
+              height: '8%',
               bottom: '3%',
             });
             dataZoomConfigs.push({
@@ -540,7 +589,8 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
       series: seriesConfigs,
       dataZoom: dataZoomConfigs,
       tooltip: tooltipConfigs,
-      legend:{},
+      legend: legendConfig,
+      //legend:{bottom: '12%'},
       toolbox: {
         show: true,
         orient: 'horizontal',
