@@ -29,9 +29,11 @@ import { loadFillDataFromAPI, loadTimeDataFromAPI } from './api';
  * @param {string} plotTheme - The theme to apply to the chart.
  * @returns {Object} - The newly created EChart instance.
  */
+
 function reInitEchart(name, divName, charts, plotTheme) {
-        //console.log(name);
+        console.log("reinit charts:", charts);
         if (charts[name]) {
+            console.log("reinit: ", name);
             echarts.dispose(charts[name]);
         }
         const c = echarts.init(divName,plotTheme);
@@ -223,7 +225,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
 
           ]
     };
-    chart.setOption(chartOptions);
+    chart.setOption(chartOptions,{ notMerge: true, replaceMerge: ['series'] });
 }
 
 /**
@@ -606,5 +608,5 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
       }
     }
 
-    chartObj.setOption(chartOptions);
+    chartObj.setOption(chartOptions,{ notMerge: true, replaceMerge: ['series'] });
 }
