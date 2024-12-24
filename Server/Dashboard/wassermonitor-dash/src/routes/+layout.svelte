@@ -17,7 +17,7 @@ let { children } = $props();</script>
 			build with <a href="https://svelte.dev/docs/kit">svelte</a>
 		</p>
 		<p>
-			if you are interested in wassermonitor please my <a href="https://wassermonitor.de">blog</a>.
+			if you are interested in wassermonitor please visit my <a href="https://wassermonitor.de">blog</a>.
 	    </p>
 	</footer>
 </div>
