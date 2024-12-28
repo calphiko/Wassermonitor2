@@ -1,5 +1,7 @@
 {
-  "name": "Raspi1",
+  "name": "raspi1",
+  "token_path": ".token",
+  "psk_path": ".wassermonitor",
   "sensors": [
     {
       "name": "left_tank",

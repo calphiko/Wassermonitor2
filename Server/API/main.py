@@ -1,52 +1,48 @@
 """
-This module is a FastAPI web application that interacts with a database to handle sensor data.
+This module is a FastAPI application that provides various endpoints for handling sensor data.
+It supports data insertion, retrieval of measurement data, and fetching available measurement points.
 
-The application provides various endpoints to:
-1. Insert sensor data into a database.
-2. Retrieve measurement data for a specific time range.
-3. Retrieve the most recent measurement data.
-
-The module includes validation of incoming data formats using Pydantic models and provides basic
-authentication through an API token.
+The module handles authentication via signature verification and processes sensor data stored in a database.
 
 Dependencies:
 - FastAPI: Web framework for building APIs.
 - Pydantic: For data validation using models.
-- SQLite: Database for storing sensor measurements (via `database_utils`).
-- JSON: For data serialization.
-- ConfigParser: For reading configuration settings.
-- time: For introducing delays in case of invalid token verification.
-- pandas: For data manipulation and querying.
+- SQLite: For database interactions through `database_utils`.
+- configparser: For reading configuration settings from a file.
+- json: For JSON serialization.
+- psk_auth: For handling public keys and signature verification.
+- datetime: For working with date and time.
+- base64: For encoding and decoding signatures.
 
 API Endpoints:
-- POST /insert/: Receives sensor data and inserts it into the database.
-- POST /get/: Receives a time range and retrieves sensor measurements for that range.
-- POST /get_latest/: Retrieves the most recent measurement data.
-
-Configuration:
-- The configuration is read from the file specified by `config_file`.
-- The configuration includes API settings like the token and port number, along with database settings.
+- POST /insert/: Inserts sensor data into the database after verifying the signature.
+- POST /get/: Retrieves sensor data within a specified time range.
+- POST /get_latest/: Retrieves the most recent sensor measurements.
+- POST /get_available_meas_points: Fetches available measurement points from the database.
 
 Classes:
-- SensorData: Defines the expected structure of sensor data.
-- request_json: Defines the expected structure of the request for a time range.
+- SensorData: Defines the structure of the sensor data, including measurement details and values.
+- request_json: Defines the structure for requests containing time ranges (start and end datetimes).
 
 Functions:
-- validate_json(data: dict): Validates the structure of sensor data.
-- validate_request_json(data: dict): Validates the structure of the time range request.
-- verify_token(token: str): Verifies the validity of the provided API token.
-- insert_to_db(measurement): Inserts sensor measurement data into the database.
-- request_measurement_data(request_dict): Retrieves measurement data from the database for a given time range.
-- request_last_measurements(): Retrieves the most recent measurement data from the database.
+- validate_json(data: dict): Validates sensor data against the `SensorData` model. Raises HTTPException if validation fails.
+- validate_request_json(data: dict): Validates the time range data against the `request_json` model. Raises HTTPException if validation fails.
+- insert_to_db(measurement): Inserts valid measurement data into the database.
+- request_measurement_data(request_dict): Fetches and returns measurement data from the database for a given time range.
+- request_last_measurements(): Retrieves the most recent measurements from the database.
+- request_measurement_points(): Returns a list of available measurement points in the database.
+- verify_signature(public_key, data, signature): Verifies the authenticity of the signature using the public key.
+
+Configuration:
+- The configuration is read from the file specified by `config_file`, which includes API settings (e.g., authorized keys, port number) and database settings.
 
 Example Usage:
-1. To insert data into the database, send a POST request to `/insert/` with sensor data.
-2. To get measurement data for a specific time range, send a POST request to `/get/` with a time range.
-3. To get the most recent measurement data, send a POST request to `/get_latest/`.
+1. To insert data, send a POST request to `/insert/` with the sensor data and signature.
+2. To retrieve data for a specific time range, send a POST request to `/get/` with the time range data.
+3. To get the most recent measurements, send a POST request to `/get_latest/`.
 
 Author:
-    - Carl Philipp Koppen (admin@wassermonitor.de)
-
+- Carl Philipp Koppen (admin@wassermonitor.de)
 """
 
 from fastapi import FastAPI, Request, Depends, HTTPException
@@ -55,23 +51,50 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_406_NOT_ACCEPTABLE
 from pydantic import BaseModel, ValidationError
+import time
 import database_utils as dbu
 import configparser
 import json
-import time
 from datetime import datetime
-import pandas as pd
+from psk_auth import load_authorized_keys, verify_signature
+import base64
+
 
 config_file = "../config.cfg"
 
 # Parse Config File
 config = configparser.RawConfigParser()
 config.read(config_file)
+authorized_keys = load_authorized_keys(config['API']['authorized_keys_file'])
 
 PORT = int(config['API']['port'])
 print (PORT)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+
+def verify_token(token: str = Depends(oauth2_scheme)):
+    """
+     Verifies the provided token against the expected token from the configuration.
+
+     Parameters:
+     token (str): The token to be verified, obtained from the OAuth2 scheme.
+
+     Raises:
+     HTTPException: If the token is invalid, an HTTP 401 Unauthorized exception is raised with a delay.
+
+     Example:
+      from fastapi import Depends, HTTPException
+      token = "example_token"
+      verify_token(token)
+     """
+
+    if token != config['API']['token']:
+        time.sleep(5)
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={'WWW-Authentication':'Bearer'},
+        )
 
 class SensorData(BaseModel):
     """
@@ -210,37 +233,6 @@ def validate_request_json(data):
         raise HTTPException(
             status_code=HTTP_406_NOT_ACCEPTABLE,
             detail="Invalid JSON Structure",
-        )
-def verify_token(token: str = Depends(oauth2_scheme)):
-    """
-    Verifies the validity of the provided API token.
-
-    This function checks whether the provided token matches the expected token
-    stored in the configuration. If the token is invalid, it triggers a 401
-    Unauthorized error, causing a brief delay before the error is raised.
-
-    Args:
-        token (str, optional): The API token provided by the client for authentication.
-                                It is retrieved from the request's authorization header
-                                using the `Depends` function and the `oauth2_scheme`.
-
-    Returns:
-        None: If the token is valid, the function simply returns and allows the
-              request to proceed.
-
-    Raises:
-        HTTPException: If the token is invalid, an HTTP exception with a status code
-                        of 401 (Unauthorized) is raised.
-
-    Example:
-        verify_token(token="some_token")
-    """
-    if token != config['API']['token']:
-        time.sleep(5)
-        raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={'WWW-Authentication':'Bearer'},
         )
 
 def insert_to_db(measurement):
@@ -418,9 +410,19 @@ async def receive_data(request: Request, token: str = Depends(verify_token)):
 
     json_obj = await request.json()
     json_dict = json.loads(json_obj)
-    if validate_json(json_dict):
-        x = insert_to_db(json_dict)
-        return x
+    data = json_dict["data"]
+    signature = base64.b64decode(json_dict["signature"])
+    client_id = json_dict["client_id"]
+
+    public_key = authorized_keys.get(client_id)
+    if not public_key:
+        raise HTTPException(status_code=401, detail="Unauthorized client")
+
+    try:
+        verify_signature(public_key, data, signature)
+        return insert_to_db(data)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid signature")
 
 
 @app.post("/get/")
