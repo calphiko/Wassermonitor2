@@ -31,14 +31,15 @@ import { loadFillDataFromAPI, loadTimeDataFromAPI } from './api';
  */
 
 function reInitEchart(name, divName, charts, plotTheme) {
-        console.log("reinit charts:", charts);
-        if (charts[name]) {
-            console.log("reinit: ", name);
-            echarts.dispose(charts[name]);
-        }
-        const c = echarts.init(divName,plotTheme);
-        return c
+    // MAYBE DELETABLE
+    //console.log("reinit charts:", charts);
+    if (charts[name]) {
+        //console.log("reinit: ", name);
+        echarts.dispose(charts[name]);
     }
+    const c = echarts.init(divName,plotTheme);
+    return c
+}
 
 /**
  * Retrieves a linear gradient color for chart items.
