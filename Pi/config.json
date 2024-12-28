@@ -3,13 +3,15 @@
   "sensors": [
     {
       "name": "left_tank",
-      "max_val": 155,
+      "tank_height": 155,
+      "max_val": 135,
       "warn": 90,
       "alarm": 70,
       "calib_file": "calib/calib_date_sensor_3.csv"
     },
     {
       "name": "right_tank",
+      "tank_height": 165,
       "max_val": 145,
       "warn": 92,
       "alarm": 540,
