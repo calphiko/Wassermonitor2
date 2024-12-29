@@ -3,6 +3,7 @@ Module Name: Wassermonitor2 API database functions
 
 Description:
     This file provides the database functions for the wassermonitor API.
+
     It includes functions for:
         - Insert measurement data into the database
         - Read data from database.
@@ -38,15 +39,15 @@ def get_mysql_connection(conf):
 
     Parameters:
     conf (dict): A dictionary containing the database connection parameters:
-        - 'host' (str): The hostname or IP address of the MySQL server.
-        - 'user' (str): The username to use for authentication.
-        - 'pass' (str): The password to use for authentication.
-        - 'db' (str): The name of the database to connect to.
+    - 'host' (str): The hostname or IP address of the MySQL server.
+    - 'user' (str): The username to use for authentication.
+    - 'pass' (str): The password to use for authentication.
+    - 'db' (str): The name of the database to connect to.
 
     Returns:
     tuple: A tuple containing:
-        - conn: The MySQL connection object.
-        - cur: The MySQL cursor object.
+    - conn: The MySQL connection object.
+    - cur: The MySQL cursor object.
 
     Example:
     >>> conf = {'host': 'localhost', 'user': 'root', 'pass': 'password', 'db': 'test_db'}
@@ -56,6 +57,7 @@ def get_mysql_connection(conf):
                             db=conf['db'], connect_timeout=60)
     cur = conn.cursor()
     return conn, cur
+
 
 def get_sqlite3_connection(db_file):
     """
@@ -67,8 +69,8 @@ def get_sqlite3_connection(db_file):
 
     Returns:
     tuple: A tuple containing:
-        - conn: The SQLite3 connection object.
-        - cur: The SQLite3 cursor object.
+    - conn: The SQLite3 connection object.
+    - cur: The SQLite3 cursor object.
 
     Example:
     >>> db_file = 'example.db'
@@ -151,8 +153,9 @@ def insert_and_get_id(db_conf, dt, sql, sql_args):
 
     Parameters:
     db_conf (dict): A dictionary containing the database configuration parameters:
-        - 'engine' (str): The type of database engine (e.g., "sqlite").
-        - 'sqlite_path' (str): The path to the SQLite database files.
+    - 'engine' (str): The type of database engine (e.g., "sqlite").
+    - 'sqlite_path' (str): The path to the SQLite database files.
+
     dt (datetime): The datetime object used to generate the SQLite file name.
     sql (str): The SQL query to execute.
     sql_args (tuple): The arguments to pass to the SQL query.
@@ -689,22 +692,25 @@ def get_last_meas_data_from_sqlite_db(db_conf):
 
     Args:
         db_conf (dict): A dictionary containing the database configuration.
-                        It should have the following keys:
-                        - 'engine': Should be 'sqlite' for this function to work.
-                        - 'sqlite_path': The file path to the SQLite database directory.
+
+        It should have the following keys:
+        - 'engine': Should be 'sqlite' for this function to work.
+        - 'sqlite_path': The file path to the SQLite database directory.
 
     Returns:
         dict: A nested dictionary structure with measurement data.
+
               The structure is as follows:
-              output[measurement_point_name][sensor_name] = {
-                  'dt': datetime,          # Measurement timestamp
-                  'warn': warning_threshold,  # Warning threshold
-                  'alarm': alarm_threshold,  # Alarm threshold
-                  'tank_height': tank height # Height of the tank
-                  'max_val': max_value,      # Maximum allowed value for the sensor
-                  'value': calculated_value,  # Difference between tank_height and actual value
-                  'color': assigned_color   # Color assigned based on value and thresholds
-              }
+                  output[measurement_point_name][sensor_name] = {
+                      'dt': datetime,          # Measurement timestamp
+                      'warn': warning_threshold,  # Warning threshold
+                      'alarm': alarm_threshold,  # Alarm threshold
+                      'tank_height': tank height # Height of the tank
+                      'max_val': max_value,      # Maximum allowed value for the sensor
+                      'value': calculated_value,  # Difference between tank_height and actual value
+                      'color': assigned_color   # Color assigned based on value and thresholds
+                  }
+
 
     Raises:
         ValueError: If the 'engine' in db_conf is not 'sqlite'.
@@ -715,6 +721,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
             'engine': 'sqlite',
             'sqlite_path': '/path/to/db/'
         }
+
         result = get_last_meas_data_from_sqlite_db(db_conf)
     """
 
