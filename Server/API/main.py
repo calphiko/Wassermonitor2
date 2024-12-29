@@ -58,9 +58,17 @@ import json
 from datetime import datetime
 from psk_auth import load_authorized_keys, verify_signature
 import base64
+import os
 
 
-config_file = "../config.cfg"
+config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg")]
+for c in config_file_pos:
+    print (os.path.abspath(c))
+    if os.path.exists(c):
+        config_file = c
+        break
+print(f"Wassermonitor2 starting at {datetime.now()} ...")
+print(f"reading config from {config_file} ...")
 
 # Parse Config File
 config = configparser.RawConfigParser()
@@ -113,6 +121,7 @@ class SensorData(BaseModel):
         alarm (float): The alarm threshold for the sensor.
         values (list[float]): A list of float values measured by the sensor at the specified datetime.
 
+
     Example:
         sensor_data = SensorData(
             datetime=datetime(2024, 12, 15, 10, 0),
@@ -123,6 +132,7 @@ class SensorData(BaseModel):
             alarm=90.0,
             values=[75.0, 76.0, 77.5]
         )
+
     """
     datetime: datetime
     meas_point: str
@@ -248,10 +258,13 @@ def insert_to_db(measurement):
         measurement (any): The data to be inserted into the database. If it is a dictionary,
                            it is passed to the `insert_value` function for insertion.
 
+
     Returns:
-        dict: If the `measurement` is not a dictionary, a message `{'message': 'Received'}`
-              is returned. If it is a dictionary, the result of the `insert_value` function
-              is returned, which is typically a database insert operation.
+        dict:
+        If the `measurement` is not a dictionary, a message `{'message': 'Received'}`
+        is returned. If it is a dictionary, the result of the `insert_value` function
+        is returned, which is typically a database insert operation.
+
 
     Example:
         measurement = {
@@ -263,6 +276,7 @@ def insert_to_db(measurement):
             'alarm': 90.0,
             'values': [75.0, 76.0, 77.5]
         }
+
         result = insert_to_db(measurement)
     """
     if isinstance(measurement, dict):
@@ -293,6 +307,7 @@ def request_measurement_data(request_dict):
             'dt_begin': '2024-12-01T08:00:00',
             'dt_end': '2024-12-01T18:00:00'
         }
+
         response = request_measurement_data(request_dict)
     """
 
