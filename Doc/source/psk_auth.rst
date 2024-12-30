@@ -5,3 +5,7 @@ psk\_auth module
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. toctree::
+   :maxdepth: 3
+   :caption: Contents:

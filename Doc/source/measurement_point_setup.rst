@@ -1,14 +1,30 @@
-Setup of Measurement Points
-===========
+Measurement Points
+==================
 
 
-General Setup
-bla bla [Ref] blar
+General
+-------------
+A wassermonitor measurement point consists of a raspberry pi (raspi), a stack of adapter cards to
+talk with sps-standard-sensors and the sensors with their setup themselves.
 
-.. image:: pictures/Measurement_Principle.svg
+The raspi is responsible for the following features:
+    * Read structure and sensor information from a configuration file
+    * Talk with sensors and save measurement values in a local sqlite-file
+    * Send the stored measurements values to the server api
+
+Example
+-------
+In this example we see the following setup.
+
+
+.. figure:: pictures/Measurement_Principle.svg
+    :width: 80%
+
+    Typical measurement point setup with a single raspberry pi connected with two sensors via an sps-adapter-card-stack.
+    With the current setup, four sensors can be connected to a single raspi.
 
 .. image:: pictures/Meas_Setup_details.svg
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:

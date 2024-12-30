@@ -18,5 +18,7 @@ All the values can be monitored on a special dashboard.In order to warn or abuse
    :caption: Contents:
 
    basics
+   setup
    measurement_point_setup
+
    modules
