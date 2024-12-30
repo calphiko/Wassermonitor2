@@ -4,7 +4,13 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 import json
 import os
 
-config_json_path = './config.json'
+config_file_pos = [os.path.abspath("../config.json"), os.path.abspath("../Pi/config.json"), os.path.abspath("./config.json")]
+for c in config_file_pos:
+    #print (os.path.abspath(c))
+    if os.path.exists(c):
+        config_file = c
+        break
+config_json_path = config_file
 
 def read_config_json():
     with open(config_json_path) as f:
