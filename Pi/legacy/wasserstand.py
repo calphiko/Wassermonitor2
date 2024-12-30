@@ -8,7 +8,7 @@ from mysqlopts import give_mysql_opts
 
 import smbus2 as smbus
 from time import sleep
-import sensortools as st
+from Pi.legacy import sensortools as st
 
 bus = smbus.SMBus(1)                                    #Bus definieren
 
