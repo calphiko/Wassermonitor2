@@ -85,6 +85,14 @@ class Sensor():
         raise NotImplementedError("This Method has to be defined in the dedicated sensor class (e.g. IFM_O1()")
 
     def perform_measurement(self):
+        """
+        Perform a measurement for the sensor.
+
+        This method must be implemented in the dedicated sensor subclass.
+
+        :raises NotImplementedError: If the method is not implemented in the subclass.
+        """
+
         raise NotImplementedError("This Method has to be defined in the dedicated sensor class (e.g. IFM_O1()")
 
 class IFM_O1(Sensor):
@@ -210,9 +218,13 @@ class IFM_O1(Sensor):
             print(f"\tWARNING get_calib_voltage: No data occurred:\n\t\t{e}")
             return 0.0
 
-
-
     def perform_measurement(self):
+        """
+        Perform a series of measurements for the sensor.
+
+        :return: A list of calibrated values from the measurements.
+        :rtype: list[float]
+        """
         output = []
         for i in range(self.cnt_of_vals_per_meas):
             print (f"performing measurement {i} for sensor {self.name} ...")
