@@ -22,3 +22,4 @@ All the values can be monitored on a special dashboard.In order to warn or abuse
    measurement_point_setup
 
    modules
+   Pi
