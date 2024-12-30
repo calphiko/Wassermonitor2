@@ -3,5 +3,7 @@
 .idea/
 /Test/Server/Data/12-2024.sqlite
 /Server/Dashboard/wassermonitor-dash/package-lock.json
-/Pi/.wassermonitor
+/Pi/.psk
 /Doc/build/
+/Pi/calib/calib_date_sensor_3.csv
+/Pi/calib/calib_date_sensor_13.csv
