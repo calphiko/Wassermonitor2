@@ -9,6 +9,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../../Server/API/"))
+sys.path.insert(0, os.path.abspath("../../Pi/"))
 print(sys.path)
 
 project = 'Wassermonitor2'
