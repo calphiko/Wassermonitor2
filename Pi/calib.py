@@ -1,5 +1,4 @@
-import sensortools as s
-import sys
+from Pi.legacy import sensortools as s
 
 SENSOR = 18
 
