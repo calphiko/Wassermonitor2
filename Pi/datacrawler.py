@@ -15,6 +15,7 @@ from WmPiUtils import read_pi_config_from_json
 from WmSensors import Sensor
 from time import sleep
 from datetime import datetime
+import pytz
 
 
 config_file_pos = [os.path.abspath("../config.json"), os.path.abspath("../Pi/config.json"), os.path.abspath("./config.json")]
@@ -65,11 +66,15 @@ def save_values_to_temp_storage(s, vals, now):
         print (f"\ttemporary storage path not found.\n\t{path}\n\t  creating... ")
         os.makedirs(path)
 
-    filename = f"{now.isoformat()}_{s.name}.json"
+    filename = f"{now.strftime('%Y%m%d%H%M%S')}_{s.name}.json"
     filename = f"{path}/{filename}"
     data = {
-        "sensor": s.name,
-        "dt": now.isoformat(),
+        "sensor_name": s.name,
+        "datetime": now.isoformat(),
+        "tank_height": s.sensor_offset_zero,
+        "max_val": s.max_val,
+        "warn": s.warn,
+        "alarm": s.alarm,
         "values": vals,
     }
     with open (filename, 'w', encoding='utf-8') as f:
@@ -85,7 +90,7 @@ def measurement():
     """
 
     for s in sensors:
-        now = datetime.now()
+        now = datetime.now(tz=pytz.utc)
         vals = s.perform_measurement()
         save_values_to_temp_storage(s, vals, now)
 
