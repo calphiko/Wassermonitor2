@@ -57,10 +57,10 @@ class Sensor():
         """
         self.name = sensor_dict["name"]
         self.calib_file = os.path.abspath(sensor_dict["calib_file"])
-        self.sensor_offset_zero = sensor_dict["tank_height"]
-        self.max_val = sensor_dict["max_val"]
-        self.warn = sensor_dict["warn"]
-        self.alarm = sensor_dict["alarm"]
+        self.sensor_offset_zero = float(sensor_dict["tank_height"])
+        self.max_val = float(sensor_dict["max_val"])
+        self.warn = float(sensor_dict["warn"])
+        self.alarm = float(sensor_dict["alarm"])
         self.cnt_of_vals_per_meas = cnt_of_vals_per_meas
     def calibrate_data(self, raw_data):
         """
