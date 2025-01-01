@@ -1,6 +1,8 @@
-API
-===
+Server
+======
 
+API
+---
 .. toctree::
    :maxdepth: 4
 
@@ -8,6 +10,18 @@ API
    database_utils
    psk_auth
 
+Warningbot
+----------
+
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
+
+
+Dashboard
+---------
+
+.. toctree::
+   :maxdepth: 2
+
+   dashboard
