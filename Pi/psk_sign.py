@@ -10,6 +10,7 @@ for a given dataset.
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes, serialization
 import json
+import base64
 
 def get_priv_key_from_file(file_path):
     """
@@ -43,7 +44,7 @@ def sign_meas_data(priv_key_file, data):
     :type priv_key_file: str
     :param data: The measurement data to be signed. It must be serializable to JSON.
     :type data: dict
-    :return: A dictionary containing the original data and the signature in hexadecimal format.
+    :return: A dictionary containing the original data and the signature in base64 format.
     :rtype: dict
     :raises ValueError: If the private key file is invalid or if the data is not serializable to JSON.
     :raises TypeError: If the key or data format is incorrect.
@@ -59,6 +60,7 @@ def sign_meas_data(priv_key_file, data):
 
     payload = {
         "data": data,
-        "signature": signature.hex()
+        "client_id": data["meas_point"],
+        "signature": base64.b64encode(signature).decode("utf-8")
     }
     return payload
