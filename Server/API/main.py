@@ -116,6 +116,7 @@ class SensorData(BaseModel):
         datetime (datetime): The date and time of the sensor reading.
         meas_point (str): The name of the measurement point the sensor is associated with.
         sensor_name (str): The name of the sensor.
+        tank_height (float): The zero offset of the sensor setup
         max_val (float): The maximum allowed value for the sensor measurement.
         warn (float): The warning threshold for the sensor.
         alarm (float): The alarm threshold for the sensor.
@@ -125,8 +126,9 @@ class SensorData(BaseModel):
     Example:
         sensor_data = SensorData(
             datetime=datetime(2024, 12, 15, 10, 0),
-            meas_point='Temperature',
-            sensor_name='TempSensor1',
+            meas_point='raspi1',
+            sensor_name='Sensor1',
+            tank_height= 155.0
             max_val=100.0,
             warn=80.0,
             alarm=90.0,
