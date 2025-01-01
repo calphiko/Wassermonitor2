@@ -61,6 +61,10 @@ At first, please follow `this tutorial <https://projects.raspberrypi.org/en/proj
 
 After that please activate the i2c-bus on your device to enable communicating with the sensors:
 
+.. code-block::
+    sudo raspi-config
+    navigate to Interfacing-Options >> I2C
+    Would you like to ARM I2C interface to enabled? --> <Yes>
 
 Software
 --------
