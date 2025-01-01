@@ -431,7 +431,7 @@ def get_sqlite3_file_name_from_conf(dt):
 
 
     if isinstance(dt, datetime):
-        return f"{dt.month}-{dt.year}.sqlite"
+        return f"{dt.strftime('%m-%Y')}.sqlite"
     else:
         return False
 
