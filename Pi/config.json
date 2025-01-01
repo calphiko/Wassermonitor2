@@ -1,7 +1,7 @@
 {
   "name": "raspi1",
   "api_url": "http://127.0.0.1:8012",
-  "token_path": ".token",
+  "token": "secret_token",
   "psk_path": ".psk",
   "temp_storage_path": "/tmp/wassermonitor",
   "count_of_vals_per_meas": 5,
