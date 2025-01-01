@@ -28,7 +28,7 @@
       "tank_height": 165,
       "max_val": 145,
       "warn": 92,
-      "alarm": 540,
+      "alarm": 40,
       "calib_file": "calib/calib_date_sensor_13.csv",
       "i2c": {
         "addr": "0x68",
