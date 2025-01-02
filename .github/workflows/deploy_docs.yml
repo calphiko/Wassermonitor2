@@ -41,6 +41,12 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           
         run: |
+          echo "Home directory: $HOME"
+          echo "Available disk space:"
+          df -h
+          echo "Checking SSH_PRIVATE_KEY length:"
+          echo "${#SSH_PRIVATE_KEY}"
+
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
