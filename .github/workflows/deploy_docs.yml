@@ -52,7 +52,7 @@ jobs:
           echo "priv key copied"
           chmod 600 ~/.ssh/id_rsa
           echo "privileges set"
+          ssh-keyscan -p $SERVER_PORT -H $SERVER_HOST >> ~/.ssh/known_hosts
           echo "added to keychain"
-          ls _build/html/*
           scp -P $SERVER_PORT -r _build/html/* $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
           echo "data copied"
