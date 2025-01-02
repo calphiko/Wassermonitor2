@@ -50,9 +50,8 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           cat ~/.ssh/id_rsa
           echo "priv key copied"
-          chmod 600 ~/.ssh/id_ed25519
-          echo "privs set"
-          ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_rsa
+          echo "privileges set"
           echo "added to keychain"
           ls _build/html/*
           scp -P $SERVER_PORT -r _build/html/* $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
