@@ -53,8 +53,13 @@ jobs:
           
 
           mkdir -p ~/.ssh
+          echo ".ssh created"
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          echo "priv key copied"
           chmod 600 ~/.ssh/id_ed25519
+          echo "privs set"
           ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+          echo "added to keychain"
           ls _build/html/*
           scp -P $SERVER_PORT -r _build/html/* $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          echo "data copied"
