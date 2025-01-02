@@ -46,6 +46,11 @@ jobs:
           df -h
           echo "Checking SSH_PRIVATE_KEY length:"
           echo "${#SSH_PRIVATE_KEY}"
+          echo "SERVER_HOST=${SERVER_HOST}"
+          echo "SERVER_USER=${SERVER_USER}"
+          echo "SERVER_PORT=${SERVER_PORT}"
+          echo "DEPLOY_PATH=${DEPLOY_PATH}"
+          
           echo $SERVER_HOST
           echo $SERVER_USER
           echo $SERVER_PORT
