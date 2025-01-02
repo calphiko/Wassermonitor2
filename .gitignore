@@ -1,5 +1,9 @@
 /Test/Data/12-2024.sqlite
-Doc/hugo/
-Doc/hugo/themes
-Doc/template/
-Doc/hugo/.gitmodules
+/Server/Dashboard/wassermonitor-dash/node_modules/
+.idea/
+/Test/Server/Data/12-2024.sqlite
+/Server/Dashboard/wassermonitor-dash/package-lock.json
+/Pi/.psk
+/Doc/build/
+/Pi/calib/calib_date_sensor_3.csv
+/Pi/calib/calib_date_sensor_13.csv

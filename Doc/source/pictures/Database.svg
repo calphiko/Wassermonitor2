@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="297mm"
+   height="210mm"
+   viewBox="0 0 297 210"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4 (86a8ad7, 2024-10-11)"
+   sodipodi:docname="Datanase.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.78840488"
+     inkscape:cx="405.88282"
+     inkscape:cy="298.70439"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1">
+    <marker
+       style="overflow:visible"
+       id="marker12"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Wide, rounded arrow"
+       markerWidth="1"
+       markerHeight="1"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         style="fill:none;stroke:context-stroke;stroke-width:1;stroke-linecap:round"
+         d="M 3,-3 0,0 3,3"
+         transform="rotate(180,0.125,0)"
+         sodipodi:nodetypes="ccc"
+         id="path12" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="ArrowWideRounded"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Wide, rounded arrow"
+       markerWidth="1"
+       markerHeight="1"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         style="fill:none;stroke:context-stroke;stroke-width:1;stroke-linecap:round"
+         d="M 3,-3 0,0 3,3"
+         transform="rotate(180,0.125,0)"
+         sodipodi:nodetypes="ccc"
+         id="path2" />
+    </marker>
+    <filter
+       inkscape:collect="always"
+       style="color-interpolation-filters:sRGB"
+       id="filter1"
+       x="-0.00033379846"
+       y="-0.0020999527"
+       width="1.0006676"
+       height="1.0041999">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.0045192771"
+         id="feGaussianBlur1" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       style="color-interpolation-filters:sRGB"
+       id="filter1-4"
+       x="-0.00027747514"
+       y="-0.00098312502"
+       width="1.000555"
+       height="1.0019663">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.0045192771"
+         id="feGaussianBlur1-5" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       style="color-interpolation-filters:sRGB"
+       id="filter1-5"
+       x="-0.00057125152"
+       y="-0.0035878871"
+       width="1.0011425"
+       height="1.0071758">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.0045192771"
+         id="feGaussianBlur1-2" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       style="color-interpolation-filters:sRGB"
+       id="filter1-4-7"
+       x="-0.00015036641"
+       y="-0.00027898395"
+       width="1.0003007"
+       height="1.000558">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.0045192771"
+         id="feGaussianBlur1-5-6" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       style="color-interpolation-filters:sRGB"
+       id="filter1-7"
+       x="-0.00030283679"
+       y="-0.0029797256"
+       width="1.0006057"
+       height="1.0059595">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.0045192771"
+         id="feGaussianBlur1-4" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       style="color-interpolation-filters:sRGB"
+       id="filter1-4-2"
+       x="-0.00018538382"
+       y="-0.00043463142"
+       width="1.0003708"
+       height="1.0008693">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.0045192771"
+         id="feGaussianBlur1-5-7" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       style="color-interpolation-filters:sRGB"
+       id="filter1-7-4"
+       x="-0.00042122104"
+       y="-0.0023069394"
+       width="1.0008424"
+       height="1.0046139">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.0045192771"
+         id="feGaussianBlur1-4-4" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       style="color-interpolation-filters:sRGB"
+       id="filter1-4-2-6"
+       x="-0.00014404957"
+       y="-0.00043463142"
+       width="1.0002881"
+       height="1.0008693">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.0045192771"
+         id="feGaussianBlur1-5-7-0" />
+    </filter>
+    <marker
+       style="overflow:visible"
+       id="ArrowWideRounded-1"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Wide, rounded arrow"
+       markerWidth="1"
+       markerHeight="1"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         style="fill:none;stroke:context-stroke;stroke-width:1;stroke-linecap:round"
+         d="M 3,-3 0,0 3,3"
+         transform="rotate(180,0.125,0)"
+         sodipodi:nodetypes="ccc"
+         id="path2-3" />
+    </marker>
+  </defs>
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g2"
+       transform="translate(-32.216949,9.0610166)">
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         id="rect1"
+         width="58.965916"
+         height="9.9693098"
+         x="37.803482"
+         y="53.240768" />
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.501495;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         id="rect1-8"
+         width="59.021599"
+         height="16.076149"
+         x="37.770622"
+         y="63.145252" />
+      <text
+         xml:space="preserve"
+         style="font-size:5.51796px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;mix-blend-mode:normal;fill:none;stroke:#000000;stroke-width:0.144;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter1)"
+         x="47.593586"
+         y="78.001862"
+         id="text1"
+         transform="matrix(1.0257119,0,0,0.9749326,-7.830908,-16.136416)"><tspan
+           sodipodi:role="line"
+           id="tspan1"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="78.001862">meas_point</tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-size:5.51796px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;mix-blend-mode:normal;fill:none;stroke:#000000;stroke-width:0.144;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter1-4)"
+         x="47.593586"
+         y="78.001862"
+         id="text1-1"
+         transform="matrix(1.0257119,0,0,0.9749326,-8.3140675,-6.8930052)"><tspan
+           sodipodi:role="line"
+           id="tspan1-7"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="78.001862">id INT (PK)</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="84.963188"
+           id="tspan2">name VARCHAR</tspan></text>
+    </g>
+    <g
+       id="g2-9"
+       transform="translate(172.78211,-12.266133)">
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         id="rect1-3"
+         width="65.315918"
+         height="9.9693108"
+         x="37.803482"
+         y="53.240768" />
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.501495;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         id="rect1-8-1"
+         width="65.371605"
+         height="29.305332"
+         x="37.770622"
+         y="63.145252" />
+      <text
+         xml:space="preserve"
+         style="font-size:5.51796px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;mix-blend-mode:normal;fill:none;stroke:#000000;stroke-width:0.144;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter1-7)"
+         x="47.593586"
+         y="78.001862"
+         id="text1-9"
+         transform="matrix(1.0257119,0,0,0.9749326,-7.830908,-16.136416)"><tspan
+           sodipodi:role="line"
+           id="tspan1-8"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="78.001862">measurement</tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-size:5.51796px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;mix-blend-mode:normal;fill:none;stroke:#000000;stroke-width:0.144;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter1-4-2)"
+         x="47.593586"
+         y="78.001862"
+         id="text1-1-6"
+         transform="matrix(1.0257119,0,0,0.9749326,-8.3140675,-6.8930052)"><tspan
+           sodipodi:role="line"
+           id="tspan1-7-5"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="78.001862">id INT (PK)</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="84.963188"
+           id="tspan2-0">dt DATETIME</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="91.924515"
+           id="tspan7">sensor_id INT (FK)</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="98.885841"
+           id="tspan8">comment</tspan></text>
+    </g>
+    <g
+       id="g2-9-6"
+       transform="translate(153.04719,82.696952)">
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         id="rect1-3-1"
+         width="84.135406"
+         height="9.9693108"
+         x="37.803482"
+         y="53.240768" />
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.501495;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         id="rect1-8-1-8"
+         width="84.191093"
+         height="29.499882"
+         x="37.770622"
+         y="63.145252" />
+      <text
+         xml:space="preserve"
+         style="font-size:5.51796px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;mix-blend-mode:normal;fill:none;stroke:#000000;stroke-width:0.144;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter1-7-4)"
+         x="47.593586"
+         y="78.001862"
+         id="text1-9-4"
+         transform="matrix(1.0257119,0,0,0.9749326,-7.830908,-16.136416)"><tspan
+           sodipodi:role="line"
+           id="tspan1-8-9"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="78.001862">meas_val</tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-size:5.51796px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;mix-blend-mode:normal;fill:none;stroke:#000000;stroke-width:0.144;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter1-4-2-6)"
+         x="47.593586"
+         y="78.001862"
+         id="text1-1-6-6"
+         transform="matrix(1.0257119,0,0,0.9749326,-8.3140675,-6.8930052)"><tspan
+           sodipodi:role="line"
+           id="tspan1-7-5-3"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="78.001862">id INT (PK)</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="84.963188"
+           id="tspan7-8">measurement_id INT (FK)</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="91.924515"
+           id="tspan9">value FLOAT</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="98.885841"
+           id="tspan8-8">comment</tspan></text>
+    </g>
+    <g
+       id="g2-4"
+       transform="translate(57.95938,2.0544586)">
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         id="rect1-2"
+         width="80.132599"
+         height="9.9693108"
+         x="37.803482"
+         y="53.240768" />
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.501495;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         id="rect1-8-3"
+         width="80.188286"
+         height="43.592846"
+         x="37.770622"
+         y="63.145252" />
+      <text
+         xml:space="preserve"
+         style="font-size:5.51796px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;mix-blend-mode:normal;fill:none;stroke:#000000;stroke-width:0.144;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter1-5)"
+         x="47.593586"
+         y="78.001862"
+         id="text1-2"
+         transform="matrix(1.0257119,0,0,0.9749326,-7.830908,-16.136416)"><tspan
+           sodipodi:role="line"
+           id="tspan1-2"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="78.001862">sensor</tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-size:5.51796px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;mix-blend-mode:normal;fill:none;stroke:#000000;stroke-width:0.144;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter1-4-7)"
+         x="47.593586"
+         y="78.001862"
+         id="text1-1-1"
+         transform="matrix(1.0257119,0,0,0.9749326,-8.3140675,-6.8930052)"><tspan
+           sodipodi:role="line"
+           id="tspan1-7-6"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="78.001862">id INT (PK)</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="84.963188"
+           id="tspan2-8">meas_point_id INT (FK)</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="91.924515"
+           id="tspan3">name VARCHAR</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="98.885841"
+           id="tspan4">max_val FLOAT</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="105.84716"
+           id="tspan5">warn FLOAT</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'72 Monospace';-inkscape-font-specification:'72 Monospace';fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.144;stroke-dasharray:none"
+           x="47.593586"
+           y="112.80849"
+           id="tspan6">alarm FLOAT</tspan></text>
+    </g>
+    <path
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.499999;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       d="M 98.664406,76.515255 H 50.003388"
+       id="path9" />
+    <path
+       style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1.5, 1.5;stroke-dashoffset:0;stroke-opacity:1;marker-end:url(#ArrowWideRounded);paint-order:stroke fill markers"
+       d="M 96.98644,76.17966 H 48.996609"
+       id="path10" />
+    <path
+       style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1.5, 1.5;stroke-dashoffset:0;stroke-opacity:1;marker-end:url(#ArrowWideRounded-1);paint-order:stroke fill markers"
+       d="M 212.04834,69.058711 H 138.19278"
+       id="path10-9"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1.5, 1.5;stroke-dashoffset:0;stroke-opacity:1;marker-end:url(#marker12);paint-order:stroke fill markers"
+       d="M 273.31229,156.99617 H 288.2622 V 54.719758 h -36.30693"
+       id="path11" />
+  </g>
+</svg>

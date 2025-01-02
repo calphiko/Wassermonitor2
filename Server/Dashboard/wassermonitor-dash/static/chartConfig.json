@@ -1,0 +1,36 @@
+{
+  "APIUrl" : "http://127.0.0.1:8012/",
+  "plotTheme": "dark",
+  "colors": {
+    "normal": [
+      {
+        "offset": 0,
+        "color": "#7fbfff"
+      },
+      {
+        "offset": 1,
+        "color": "#004b8c"
+      }
+    ],
+    "warning": [
+      {
+        "offset": 0,
+        "color": "#ffe97f"
+      },
+      {
+        "offset": 1,
+        "color": "#f5b800"
+      }
+    ],
+    "alarm": [
+      {
+        "offset": 0,
+        "color": "#ff7f7f"
+      },
+      {
+        "offset": 1,
+        "color": "#f50000"
+      }
+    ]
+  }
+}
