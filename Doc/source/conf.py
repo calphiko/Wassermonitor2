@@ -16,6 +16,10 @@ project = 'Wassermonitor2'
 copyright = '2024, Carl Philipp Koppen'
 author = 'Carl Philipp Koppen'
 
+html_favicon = '_static/favicon.png'
+html_logo = '_static/favicon.png'
+html_static_path = ['_static']
+
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
