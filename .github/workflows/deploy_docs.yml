@@ -29,7 +29,7 @@ jobs:
       # Build Sphinx Documentation
       - name: Build Sphinx Documentation
         run: |
-          sphinx-build -b html Docs/ _build/html  # Passe die Pfade an
+          sphinx-build -b html Doc/ _build/html  # Passe die Pfade an
 
       # Upload Build to Server
       - name: Upload to Server
