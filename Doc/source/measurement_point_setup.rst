@@ -30,10 +30,29 @@ In this example we see the following setup.
 
 .. image:: pictures/Meas_Setup_details.svg
 
+
+
+
+Raspberry Pi Setup
+------------------
+
+At first, please follow `this tutorial <https://projects.raspberrypi.org/en/projects/raspberry-pi-setting-up/4>`_ to setup the sd card for your raspberry pi.
+
+After that please activate the i2c-bus on your device to enable communicating with the sensors:
+
+.. code-block:: RST
+
+    sudo raspi-config
+    navigate to Interfacing-Options >> I2C
+    Would you like to ARM I2C interface to enabled? --> <Yes>
+
 Hardware
 --------
 
 What hardware do we need to build a wassermonitor measurement point?
+
+Partlist
+~~~~~~~~
 
 * Raspberry Pi 4 (tested): https://www.raspberrypi.com/products/raspberry-pi-4-model-b/
 * SPS Interface
@@ -53,18 +72,24 @@ What hardware do we need to build a wassermonitor measurement point?
         * TBD
 
 
+Part-assembly
+~~~~~~~~~~~~~
 
-Raspberry Pi Setup
-------------------
+.. figure:: pictures/I2C_Adapter_w_Input_Card.jpeg
+    :width: 80%
 
-At first, please follow `this tutorial <https://projects.raspberrypi.org/en/projects/raspberry-pi-setting-up/4>`_ to setup the sd card for your raspberry pi.
+    The I2C Adapter for modifing the voltage levels and analog input card with four channels.
 
-After that please activate the i2c-bus on your device to enable communicating with the sensors:
+.. figure:: pictures/rpi_w_full_sps_adapters.jpeg
+    :width: 80%
 
-.. code-block::
-    sudo raspi-config
-    navigate to Interfacing-Options >> I2C
-    Would you like to ARM I2C interface to enabled? --> <Yes>
+    Raspi with connected sps adapter chain. This setup is ready to directly connect analog sps sensors.
+
+.. figure:: pictures/sps_input_card.jpeg
+    :width: 80%
+
+    Details pic of the analog input card with four analog channels. The jumpers in this pictures are placed to use the analog 0-10V sps interface of the sensors.
+
 
 Software
 --------
