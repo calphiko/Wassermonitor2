@@ -42,7 +42,8 @@ jobs:
           
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+          ls _build/html/*
           scp -P $SERVER_PORT -r _build/html/* $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
