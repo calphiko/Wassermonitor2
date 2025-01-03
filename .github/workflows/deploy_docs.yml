@@ -30,7 +30,9 @@ jobs:
       # Build Sphinx Documentation
       - name: Build Sphinx Documentation
         run: |
-          sphinx-build -b html Doc/source/ _build/html  # Passe die Pfade an
+          cd Doc
+          sphinx-build -b html source/ _build/html  # Passe die Pfade an
+          cd ..
 
       # Upload Build to Server
       - name: Upload to Server
@@ -55,5 +57,5 @@ jobs:
           echo "privileges set"
           ssh-keyscan -p $SERVER_PORT -H $SERVER_HOST >> ~/.ssh/known_hosts
           echo "added to keychain"
-          scp -P $SERVER_PORT -r _build/html/* $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r Doc/_build/html/* $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
           echo "data copied"
