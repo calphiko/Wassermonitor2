@@ -73,7 +73,7 @@ print(f"reading config from {config_file} ...")
 # Parse Config File
 config = configparser.RawConfigParser()
 config.read(config_file)
-authorized_keys = load_authorized_keys(config['API']['authorized_keys_file'])
+authorized_keys = load_authorized_keys(os.path.abspath(config['API']['authorized_keys_file']))
 
 PORT = int(config['API']['port'])
 print (PORT)

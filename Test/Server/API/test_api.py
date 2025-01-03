@@ -14,7 +14,7 @@ test_url = "http://127.0.0.1:8012/insert/"
 test_url_get = "http://127.0.0.1:8012/get/"
 test_url_get_latest = "http://127.0.0.1:8012/get_latest/"
 test_token = 'secret_token'
-test_api_psk_path = "../../../Pi/.wassermonitor"
+test_api_psk_path = "../../../Pi/.psk"
 
 def read_priv_key(psk_path):
     with open(f"{psk_path}/private_key.pem", "rb") as key_file:
