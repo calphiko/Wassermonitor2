@@ -23,6 +23,7 @@ jobs:
       # Install Dependencies
       - name: Install Dependencies
         run: |
+          mkdir /etc/wassermonitor
           touch /etc/wassermonitor/authorized_keys
           python -m pip install --upgrade pip
           pip install sphinx sphinx_rtd_theme paramiko scp  # Installiere Sphinx und SSH-Tools
