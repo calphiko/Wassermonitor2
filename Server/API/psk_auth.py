@@ -8,6 +8,7 @@ Functions:
     load_authorized_keys(file_path): Loads authorized SSH public keys from a file.
     verify_signature(public_key, data, signature): Verifies the signature of the data using the provided public key.
 """
+import os.path
 
 from cryptography.hazmat.primitives.serialization import load_ssh_public_key
 from cryptography.hazmat.backends import default_backend
@@ -36,21 +37,24 @@ def load_authorized_keys(file_path):
             authorized_keys = load_authorized_keys("/path/to/authorized_keys.txt")
         """
     authorized_keys = {}
-    with open(file_path, "r") as f:
-        for line in f:
-            if line.strip() and not line.startswith("#"):
-                parts = line.split()
-                if len(parts) >= 2:
-                    key_data = parts[1]
-                    comment = parts[2] if len(parts) > 2 else None
-                    try:
-                        public_key = load_ssh_public_key(
-                            f"ssh-rsa {key_data}".encode(),
-                            backend=default_backend()
-                        )
-                        authorized_keys[comment] = public_key
-                    except Exception as e:
-                        print(f"Error loading key for {comment}: {e}")
+    if not os.path.exists(file_path):
+        print ("WARNING: Authorized Key File not found. Please create and add you meas-points public-keys.")
+    else:
+        with open(file_path, "r") as f:
+            for line in f:
+                if line.strip() and not line.startswith("#"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        key_data = parts[1]
+                        comment = parts[2] if len(parts) > 2 else None
+                        try:
+                            public_key = load_ssh_public_key(
+                                f"ssh-rsa {key_data}".encode(),
+                                backend=default_backend()
+                            )
+                            authorized_keys[comment] = public_key
+                        except Exception as e:
+                            print(f"Error loading key for {comment}: {e}")
     return authorized_keys
 
 
