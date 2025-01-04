@@ -4,45 +4,51 @@ It supports data insertion, retrieval of measurement data, and fetching availabl
 
 The module handles authentication via signature verification and processes sensor data stored in a database.
 
-Dependencies:
-- FastAPI: Web framework for building APIs.
-- Pydantic: For data validation using models.
-- SQLite: For database interactions through `database_utils`.
-- configparser: For reading configuration settings from a file.
-- json: For JSON serialization.
-- psk_auth: For handling public keys and signature verification.
-- datetime: For working with date and time.
-- base64: For encoding and decoding signatures.
+**Dependencies**:
 
-API Endpoints:
-- POST /insert/: Inserts sensor data into the database after verifying the signature.
-- POST /get/: Retrieves sensor data within a specified time range.
-- POST /get_latest/: Retrieves the most recent sensor measurements.
-- POST /get_available_meas_points: Fetches available measurement points from the database.
+    - FastAPI: Web framework for building APIs.
+    - Pydantic: For data validation using models.
+    - SQLite: For database interactions through `database_utils`.
+    - configparser: For reading configuration settings from a file.
+    - json: For JSON serialization.
+    - psk_auth: For handling public keys and signature verification.
+    - datetime: For working with date and time.
+    - base64: For encoding and decoding signatures.
 
-Classes:
-- SensorData: Defines the structure of the sensor data, including measurement details and values.
-- request_json: Defines the structure for requests containing time ranges (start and end datetimes).
+**API Endpoints**:
 
-Functions:
-- validate_json(data: dict): Validates sensor data against the `SensorData` model. Raises HTTPException if validation fails.
-- validate_request_json(data: dict): Validates the time range data against the `request_json` model. Raises HTTPException if validation fails.
-- insert_to_db(measurement): Inserts valid measurement data into the database.
-- request_measurement_data(request_dict): Fetches and returns measurement data from the database for a given time range.
-- request_last_measurements(): Retrieves the most recent measurements from the database.
-- request_measurement_points(): Returns a list of available measurement points in the database.
-- verify_signature(public_key, data, signature): Verifies the authenticity of the signature using the public key.
+    - `POST /insert/`: Inserts sensor data into the database after verifying the signature.
+    - `POST /get/`: Retrieves sensor data within a specified time range.
+    - `POST /get_latest/`: Retrieves the most recent sensor measurements.
+    - `POST /get_available_meas_points`: Fetches available measurement points from the database.
 
-Configuration:
+**Classes**:
+
+    - `SensorData`: Defines the structure of the sensor data, including measurement details and values.
+    - `request_json`: Defines the structure for requests containing time ranges (start and end datetimes).
+
+**Functions**:
+
+    - `validate_json(data: dict)`: Validates sensor data against the `SensorData` model. Raises HTTPException if validation fails.
+    - `validate_request_json(data: dict)`: Validates the time range data against the `request_json` model. Raises HTTPException if validation fails.
+    - `insert_to_db(measurement)`: Inserts valid measurement data into the database.
+    - `request_measurement_data(request_dict)`: Fetches and returns measurement data from the database for a given time range.
+    - `request_last_measurements()`: Retrieves the most recent measurements from the database.
+    - `request_measurement_points()`: Returns a list of available measurement points in the database.
+    - `verify_signature(public_key, data, signature)`: Verifies the authenticity of the signature using the public key.
+
+**Configuration**:
+
 - The configuration is read from the file specified by `config_file`, which includes API settings (e.g., authorized keys, port number) and database settings.
 
-Example Usage:
-1. To insert data, send a POST request to `/insert/` with the sensor data and signature.
-2. To retrieve data for a specific time range, send a POST request to `/get/` with the time range data.
-3. To get the most recent measurements, send a POST request to `/get_latest/`.
+**Example Usage**::
 
-Author:
-- Carl Philipp Koppen (admin@wassermonitor.de)
+    1. To insert data, send a POST request to `/insert/` with the sensor data and signature.
+    2. To retrieve data for a specific time range, send a POST request to `/get/` with the time range data.
+    3. To get the most recent measurements, send a POST request to `/get_latest/`.
+
+**Author**:
+    - Carl Philipp Koppen (admin@wassermonitor.de)
 """
 
 from fastapi import FastAPI, Request, Depends, HTTPException
@@ -82,19 +88,22 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
 def verify_token(token: str = Depends(oauth2_scheme)):
     """
-     Verifies the provided token against the expected token from the configuration.
+    Verifies the provided token against the expected token from the configuration.
 
-     Parameters:
-     token (str): The token to be verified, obtained from the OAuth2 scheme.
+    **Parameters**:
 
-     Raises:
-     HTTPException: If the token is invalid, an HTTP 401 Unauthorized exception is raised with a delay.
+        - `token` (str): The token to be verified, obtained from the OAuth2 scheme.
 
-     Example:
-      from fastapi import Depends, HTTPException
-      token = "example_token"
-      verify_token(token)
-     """
+    **Raises**:
+
+        - `HTTPException`: If the token is invalid, an HTTP 401 Unauthorized exception is raised with a delay.
+
+    **Example**::
+
+        from fastapi import Depends, HTTPException
+        token = "example_token"
+        verify_token(token)
+    """
 
     if token != config['API']['token']:
         time.sleep(5)
@@ -112,29 +121,29 @@ class SensorData(BaseModel):
     to be received or processed. It includes information about the sensor's
     reading time, the sensor's details, and the values it measures.
 
-    Attributes:
-        datetime (datetime): The date and time of the sensor reading.
-        meas_point (str): The name of the measurement point the sensor is associated with.
-        sensor_name (str): The name of the sensor.
-        tank_height (float): The zero offset of the sensor setup
-        max_val (float): The maximum allowed value for the sensor measurement.
-        warn (float): The warning threshold for the sensor.
-        alarm (float): The alarm threshold for the sensor.
-        values (list[float]): A list of float values measured by the sensor at the specified datetime.
+    **Attributes**:
 
+        - `datetime` (datetime): The date and time of the sensor reading.
+        - `meas_point` (str): The name of the measurement point the sensor is associated with.
+        - `sensor_name` (str): The name of the sensor.
+        - `tank_height` (float): The zero offset of the sensor setup.
+        - `max_val` (float): The maximum allowed value for the sensor measurement.
+        - `warn` (float): The warning threshold for the sensor.
+        - `alarm` (float): The alarm threshold for the sensor.
+        - `values` (list[float]): A list of float values measured by the sensor at the specified datetime.
 
-    Example:
+    **Example**::
+
         sensor_data = SensorData(
             datetime=datetime(2024, 12, 15, 10, 0),
             meas_point='raspi1',
             sensor_name='Sensor1',
-            tank_height= 155.0
+            tank_height=155.0,
             max_val=100.0,
             warn=80.0,
             alarm=90.0,
             values=[75.0, 76.0, 77.5]
         )
-
     """
     datetime: datetime
     meas_point: str
@@ -147,21 +156,23 @@ class SensorData(BaseModel):
 
 class request_json(BaseModel):
     """
-        request_json represents the structure of a JSON request containing a time range.
+    request_json represents the structure of a JSON request containing a time range.
 
-        This class is used to define the structure of a JSON object that includes
-        two datetime attributes, which specify the beginning and end of a time period.
+    This class is used to define the structure of a JSON object that includes
+    two datetime attributes, which specify the beginning and end of a time period.
 
-        Attributes:
-            dt_begin (datetime): The start date and time of the requested period.
-            dt_end (datetime): The end date and time of the requested period.
+    **Attributes**:
 
-        Example:
-            request = request_json(
-                dt_begin=datetime(2024, 12, 1, 8, 0),
-                dt_end=datetime(2024, 12, 1, 18, 0)
-            )
-        """
+        - `dt_begin` (datetime): The start date and time of the requested period.
+        - `dt_end` (datetime): The end date and time of the requested period.
+
+    **Example**::
+
+        request = request_json(
+            dt_begin=datetime(2024, 12, 1, 8, 0),
+            dt_end=datetime(2024, 12, 1, 18, 0)
+        )
+    """
     dt_begin: datetime
     dt_end: datetime
 
@@ -175,22 +186,23 @@ def validate_json(data: dict):
     occurs), the function raises an HTTP exception with a 406 status code and a
     message indicating that the JSON structure is invalid.
 
-    Args:
-        data (dict): A dictionary representing the JSON data to validate. It should
-                     contain keys and values matching the `SensorData` model's
-                     attributes (e.g., `datetime`, `meas_point`, `sensor_name`, etc.).
+    **Args**:
 
-    Returns:
-        bool: `True` if the data is valid and matches the `SensorData` model.
+        - `data` (dict): A dictionary representing the JSON data to validate. It should contain keys and values matching the `SensorData` model's attributes (e.g., `datetime`,`meas_point`, `sensor_name`, etc.).
 
-    Raises:
-        HTTPException: If the data does not match the expected structure, an HTTP
-                        exception with status code 406 (Not Acceptable) is raised.
+    **Returns**:
 
-    Example:
+        - `bool`: `True` if the data is valid and matches the `SensorData` model.
+
+    **Raises**:
+
+        - `HTTPException`: If the data does not match the expected structure, an HTTPexception with status code 406 (Not Acceptable) is raised.
+
+    **Example usage**::
+
         data = {
             "datetime": "2024-12-15T10:00:00",
-            "meas_point": "Temperature",
+            "meas_point": "raspi1",
             "sensor_name": "TempSensor1",
             "tank_height": 120,
             "max_val": 100.0,
@@ -219,19 +231,23 @@ def validate_request_json(data):
     occurs), the function raises an HTTP exception with a 406 status code and a
     message indicating that the JSON structure is invalid.
 
-    Args:
-        data (dict): A dictionary representing the JSON data to validate. It should
-                     contain keys and values matching the `request_json` model's
-                     attributes (e.g., `dt_begin`, `dt_end`).
+    **Args**:
 
-    Returns:
-        bool: `True` if the data is valid and matches the `request_json` model.
+        - `data` (dict): A dictionary representing the JSON data to validate. It should
+          contain keys and values matching the `request_json` model's attributes (e.g., `dt_begin`,
+          `dt_end`).
 
-    Raises:
-        HTTPException: If the data does not match the expected structure, an HTTP
-                        exception with status code 406 (Not Acceptable) is raised.
+    **Returns**:
 
-    Example:
+        - `bool`: `True` if the data is valid and matches the `request_json` model.
+
+    **Raises**:
+
+        - `HTTPException`: If the data does not match the expected structure, an HTTP
+          exception with status code 406 (Not Acceptable) is raised.
+
+    **Example usage**::
+
         data = {
             "dt_begin": "2024-12-01T08:00:00",
             "dt_end": "2024-12-01T18:00:00"
@@ -256,19 +272,20 @@ def insert_to_db(measurement):
     function from the `dbu` module. If the provided `measurement` is not a dictionary,
     it returns a simple message.
 
-    Args:
-        measurement (any): The data to be inserted into the database. If it is a dictionary,
-                           it is passed to the `insert_value` function for insertion.
+    **Args**:
 
+        - `measurement` (any): The data to be inserted into the database. If it is a dictionary,
+          it is passed to the `insert_value` function for insertion.
 
-    Returns:
-        dict:
-        If the `measurement` is not a dictionary, a message `{'message': 'Received'}`
-        is returned. If it is a dictionary, the result of the `insert_value` function
-        is returned, which is typically a database insert operation.
+    **Returns**:
 
+        - `dict`:
+        - If the `measurement` is not a dictionary, a message `{'message': 'Received'}` is returned.
 
-    Example:
+        - If it is a dictionary, the result of the `insert_value` function is returned, which is typically a database insert operation.
+
+    **Example**::
+
         measurement = {
             'datetime': '2024-12-15T10:00:00',
             'meas_point': 'Temperature',
@@ -295,22 +312,25 @@ def request_measurement_data(request_dict):
     the data into a nested JSON structure, grouping it by measurement point and sensor.
     The resulting data includes timestamps, values, sensor details, and derivations.
 
-    Args:
-        request_dict (dict): A dictionary containing the request parameters, specifically:
-                             - 'dt_begin' (str): The start datetime for the requested period.
-                             - 'dt_end' (str): The end datetime for the requested period.
+    **Args**:
 
-    Returns:
-        JSONResponse: A JSON response containing the processed measurement data,
-                      structured by measurement point and sensor.
+      - `request_dict` (dict): A dictionary containing the request parameters, specifically:
+      - 'dt_begin' (str): The start datetime for the requested period.
+      - 'dt_end' (str): The end datetime for the requested period.
 
-    Example:
+    **Returns**:
+
+        - `JSONResponse`: A JSON response containing the processed measurement data, structured by measurement point and sensor.
+
+    **Example**::
+
         request_dict = {
             'dt_begin': '2024-12-01T08:00:00',
             'dt_end': '2024-12-01T18:00:00'
         }
 
         response = request_measurement_data(request_dict)
+
     """
 
     data = dbu.get_meas_data_from_sqlite_db(
@@ -374,11 +394,11 @@ def request_last_measurements():
     details such as sensor name, timestamp, value, color, warning, alarm, and maximum value.
     The timestamp is formatted according to the specified date-time format in the configuration.
 
-    Returns:
-        JSONResponse: A JSON response containing the most recent measurement data,
-                      structured by measurement point.
+    **Returns**:
+    - `JSONResponse`: A JSON response containing the most recent measurement data, structured by measurement point.
 
-    Example:
+    **Example**::
+
         response = request_last_measurements()
     """
     data = dbu.get_last_meas_data_from_sqlite_db(

@@ -4,10 +4,11 @@ Module for handling SSH-style public key verification and loading authorized key
 This module provides functions to load authorized SSH public keys from a specified
 file and to verify signatures using RSA with PSS padding and SHA-256 hashing.
 
-Functions:
-    load_authorized_keys(file_path): Loads authorized SSH public keys from a file.
-    verify_signature(public_key, data, signature): Verifies the signature of the data using the provided public key.
+**Functions**:
+    - :func:`load_authorized_keys`: Loads authorized SSH public keys from a file.
+    - :func:`verify_signature`: Verifies the signature of the data using the provided public key.
 """
+
 import os.path
 
 from cryptography.hazmat.primitives.serialization import load_ssh_public_key
@@ -20,22 +21,21 @@ import json
 
 def load_authorized_keys(file_path):
     """
-        Loads a list of authorized SSH public keys from a file and returns them in a dictionary.
+    Loads a list of authorized SSH public keys from a file and returns them in a dictionary.
 
-        The function reads the given file, processes each line, and extracts the public keys.
-        The public keys are stored in a dictionary, where the keys are the comments associated
-        with each key and the values are the actual RSA public key objects.
+    The function reads the given file, processes each line, and extracts the public keys.
+    The public keys are stored in a dictionary, where the keys are the comments associated
+    with each key and the values are the actual RSA public key objects.
 
-        Args:
-            file_path (str): The path to the file containing the SSH public keys.
+    :param file_path: The path to the file containing the SSH public keys.
 
-        Returns:
-            dict: A dictionary where the keys are the comments (client IDs) and the values are
-                  the RSA public keys corresponding to each client.
+    :return: A dictionary where the keys are the comments (client IDs) and the values are
+             the RSA public keys corresponding to each client.
 
-        Example:
-            authorized_keys = load_authorized_keys("/path/to/authorized_keys.txt")
-        """
+    **Example usage**::
+
+        authorized_keys = load_authorized_keys("/path/to/authorized_keys.txt")
+    """
     authorized_keys = {}
     if not os.path.exists(file_path):
         print ("WARNING: Authorized Key File not found. Please create and add you meas-points public-keys.")
@@ -65,18 +65,19 @@ def verify_signature (public_key, data, signature):
     This function checks whether the provided signature matches the data when signed by
     the corresponding private key. It uses RSA with PSS padding and SHA-256 hashing.
 
-    Args:
+    **Args**:
         public_key (RSAPublicKey): The public key to verify the signature with.
         data (dict): The original data that was signed.
         signature (str): The base64 encoded signature to verify.
 
-    Returns:
+    **Returns**:
         bool: True if the signature is valid, raises an exception otherwise.
 
-    Raises:
+    **Raises**:
         ValueError: If the signature is invalid.
 
-    Example:
+    **Example**::
+
         try:
             verify_signature(public_key, data, signature)
         except ValueError:
