@@ -31,13 +31,16 @@ import { loadFillDataFromAPI, loadTimeDataFromAPI } from './api';
  */
 
 function reInitEchart(name, divName, charts, plotTheme) {
+
+    const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = isDarkMode ? 'dark' : 'light';
     // MAYBE DELETABLE
-    //console.log("reinit charts:", charts);
+    console.log("reinit charts with theme:", theme);
     if (charts[name]) {
         //console.log("reinit: ", name);
         echarts.dispose(charts[name]);
     }
-    const c = echarts.init(divName,plotTheme);
+    const c = echarts.init(divName,theme);
     return c
 }
 
@@ -114,7 +117,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
             //subtext: 'bla',
             left: 'center',
           },*/
-          backgroundColor:'rgba(255,255,255,0)',
+          //backgroundColor:'#1F2937',
           xAxis: {
             data: sensorIDs,
             axisLabel: {
@@ -294,7 +297,7 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
         const toolboxConfigs = [];
         const chartOptions = {
             grid: gridConfigs,
-            backgroundColor:'rgba(255,255,255,0)',
+            //backgroundColor:'#1F2937',
             title: titleConfigs,
             xAxis: xAxisConfigs,
             yAxis: yAxisConfigs,
@@ -388,7 +391,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
            top: top,
            bottom: '35%',
            height: '65%',
-           width: `${92.0/countOfSubplots}%`,
+           width: `${86.0/countOfSubplots}%`,
            //width: '25%',
         });
         xAxisConfigs.push({
@@ -585,7 +588,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
 
     const chartOptions = {
       grid: gridConfigs,
-      backgroundColor:'rgba(255,255,255,0)',
+      //backgroundColor:'#1F2937',
       title: titleConfigs,
       xAxis: xAxisConfigs,
       yAxis: yAxisConfigs,

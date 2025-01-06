@@ -50,62 +50,56 @@
  </script>
 
 <main>
-    <h1  class="text-3xl font-bold underline">Wassermonitor</h1>
-    <select bind:value={mpName} on:change={loadCharts}  >
+    <h1  class="text-3xl font-bold text-gray-800 dark:text-white h-12">Wassermonitor</h1>
+    <select bind:value={mpName} on:change={loadCharts}  class='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5'>
         {#each mpNameOptions as option}
            <option value={option}>{option}</option>
         {/each}
     </select>
-    <div id='fillChart' style='width: 100%;'></div>
-    <div class="datetime-container">
+    <div id='fillChart' style='width: 100%; height: 600%;'></div>
+    <div class="flex flex-row gap-5 h-12 my-10">
       <!-- DateTime Picker: "From" -->
-      <div class="datetime-picker">
-        <label for="from-picker">From</label>
+      <div class="">
+        <label for="from-picker" class="dark:text-white text-gray-600">From</label>
         <input
           id="from-picker"
           type="datetime-local"
-          class="input input-lg bg-neutral text-neutral-content"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5"
           bind:value={dtFrom}
           on:blur={loadCharts}
         />
       </div>
 
       <!-- DateTime Picker: "Until" -->
-      <div class="datetime-picker">
-        <label for="until-picker">Until</label>
+      <div class="">
+        <label for="until-picker" class="dark:text-white text-gray-600">Until</label>
         <input
           id="until-picker"
           type="datetime-local"
+          class = "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5"
           bind:value={dtUntil}
           on:blur={loadCharts}
         />
       </div>
-</div>
-    <div id='timeChart' style='width:100%;padding-left:20px;padding-right:20px; padding-top:20px;'>TimeChart</div>
-    <div id='derivChart' style='width:100%;padding-left:20px; padding-right:20px; padding-bottom:20px;'>DerivChart</div>
+    </div>
+    <div id='timeChart' style='width: 100%; height: 600%;'>TimeChart</div>
+    <div id='derivChart' style='width: 100%; height: 600%;' >DerivChart</div>
 </main>
 
 <style>
     div{
         width: 100%;
-        height: 600px;
+        height: 600%;
     }
+
     main {
         text-align: center;
     }
 
-   .datetime-container {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    height: 100%;
+  datetime-picker {
+    height:100%;
   }
 
-  .datetime-picker {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
 
   label {
     font-weight: bold;

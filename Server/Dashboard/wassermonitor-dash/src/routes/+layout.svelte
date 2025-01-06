@@ -5,7 +5,7 @@ import '../app.css';
 let { children } = $props();</script>
 
 
-<div class="app">
+<div class="app bg-gray-50 dark:bg-gray-800">
 	<Header></Header>
 
 	<main>
