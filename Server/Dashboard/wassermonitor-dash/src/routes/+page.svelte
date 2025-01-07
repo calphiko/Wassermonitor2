@@ -18,21 +18,41 @@
     //const fillChart = document.getElementById('fillChart');
 
     let charts = {};
+    let heading;
 
     let mpName;
     let isLoading = true;
 
     let selectedMpName = '';
     let mpNameOptions;
+    let DarkMode = false;
 
 
+
+    function handleDarkModeChange(event) {
+        DarkMode = event.matches; // Dark Mode Status aktualisieren
+        loadCharts();              // Charts neu laden
+    }
 
     onMount(async () => {
+
+        const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        DarkMode = darkModeQuery.matches;
         await loadCharts();
+
+        // Event-Listener registrieren
+        darkModeQuery.addEventListener("change", handleDarkModeChange);
+
+        //onDestroy(() => {
+        //    darkModeQuery.removeEventListener("change", handleDarkModeChange);
+        //});
     });
+
+
 
     async function loadCharts() {
         const chartConfig = await fetchChartConfig(cConfigUrl);
+        heading = chartConfig.title;
         mpNameOptions = await getAvailableMeasPointsFromApi(apiUrl);
         if (!mpName) {
             mpName = mpNameOptions[0];
@@ -50,8 +70,8 @@
  </script>
 
 <main>
-    <h1  class="text-3xl font-bold text-gray-800 dark:text-white h-12">Wassermonitor</h1>
-    <select bind:value={mpName} on:change={loadCharts}  class='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5'>
+    <h1  id='html_title' class="text-3xl font-bold text-gray-800 dark:text-white h-12">{heading}</h1>
+    <select bind:value={mpName} on:change={loadCharts}  class='bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5'>
         {#each mpNameOptions as option}
            <option value={option}>{option}</option>
         {/each}
@@ -64,7 +84,7 @@
         <input
           id="from-picker"
           type="datetime-local"
-          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5"
+          class="bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5"
           bind:value={dtFrom}
           on:blur={loadCharts}
         />
@@ -76,7 +96,7 @@
         <input
           id="until-picker"
           type="datetime-local"
-          class = "bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5"
+          class = "bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5"
           bind:value={dtUntil}
           on:blur={loadCharts}
         />
