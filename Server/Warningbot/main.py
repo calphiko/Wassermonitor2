@@ -5,6 +5,7 @@ from datetime import datetime
 import configparser
 import json
 from requests import post
+import logging
 
 config_file = str()
 config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg")]
@@ -14,10 +15,19 @@ for c in config_file_pos:
         config_file = c
         break
 
+logger = logging.getLogger('wassermonitor warning bot')
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
+
 if config_file == str():
     raise FileNotFoundError("ERROR: config_file not found")
-print(f"Warning-Bot starting at {datetime.now()} ...")
-print(f"reading config from {config_file} ...")
+logger.info(f"Warning-Bot starting at {datetime.now()} ...")
+logger.info(f"reading config from {config_file} ...")
 
 # Parse Config File
 config = configparser.RawConfigParser()
@@ -58,17 +68,17 @@ def check_thresholds(data):
 
 
 def message_signal(message):
-    print ("Warn via signal")
+    logger.info ("Warn via signal")
     print(message)
 
 
 def message_email(message):
-    print ("Warn via email")
+    logger.info ("Warn via email")
 
 
 
 def message_telegram(message):
-    print ("Warn via telegram")
+    logger.info ("Warn via telegram")
 
 
 def select_channels_and_warn(message):
@@ -88,18 +98,22 @@ def select_channels_and_warn(message):
 
 def warn(meas_point, sens_name, dt, value):
     text = config['warning']['message_warn']%(meas_point,sens_name, dt.strftime("%Y-%m-%d at %H:%M"), value)
+    logging.info("Users will be warned!")
     select_channels_and_warn(text)
 
 def dewarn():
     text = config['warning']['message_dewarn']
+    logging.info("Users will be dewarned!")
     select_channels_and_warn(text)
 
 def alarm(meas_point, sens_name, dt, value):
     text = config['warning']['message_alarm']%(meas_point,sens_name, dt.strftime("%Y-%m-%d at %H:%M"), value)
+    logging.info("Users will be alarmed!")
     select_channels_and_warn(text)
 
 def dealarm():
     text = config['warning']['message_dealarm']
+    logging.info("Users will be dealarmed!")
     select_channels_and_warn(text)
 
 
