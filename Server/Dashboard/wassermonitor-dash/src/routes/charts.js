@@ -15,6 +15,10 @@
 import * as echarts from 'echarts';
 import { loadFillDataFromAPI, loadTimeDataFromAPI } from './api';
 
+let firstLineColor;
+let plotBackGround;
+
+
 
 /**
  * Re-initializes an EChart instance.
@@ -30,10 +34,12 @@ import { loadFillDataFromAPI, loadTimeDataFromAPI } from './api';
  * @returns {Object} - The newly created EChart instance.
  */
 
-function reInitEchart(name, divName, charts, plotTheme) {
+function reInitEchart(name, divName, charts, plotTheme, plotThemeDark) {
 
     const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const theme = isDarkMode ? 'dark' : 'light';
+    const theme = isDarkMode ? plotThemeDark : plotTheme;
+    firstLineColor = isDarkMode ? 'lightblue' : '#3F83F8';
+    plotBackGround = isDarkMode ? '#1F2937':'#FDFDEA'
     // MAYBE DELETABLE
     console.log("reinit charts with theme:", theme);
     if (charts[name]) {
@@ -79,7 +85,7 @@ function getLinearGradient(colorString, cConfig) {
  */
 export async function loadFillChart(chartDiv, charts, chartConfig, mpName) {
     const chartData = await loadFillDataFromAPI(chartConfig['APIUrl'], mpName);
-    const chartObj = reInitEchart('fillChart', chartDiv, charts, chartConfig["plotTheme"]);
+    const chartObj = reInitEchart('fillChart', chartDiv, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]);
     //console.log("chartData:", chartData);
     updateFillChart(chartObj, chartData, chartConfig, mpName);
 }
@@ -117,7 +123,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
             //subtext: 'bla',
             left: 'center',
           },*/
-          //backgroundColor:'#1F2937',
+          backgroundColor:plotBackGround,
           xAxis: {
             data: sensorIDs,
             axisLabel: {
@@ -201,7 +207,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
               showBackground: false,
               itemStyle: {
                 color:  'rgba(0,0,0,0)',
-                borderColor: 'blue',
+                borderColor: 'lightblue',
                 borderWidth: 1,
                 borderType: 'dashed',
               },
@@ -254,8 +260,8 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
     //console.log ('time data: ', loadedApiTimeData );
 
     const chartInstances  =  {
-        'timeChart': reInitEchart('timeChart', chartDivs[1].divName, charts, chartConfig["plotTheme"]),
-        'derivChart': reInitEchart('derivChart', chartDivs[2].divName, charts, chartConfig["plotTheme"]),
+        'timeChart': reInitEchart('timeChart', chartDivs[1].divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
+        'derivChart': reInitEchart('derivChart', chartDivs[2].divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
     };
     if (loadedApiTimeData) {
         await updateTimeChart(chartInstances['timeChart'], loadedApiTimeData, 'values', 'value');
@@ -298,6 +304,7 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
         const chartOptions = {
             grid: gridConfigs,
             //backgroundColor:'#1F2937',
+            backgroundColor:plotBackGround,
             title: titleConfigs,
             xAxis: xAxisConfigs,
             yAxis: yAxisConfigs,
@@ -438,7 +445,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 yAxisIndex: index,
                 symbol: 'none',
                 lineStyle:{
-                    color:'lightblue',
+                    color:firstLineColor,
                     width:3
                 },
               },
@@ -451,7 +458,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 xAxisIndex: index,
                 yAxisIndex: index,
                 lineStyle:{
-                    color:'blue',
+                    color:'lightblue',
                     type:'dashed',
                     width:1
                 },
@@ -589,6 +596,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
     const chartOptions = {
       grid: gridConfigs,
       //backgroundColor:'#1F2937',
+      backgroundColor:plotBackGround,
       title: titleConfigs,
       xAxis: xAxisConfigs,
       yAxis: yAxisConfigs,
