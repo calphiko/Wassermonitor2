@@ -31,12 +31,13 @@ logger.addHandler(ch)
 
 #now with timezone
 now = datetime.now(tz=pytz.utc)
+local_tz = pytz.timezone(config['warning']['timezone'])
 
 
 
 if config_file == str():
     raise FileNotFoundError("ERROR: config_file not found")
-logger.info(f"Warning-Bot starting at {datetime.now()} ...")
+logger.info(f"Warning-Bot starting at {now} ...")
 logger.info(f"reading config from {config_file} ...")
 
 # Parse Config File
@@ -71,7 +72,7 @@ def get_last_data_from_api():
 
 
 def check_thresholds(data):
-    warn_inverval = int(config["warning"]["decrepated_interval"])
+    warn_inverval = int(config["warning"]["deprecated_interval"])
 
     for mp in data:
         for i in range(len(data[mp]['color'])):
@@ -94,13 +95,13 @@ def check_thresholds(data):
                 dewarn()
 
             if datetime.fromisoformat(data[mp]['dt'][i]) < (now - timedelta(minutes=warn_inverval)):
-                decrepated_warning(
+                deprecated_warning(
                     mp,
                     data[mp]["sensor_name"][i].split("\n")[0],
                     datetime.fromisoformat(data[mp]['dt'][i])
                 )
             else:
-                dedecrepated_warning(
+                dedeprecated_warning(
                     mp,
                     data[mp]["sensor_name"][i].split("\n")[0],
 
@@ -136,9 +137,10 @@ def select_channels_and_warn(message):
 def warn(meas_point, sens_name, dt, value):
     filename = f"./{meas_point}-{sens_name}.warn"
     filename = os.path.abspath(filename)
+
     if not os.path.exists(filename):
         touch_file(filename)
-        text = config['warning']['message_warn']%(meas_point,sens_name, dt.strftime("%Y-%m-%d at %H:%M"), value)
+        text = config['warning']['message_warn']%(meas_point,sens_name, dt.astimezone(local_tz).strftime("%Y-%m-%d at %H:%M"), value)
         logging.info("Users will be warned!")
         select_channels_and_warn(text)
 
@@ -156,7 +158,7 @@ def alarm(meas_point, sens_name, dt, value):
     filename = os.path.abspath(filename)
     if not os.path.exists(filename):
         touch_file(filename)
-        text = config['warning']['message_alarm']%(meas_point,sens_name, dt.strftime(config['API']['dtformat']), value)
+        text = config['warning']['message_alarm']%(meas_point,sens_name, dt.astimezone(local_tz).strftime(config['API']['dtformat']), value)
         logging.info("Users will be alarmed!")
         select_channels_and_warn(text)
 
@@ -169,22 +171,22 @@ def dealarm(meas_point,sens_name ):
         logging.info("Users will be dealarmed!")
         select_channels_and_warn(text)
 
-def decrepated_warning(meas_point, sens_name, dt):
+def deprecated_warning(meas_point, sens_name, dt):
     filename = f"./{meas_point}-{sens_name}.dec"
     filename = os.path.abspath(filename)
     if not os.path.exists(filename):
         touch_file(filename)
-        text = config['warning']['message_decrepated']%(meas_point, sens_name, dt.strftime(config['API']['dtformat']))
-        logging.info("Users will get a decrepated warning!")
+        text = config['warning']['message_deprecated']%(meas_point, sens_name, dt.astimezone(local_tz).strftime(config['API']['dtformat']))
+        logging.info("Users will get a deprecated warning!")
         select_channels_and_warn (text)
 
-def dedecrepated_warning(meas_point, sens_name):
+def dedeprecated_warning(meas_point, sens_name):
     filename = f"./{meas_point}-{sens_name}.dec"
     filename = os.path.abspath(filename)
     if os.path.exists(filename):
         dt = destroy_file(filename)
-        text = config['warning']['message_dedecrepated']%(meas_point, sens_name, dt.strftime(config['API']['dtformat']))
-        logging.info("Users will be dedecrepated!")
+        text = config['warning']['message_dedeprecated']%(meas_point, sens_name, dt.astimezone(local_tz).strftime(config['API']['dtformat']))
+        logging.info("Users will be dedeprecated!")
         select_channels_and_warn(text)
 
 if __name__ == '__main__':
