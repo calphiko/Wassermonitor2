@@ -1,11 +1,12 @@
 # WARNING BOT MAIN FILE
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import configparser
 import json
 from requests import post
 import logging
+import pytz
 
 config_file = str()
 config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg")]
@@ -15,6 +16,11 @@ for c in config_file_pos:
         config_file = c
         break
 
+# Parse Config File
+config = configparser.RawConfigParser()
+config.read(config_file)
+
+# Loggerconfig
 logger = logging.getLogger('wassermonitor warning bot')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -22,6 +28,10 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
+#now with timezone
+now = datetime.now(tz=pytz.utc)
+
 
 
 if config_file == str():
@@ -32,6 +42,22 @@ logger.info(f"reading config from {config_file} ...")
 # Parse Config File
 config = configparser.RawConfigParser()
 config.read(config_file)
+
+def touch_file(filename):
+    if os.path.exists(filename):
+        os.utime(filename, None)
+    else:
+        with open(filename, 'a') as f:
+            f.write(datetime.now(tz=pytz.utc).isoformat())
+    logger.debug(f"lock file {filename} created...")
+
+def destroy_file(filename):
+    if os.path.exists(filename):
+        with open (filename, 'r') as f :
+            dt = datetime.fromisoformat(f.readline())
+        os.remove(filename)
+    logger.debug(f"lock file {filename} destroyed...")
+    return dt
 
 def get_last_data_from_api():
     headers = {
@@ -45,7 +71,8 @@ def get_last_data_from_api():
 
 
 def check_thresholds(data):
-    print (data)
+    warn_inverval = int(config["warning"]["decrepated_interval"])
+
     for mp in data:
         for i in range(len(data[mp]['color'])):
             if data[mp]['color'][i] == 'warning':
@@ -66,24 +93,34 @@ def check_thresholds(data):
             elif data[mp]['color'][i] == 'alarm':
                 dewarn()
 
+            if datetime.fromisoformat(data[mp]['dt'][i]) < (now - timedelta(minutes=warn_inverval)):
+                decrepated_warning(
+                    mp,
+                    data[mp]["sensor_name"][i].split("\n")[0],
+                    datetime.fromisoformat(data[mp]['dt'][i])
+                )
+            else:
+                dedecrepated_warning(
+                    mp,
+                    data[mp]["sensor_name"][i].split("\n")[0],
+
+                )
 
 def message_signal(message):
-    logger.info ("Warn via signal")
-    print(message)
+    logger.debug (f"Warn via signal\n\t{message}")
 
 
 def message_email(message):
-    logger.info ("Warn via email")
-
+    logger.debug (f"Warn via email\n\t{message}")
 
 
 def message_telegram(message):
-    logger.info ("Warn via telegram")
+    logger.debug (f"Warn via telegram\n\t{message}")
 
 
 def select_channels_and_warn(message):
     if not config['warning']['enable']:
-        print ("warning disabled...")
+        logger.debug ("warning disabled...")
 
     else:
         if config['warning']['en_signal']:
@@ -97,25 +134,58 @@ def select_channels_and_warn(message):
 
 
 def warn(meas_point, sens_name, dt, value):
-    text = config['warning']['message_warn']%(meas_point,sens_name, dt.strftime("%Y-%m-%d at %H:%M"), value)
-    logging.info("Users will be warned!")
-    select_channels_and_warn(text)
+    filename = f"./{meas_point}-{sens_name}.warn"
+    filename = os.path.abspath(filename)
+    if not os.path.exists(filename):
+        touch_file(filename)
+        text = config['warning']['message_warn']%(meas_point,sens_name, dt.strftime("%Y-%m-%d at %H:%M"), value)
+        logging.info("Users will be warned!")
+        select_channels_and_warn(text)
 
-def dewarn():
-    text = config['warning']['message_dewarn']
-    logging.info("Users will be dewarned!")
-    select_channels_and_warn(text)
+def dewarn(meas_point, sens_name):
+    filename = f"./{meas_point}-{sens_name}.warn"
+    filename = os.path.abspath(filename)
+    if os.path.exists(filename):
+        dt = destroy_file(filename)
+        text = config['warning']['message_dewarn']
+        logging.info("Users will be dewarned!")
+        select_channels_and_warn(text)
 
 def alarm(meas_point, sens_name, dt, value):
-    text = config['warning']['message_alarm']%(meas_point,sens_name, dt.strftime("%Y-%m-%d at %H:%M"), value)
-    logging.info("Users will be alarmed!")
-    select_channels_and_warn(text)
+    filename = f"./{meas_point}-{sens_name}.alarm"
+    filename = os.path.abspath(filename)
+    if not os.path.exists(filename):
+        touch_file(filename)
+        text = config['warning']['message_alarm']%(meas_point,sens_name, dt.strftime(config['API']['dtformat']), value)
+        logging.info("Users will be alarmed!")
+        select_channels_and_warn(text)
 
-def dealarm():
-    text = config['warning']['message_dealarm']
-    logging.info("Users will be dealarmed!")
-    select_channels_and_warn(text)
+def dealarm(meas_point,sens_name ):
+    filename = f"{meas_point}-{sens_name}.alarm"
+    filename = os.path.abspath(filename)
+    if os.path.exists(filename):
+        dt = destroy_file(filename)
+        text = config['warning']['message_dealarm']
+        logging.info("Users will be dealarmed!")
+        select_channels_and_warn(text)
 
+def decrepated_warning(meas_point, sens_name, dt):
+    filename = f"./{meas_point}-{sens_name}.dec"
+    filename = os.path.abspath(filename)
+    if not os.path.exists(filename):
+        touch_file(filename)
+        text = config['warning']['message_decrepated']%(meas_point, sens_name, dt.strftime(config['API']['dtformat']))
+        logging.info("Users will get a decrepated warning!")
+        select_channels_and_warn (text)
+
+def dedecrepated_warning(meas_point, sens_name):
+    filename = f"./{meas_point}-{sens_name}.dec"
+    filename = os.path.abspath(filename)
+    if os.path.exists(filename):
+        dt = destroy_file(filename)
+        text = config['warning']['message_dedecrepated']%(meas_point, sens_name, dt.strftime(config['API']['dtformat']))
+        logging.info("Users will be dedecrepated!")
+        select_channels_and_warn(text)
 
 if __name__ == '__main__':
     data = get_last_data_from_api()
