@@ -9,3 +9,7 @@
 /Doc/build/
 /Pi/calib/calib_date_sensor_3.csv
 /Pi/calib/calib_date_sensor_13.csv
+/Test/Server/Data/add_timezone_to_naive.py
+/Server/Warningbot/*.warn
+/Server/Warningbot/*.alarm
+/Server/Warningbot/*.dec
