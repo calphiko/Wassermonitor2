@@ -81,6 +81,9 @@ config = configparser.RawConfigParser()
 config.read(config_file)
 authorized_keys = load_authorized_keys(os.path.abspath(config['API']['authorized_keys_file']))
 
+with open('../messages.json','r', encoding='utf-8') as f:
+    messages = json.load(f)
+
 PORT = int(config['API']['port'])
 print (PORT)
 
@@ -408,7 +411,7 @@ def request_last_measurements():
     #print (data)
     for mp in data:
         data_json[mp] = {
-            "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(config['API']['dtformat'])}" for x in data[mp]],
+            "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(messages['dtformat'][config['API']['language']])}" for x in data[mp]],
             "dt":[data[mp][x]["dt"] for x in data[mp]],
             "value": [data[mp][x]["value"] for x in data[mp]],
             "color": [data[mp][x]["color"] for x in data[mp]],
