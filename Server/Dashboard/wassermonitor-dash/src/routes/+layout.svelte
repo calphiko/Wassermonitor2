@@ -5,7 +5,7 @@ import '../app.css';
 let { children } = $props();</script>
 
 
-<div class="app">
+<div class="app bg-yellow-50 dark:bg-gray-800">
 	<Header></Header>
 
 	<main>
@@ -13,10 +13,8 @@ let { children } = $props();</script>
 	</main>
 
 	<footer>
-		<p>
-			build with <a href="https://svelte.dev/docs/kit">svelte</a>
-		</p>
-		<p>
+		<p class="text-center bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-20 my-5">
+			build with <a href="https://svelte.dev/docs/kit">svelte</a><br>
 			if you are interested in wassermonitor please visit my <a href="https://wassermonitor.de">blog</a>.
 	    </p>
 	</footer>

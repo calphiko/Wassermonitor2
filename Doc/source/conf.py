@@ -10,10 +10,11 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../../Server/API/"))
 sys.path.insert(0, os.path.abspath("../../Pi/"))
+sys.path.insert(0, os.path.abspath("../../Server/Warningbot/"))
 print(sys.path)
 
 project = 'Wassermonitor2'
-copyright = '2024, Carl Philipp Koppen'
+copyright = '2024, 2025, Carl Philipp Koppen'
 author = 'Carl Philipp Koppen'
 
 html_favicon = '_static/favicon.png'

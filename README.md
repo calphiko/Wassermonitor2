@@ -6,6 +6,54 @@ Wassermonitor is a full implementation for collecting data from distributed sens
 
 The Project is currently under development, but I'm sure to deploy a full implementation in a few weeks.
 
+## Current Status
+
+### Legend
+
+| Color | Status         |
+|-------|----------------|
+| 🔴    | not started    |
+| 🟡    | in progression |
+| 🟢    | completed      |
+
+### Features
+
+| Module          | Feature                                 | Implemented  | Testing | Documentation |
+|-----------------|-----------------------------------------|--------------|---------|---------------|
+| API             | Get new signed Measurement values       | 🟢           | 🟡      | 🟡            |
+|                 | Provide current values                  | 🟢           | 🟡      | 🟡            |
+|                 | Provide values over time with deviation | 🟢           | 🟡      | 🟡            |
+| Dashboard       | Show current status plot                | 🟢           | 🔴      | 🔴            |
+|                 | Show time plot                          | 🟢           | 🔴      | 🔴            |
+|                 | Show deviation plot                     | 🟢           | 🔴      | 🔴            |
+|                 | Support light and dark mode             | 🟢           | 🔴      | 🔴            |
+| Warning Bot     | Warn via telegram                       | 🟢           | 🔴      | 🟡            |
+|                 | Warn via email                          | 🟡           | 🔴      | 🟡            |
+|                 | Warn via signal                         | 🟡           | 🔴      | 🟡            |
+|                 | Support multi language                  | 🟢  (en, de) | 🔴      | 🟡            |
+| Datacrawler     | Crawl data from I2C sensors             | 🟢           | 🔴      | 🟡            |
+| Datatransmitter | Sign data with psk and send to API      | 🟢           | 🔴      | 🟡            |
+
+### Documentation
+| Module      | Documentation feature   | Status |
+|-------------|-------------------------|--------|
+| API         | Doc-Strings for Sphinx  | 🟢     |
+|             | Full Text Documentation | 🔴     |
+| warningbot  | Doc Strings for Sphinx  | 🟡     |
+|             | Full Text documentation | 🔴     |
+| Pi          | Doc-Strings for Sphinx  | 🟢     |
+|             | Full Text documentation | 🟡     |
+| Setup Guide | full Text documentation | 🟡     |
+
+
+### Distribution
+
+| Feature                                                                                                 | Status |
+|---------------------------------------------------------------------------------------------------------|--------|
+| If push to main-branch: Github Action: Automatically deploy documentation                               | 🟢     | 
+| If push to main-branch: Github Action: Automatically build .tar.gz packets for server and meas points   | 	🔴    |
+| If push to main-branch: Github Action: Automatically build docker containers for server and meas_points | 	🔴    |
+
 ## Full documentation
 
 Please find the full documentation under https://doc.wassermonitor.de. 

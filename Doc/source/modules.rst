@@ -15,7 +15,8 @@ Warningbot
 
 .. toctree::
    :maxdepth: 3
-   :caption: Contents:
+
+   warningbot
 
 
 Dashboard
