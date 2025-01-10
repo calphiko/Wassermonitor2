@@ -81,7 +81,7 @@ config = configparser.RawConfigParser()
 config.read(config_file)
 authorized_keys = load_authorized_keys(os.path.abspath(config['API']['authorized_keys_file']))
 
-with open('../messages.json','r', encoding='utf-8') as f:
+with open(os.path.abspath('../messages.json'),'r', encoding='utf-8') as f:
     messages = json.load(f)
 
 PORT = int(config['API']['port'])
