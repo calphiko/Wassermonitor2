@@ -17,7 +17,7 @@ for c in config_file_pos:
         break
 
 # Load messages from file
-with open('../messages.json','r', encoding='utf-8') as f:
+with open(os.path.abspath('../messages.json'),'r', encoding='utf-8') as f:
     messages = json.load(f)
 
 # Parse Config File
@@ -126,7 +126,31 @@ def message_email(message):
 
 def message_telegram(message):
     logger.debug (f"Warn via telegram\n\t{message}")
+    creds_path = os.path.abspath('./telegram/creds.json')
 
+    # Load tgram credentials from file
+    if not os.path.exists(creds_path):
+        print("No creds.json found. Please copy the creds.json.tmpl file to creds.json and add your telegram bot credentials.")
+        return False
+
+    with open(creds_path, 'r', encoding='utf-8') as f:
+        tgram_creds = json.load(f)
+
+    bot_token = tgram_creds['api_token']
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+    data = {
+        "chat_id":tgram_creds["group_id"],
+        "text": message
+    }
+
+
+    response = post(url, data=data)
+
+    if response.json()['ok'] == True:
+        return True
+    else:
+        return False
 
 def select_channels_and_warn(message):
     if not config['warning']['enable']:
@@ -227,6 +251,7 @@ def dedeprecated_warning(meas_point, sens_name):
         placeholders = {
             "sensor": sens_name,
             "meas_point": meas_point,
+            "date": dt.astimezone(local_tz).strftime(messages['dtformat'][config['API']['language']]),
         }
         text = format_message(messages['message_dedeprecated'][config['API']['language']], placeholders)
         logging.info("Users will be dedeprecated!")
