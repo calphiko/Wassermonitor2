@@ -16,8 +16,15 @@ for c in config_file_pos:
         config_file = c
         break
 
+msg_json = str()
+msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json")]
+for c in msg_json_pos:
+    print (os.path.abspath(c))
+    if os.path.exists(c):
+        msg_json = c
+        break
 # Load messages from file
-with open(os.path.abspath('../messages.json'),'r', encoding='utf-8') as f:
+with open(msg_json,'r', encoding='utf-8') as f:
     messages = json.load(f)
 
 # Parse Config File
