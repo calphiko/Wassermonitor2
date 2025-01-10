@@ -65,24 +65,45 @@ from datetime import datetime
 from psk_auth import load_authorized_keys, verify_signature
 import base64
 import os
+import logging
+
+# Loggerconfig
+logger = logging.getLogger('wassermonitor warning bot')
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 
 config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg")]
 for c in config_file_pos:
-    print (os.path.abspath(c))
+    #logger.debug (f"Config File Path: {os.path.abspath(c)})
     if os.path.exists(c):
         config_file = c
         break
-print(f"Wassermonitor2 starting at {datetime.now()} ...")
-print(f"reading config from {config_file} ...")
+logger.info(f"Wassermonitor2 starting at {datetime.now()} ...")
+logger.info(f"reading config from {config_file} ...")
 
 # Parse Config File
 config = configparser.RawConfigParser()
 config.read(config_file)
 authorized_keys = load_authorized_keys(os.path.abspath(config['API']['authorized_keys_file']))
 
+msg_json = str()
+msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json")]
+for c in msg_json_pos:
+    logger.debug (os.path.abspath(c))
+    if os.path.exists(c):
+        msg_json = c
+        break
+# Load messages from file
+with open(msg_json,'r', encoding='utf-8') as f:
+    messages = json.load(f)
+
 PORT = int(config['API']['port'])
-print (PORT)
+logger.info (f"API-Port:{PORT}")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
@@ -408,7 +429,7 @@ def request_last_measurements():
     #print (data)
     for mp in data:
         data_json[mp] = {
-            "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(config['API']['dtformat'])}" for x in data[mp]],
+            "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(messages['dtformat'][config['API']['language']])}" for x in data[mp]],
             "dt":[data[mp][x]["dt"] for x in data[mp]],
             "value": [data[mp][x]["value"] for x in data[mp]],
             "color": [data[mp][x]["color"] for x in data[mp]],

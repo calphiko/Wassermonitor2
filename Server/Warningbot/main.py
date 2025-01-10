@@ -16,6 +16,17 @@ for c in config_file_pos:
         config_file = c
         break
 
+msg_json = str()
+msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json")]
+for c in msg_json_pos:
+    print (os.path.abspath(c))
+    if os.path.exists(c):
+        msg_json = c
+        break
+# Load messages from file
+with open(msg_json,'r', encoding='utf-8') as f:
+    messages = json.load(f)
+
 # Parse Config File
 config = configparser.RawConfigParser()
 config.read(config_file)
@@ -44,6 +55,9 @@ logger.info(f"reading config from {config_file} ...")
 config = configparser.RawConfigParser()
 config.read(config_file)
 
+def format_message(message_template, placeholders):
+    return message_template.format(**placeholders)
+
 def touch_file(filename):
     if os.path.exists(filename):
         os.utime(filename, None)
@@ -52,6 +66,7 @@ def touch_file(filename):
             f.write(datetime.now(tz=pytz.utc).isoformat())
     logger.debug(f"lock file {filename} created...")
 
+
 def destroy_file(filename):
     if os.path.exists(filename):
         with open (filename, 'r') as f :
@@ -59,6 +74,7 @@ def destroy_file(filename):
         os.remove(filename)
     logger.debug(f"lock file {filename} destroyed...")
     return dt
+
 
 def get_last_data_from_api():
     headers = {
@@ -73,7 +89,6 @@ def get_last_data_from_api():
 
 def check_thresholds(data):
     warn_inverval = int(config["warning"]["deprecated_interval"])
-
     for mp in data:
         for i in range(len(data[mp]['color'])):
             if data[mp]['color'][i] == 'warning':
@@ -107,6 +122,7 @@ def check_thresholds(data):
 
                 )
 
+
 def message_signal(message):
     logger.debug (f"Warn via signal\n\t{message}")
 
@@ -117,7 +133,31 @@ def message_email(message):
 
 def message_telegram(message):
     logger.debug (f"Warn via telegram\n\t{message}")
+    creds_path = os.path.abspath('./telegram/creds.json')
 
+    # Load tgram credentials from file
+    if not os.path.exists(creds_path):
+        print("No creds.json found. Please copy the creds.json.tmpl file to creds.json and add your telegram bot credentials.")
+        return False
+
+    with open(creds_path, 'r', encoding='utf-8') as f:
+        tgram_creds = json.load(f)
+
+    bot_token = tgram_creds['api_token']
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+    data = {
+        "chat_id":tgram_creds["group_id"],
+        "text": message
+    }
+
+
+    response = post(url, data=data)
+
+    if response.json()['ok'] == True:
+        return True
+    else:
+        return False
 
 def select_channels_and_warn(message):
     if not config['warning']['enable']:
@@ -140,52 +180,87 @@ def warn(meas_point, sens_name, dt, value):
 
     if not os.path.exists(filename):
         touch_file(filename)
-        text = config['warning']['message_warn']%(meas_point,sens_name, dt.astimezone(local_tz).strftime("%Y-%m-%d at %H:%M"), value)
+        placeholders = {
+            "sensor": sens_name,
+            "meas_point": meas_point,
+            "date": dt.astimezone(local_tz).strftime(messages['dtformat'][config['API']['language']]),
+            "value": value
+        }
+        text = format_message(messages['message_warn'][config['API']['language']], placeholders)
         logging.info("Users will be warned!")
         select_channels_and_warn(text)
+
 
 def dewarn(meas_point, sens_name):
     filename = f"./{meas_point}-{sens_name}.warn"
     filename = os.path.abspath(filename)
     if os.path.exists(filename):
         dt = destroy_file(filename)
-        text = config['warning']['message_dewarn']
+        placeholders = {
+            "sensor": sens_name,
+            "meas_point": meas_point,
+        }
+        text = format_message(messages['message_dewarn'][config['API']['language']], placeholders)
         logging.info("Users will be dewarned!")
         select_channels_and_warn(text)
+
 
 def alarm(meas_point, sens_name, dt, value):
     filename = f"./{meas_point}-{sens_name}.alarm"
     filename = os.path.abspath(filename)
     if not os.path.exists(filename):
         touch_file(filename)
-        text = config['warning']['message_alarm']%(meas_point,sens_name, dt.astimezone(local_tz).strftime(config['API']['dtformat']), value)
+        placeholders = {
+            "sensor": sens_name,
+            "meas_point": meas_point,
+            "date": dt.astimezone(local_tz).strftime(messages['dtformat'][config['API']['language']]),
+            "value": value
+        }
+        text = format_message(messages['message_alarm'][config['API']['language']], placeholders)
         logging.info("Users will be alarmed!")
         select_channels_and_warn(text)
+
 
 def dealarm(meas_point,sens_name ):
     filename = f"{meas_point}-{sens_name}.alarm"
     filename = os.path.abspath(filename)
     if os.path.exists(filename):
         dt = destroy_file(filename)
-        text = config['warning']['message_dealarm']
+        placeholders = {
+            "sensor": sens_name,
+            "meas_point": meas_point,
+        }
+        text = format_message(messages['message_dealarm'][config['API']['language']], placeholders)
         logging.info("Users will be dealarmed!")
         select_channels_and_warn(text)
+
 
 def deprecated_warning(meas_point, sens_name, dt):
     filename = f"./{meas_point}-{sens_name}.dec"
     filename = os.path.abspath(filename)
     if not os.path.exists(filename):
         touch_file(filename)
-        text = config['warning']['message_deprecated']%(meas_point, sens_name, dt.astimezone(local_tz).strftime(config['API']['dtformat']))
+        placeholders = {
+            "sensor": sens_name,
+            "meas_point": meas_point,
+            "date": dt.astimezone(local_tz).strftime(messages['dtformat'][config['API']['language']]),
+        }
+        text = format_message(messages['message_deprecated'][config['API']['language']], placeholders)
         logging.info("Users will get a deprecated warning!")
         select_channels_and_warn (text)
+
 
 def dedeprecated_warning(meas_point, sens_name):
     filename = f"./{meas_point}-{sens_name}.dec"
     filename = os.path.abspath(filename)
     if os.path.exists(filename):
         dt = destroy_file(filename)
-        text = config['warning']['message_dedeprecated']%(meas_point, sens_name, dt.astimezone(local_tz).strftime(config['API']['dtformat']))
+        placeholders = {
+            "sensor": sens_name,
+            "meas_point": meas_point,
+            "date": dt.astimezone(local_tz).strftime(messages['dtformat'][config['API']['language']]),
+        }
+        text = format_message(messages['message_dedeprecated'][config['API']['language']], placeholders)
         logging.info("Users will be dedeprecated!")
         select_channels_and_warn(text)
 

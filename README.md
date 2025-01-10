@@ -6,6 +6,44 @@ Wassermonitor is a full implementation for collecting data from distributed sens
 
 The Project is currently under development, but I'm sure to deploy a full implementation in a few weeks.
 
+## Current Status
+
+### Features 
+| Module    | Feature                                 | Status                |
+|-----------|-----------------------------------------|-----------------------|
+| API       | Get new signed Measurement values       | 🟢 Completed          |
+|           | Provide current values                  | 🟢 Completed          |
+|           | Provide values over time with deviation | 🟢 Completed          |
+| Dashboard | Show current status plot                | 🟢 Completed          |
+|| Show time plot | 🟢 Completed          |
+|| Show devation plot | 🟢 Completed          |
+|| Support light and dark mode | 🟢 Completed          |
+| Warning Bot | Warn via telegram | 🟢 Completed          |
+|| Warn via email | 🟡 In Progress        |
+|| Warn via signal | 🟡 In Progress        |
+|| Support multi language | 🟢 Completed (en, de) |
+| Datacrawler | Crawl data from I2C sensors | 🟢 Completed          |
+| Datatransmitter | Sign data with psk and send to API | 🟢 Completed          |
+
+### Documentation
+| Module     | Documentation feature | Status |
+|------------|---|---|
+| API        | Doc-Strings for Sphinx | 	🟢 Completed|
+|            | Full Text Documentation | 	🔴 Not Started |
+| warningbot | Doc Strings for Sphinx |   🟡 In Progress |
+|            | Full Text documentation |  	🔴 Not Started |
+| Pi         | Doc-Strings for Sphinx | 	🟢 Completed|
+|            | Full Text documentation |  🟡 In Progress |
+|Setup Guide | full Text documentation | 	🟡 In Progress |
+
+
+### Deployment
+| Feature                                                                         | Status |
+|---------------------------------------------------------------------------------|---|
+| If push to main-branch: Github Action: Automatically deploy documentation       | 🟢 Completed  | 
+| If push to main-branch: Github Action: Automatically build .tar.gz packets                              | 	🔴 Not Started |
+| If push to main-branch: Github Action: Automatically build docker containers for server and meas_points | 	🔴 Not Started |
+
 ## Full documentation
 
 Please find the full documentation under https://doc.wassermonitor.de. 
