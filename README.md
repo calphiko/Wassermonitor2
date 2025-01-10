@@ -25,7 +25,7 @@ The Project is currently under development, but I'm sure to deploy a full implem
 |                 | Provide values over time with deviation | 🟢           | 🟡      | 🟡            |
 | Dashboard       | Show current status plot                | 🟢           | 🔴      | 🔴            |
 |                 | Show time plot                          | 🟢           | 🔴      | 🔴            |
-|                 | Show devation plot                      | 🟢           | 🔴      | 🔴            |
+|                 | Show deviation plot                     | 🟢           | 🔴      | 🔴            |
 |                 | Support light and dark mode             | 🟢           | 🔴      | 🔴            |
 | Warning Bot     | Warn via telegram                       | 🟢           | 🔴      | 🟡            |
 |                 | Warn via email                          | 🟡           | 🔴      | 🟡            |
