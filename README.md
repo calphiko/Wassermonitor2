@@ -8,41 +8,51 @@ The Project is currently under development, but I'm sure to deploy a full implem
 
 ## Current Status
 
-### Features 
-| Module    | Feature                                 | Status                |
-|-----------|-----------------------------------------|-----------------------|
-| API       | Get new signed Measurement values       | 🟢 Completed          |
-|           | Provide current values                  | 🟢 Completed          |
-|           | Provide values over time with deviation | 🟢 Completed          |
-| Dashboard | Show current status plot                | 🟢 Completed          |
-|| Show time plot | 🟢 Completed          |
-|| Show devation plot | 🟢 Completed          |
-|| Support light and dark mode | 🟢 Completed          |
-| Warning Bot | Warn via telegram | 🟢 Completed          |
-|| Warn via email | 🟡 In Progress        |
-|| Warn via signal | 🟡 In Progress        |
-|| Support multi language | 🟢 Completed (en, de) |
-| Datacrawler | Crawl data from I2C sensors | 🟢 Completed          |
-| Datatransmitter | Sign data with psk and send to API | 🟢 Completed          |
+### Legend
+
+| Color | Status         |
+|-------|----------------|
+| 🔴    | not started    |
+| 🟡    | in progression |
+| 🟢    | completed      |
+
+### Features
+
+| Module          | Feature                                 | Implemented  | Testing | Documentation |
+|-----------------|-----------------------------------------|--------------|---------|---------------|
+| API             | Get new signed Measurement values       | 🟢           | 🟡      | 🟡            |
+|                 | Provide current values                  | 🟢           | 🟡      | 🟡            |
+|                 | Provide values over time with deviation | 🟢           | 🟡      | 🟡            |
+| Dashboard       | Show current status plot                | 🟢           | 🔴      | 🔴            |
+|                 | Show time plot                          | 🟢           | 🔴      | 🔴            |
+|                 | Show devation plot                      | 🟢           | 🔴      | 🔴            |
+|                 | Support light and dark mode             | 🟢           | 🔴      | 🔴            |
+| Warning Bot     | Warn via telegram                       | 🟢           | 🔴      | 🟡            |
+|                 | Warn via email                          | 🟡           | 🔴      | 🟡            |
+|                 | Warn via signal                         | 🟡           | 🔴      | 🟡            |
+|                 | Support multi language                  | 🟢  (en, de) | 🔴      | 🟡            |
+| Datacrawler     | Crawl data from I2C sensors             | 🟢           | 🔴      | 🟡            |
+| Datatransmitter | Sign data with psk and send to API      | 🟢           | 🔴      | 🟡            |
 
 ### Documentation
-| Module     | Documentation feature | Status |
-|------------|---|---|
-| API        | Doc-Strings for Sphinx | 	🟢 Completed|
-|            | Full Text Documentation | 	🔴 Not Started |
-| warningbot | Doc Strings for Sphinx |   🟡 In Progress |
-|            | Full Text documentation |  	🔴 Not Started |
-| Pi         | Doc-Strings for Sphinx | 	🟢 Completed|
-|            | Full Text documentation |  🟡 In Progress |
-|Setup Guide | full Text documentation | 	🟡 In Progress |
+| Module      | Documentation feature   | Status |
+|-------------|-------------------------|--------|
+| API         | Doc-Strings for Sphinx  | 🟢     |
+|             | Full Text Documentation | 🔴     |
+| warningbot  | Doc Strings for Sphinx  | 🟡     |
+|             | Full Text documentation | 🔴     |
+| Pi          | Doc-Strings for Sphinx  | 🟢     |
+|             | Full Text documentation | 🟡     |
+| Setup Guide | full Text documentation | 🟡     |
 
 
-### Deployment
-| Feature                                                                         | Status |
-|---------------------------------------------------------------------------------|---|
-| If push to main-branch: Github Action: Automatically deploy documentation       | 🟢 Completed  | 
-| If push to main-branch: Github Action: Automatically build .tar.gz packets                              | 	🔴 Not Started |
-| If push to main-branch: Github Action: Automatically build docker containers for server and meas_points | 	🔴 Not Started |
+### Distribution
+
+| Feature                                                                                                 | Status |
+|---------------------------------------------------------------------------------------------------------|--------|
+| If push to main-branch: Github Action: Automatically deploy documentation                               | 🟢     | 
+| If push to main-branch: Github Action: Automatically build .tar.gz packets for server and meas points   | 	🔴    |
+| If push to main-branch: Github Action: Automatically build docker containers for server and meas_points | 	🔴    |
 
 ## Full documentation
 
