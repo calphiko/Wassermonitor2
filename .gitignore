@@ -13,3 +13,4 @@
 /Server/Warningbot/*.warn
 /Server/Warningbot/*.alarm
 /Server/Warningbot/*.dec
+/Server/Warningbot/telegram/creds.json
