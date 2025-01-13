@@ -1,0 +1,74 @@
+name: Create Release and Upload
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Git
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+
+      - name: Create Release Tag
+        id: create_tag
+        run: |
+          TAG_NAME=v$(date +'%Y%m%d%H%M%S')
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create tar.gz and tar.bz2 for Server
+        run: |
+          tar -czvf Server_${{ env.TAG_NAME }}.tar.gz Server
+          tar -cjvf Server_${{ env.TAG_NAME }}.tar.bz2 Server
+
+      - name: Create tar.gz and tar.bz2 for Pi
+        run: |
+          tar -czvf Pi_${{ env.TAG_NAME }}.tar.gz Pi
+          tar -cjvf Pi_${{ env.TAG_NAME }}.tar.bz2 Pi
+
+      - name: Generate Checksums
+        run: |
+          sha256sum Server_${{ env.TAG_NAME }}.tar.gz > Server_${{ env.TAG_NAME }}.tar.gz.sha256
+          sha256sum Server_${{ env.TAG_NAME }}.tar.bz2 > Server_${{ env.TAG_NAME }}.tar.bz2.sha256
+          sha256sum Pi_${{ env.TAG_NAME }}.tar.gz > Pi_${{ env.TAG_NAME }}.tar.gz.sha256
+          sha256sum Pi_${{ env.TAG_NAME }}.tar.bz2 > Pi_${{ env.TAG_NAME }}.tar.bz2.sha256
+
+      - name: Create index.html
+        run: |
+          echo "<html><body><h1>Release ${{ env.TAG_NAME }}</h1><ul>" > index.html
+          echo "<li><a href='Server_${{ env.TAG_NAME }}.tar.gz'>Server_${{ env.TAG_NAME }}.tar.gz</a> (<a href='Server_${{ env.TAG_NAME }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='Server_${{ env.TAG_NAME }}.tar.bz2'>Server_${{ env.TAG_NAME }}.tar.bz2</a> (<a href='Server_${{ env.TAG_NAME }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='Pi_${{ env.TAG_NAME }}.tar.gz'>Pi_${{ env.TAG_NAME }}.tar.gz</a> (<a href='Pi_${{ env.TAG_NAME }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='Pi_${{ env.TAG_NAME }}.tar.bz2'>Pi_${{ env.TAG_NAME }}.tar.bz2</a> (<a href='Pi_${{ env.TAG_NAME }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
+          echo "</ul></body></html>" >> index.html
+
+      - name: Upload to Server
+        uses: appleboy/scp-action@v0.1.1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: |
+            Server_${{ env.TAG_NAME }}.tar.gz
+            Server_${{ env.TAG_NAME }}.tar.bz2
+            Pi_${{ env.TAG_NAME }}.tar.gz
+            Pi_${{ env.TAG_NAME }}.tar.bz2
+            Server_${{ env.TAG_NAME }}.tar.gz.sha256
+            Server_${{ env.TAG_NAME }}.tar.bz2.sha256
+            Pi_${{ env.TAG_NAME }}.tar.gz.sha256
+            Pi_${{ env.TAG_NAME }}.tar.bz2.sha256
+            index.html
+          target: ${{ secrets.SERVER_TARGET_PATH }}
