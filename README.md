@@ -18,11 +18,13 @@ The Project is currently under development, but I'm sure to deploy a full implem
 
 ### Features
 
-| Module          | Feature                                 | Implemented  | Testing | Documentation |
-|-----------------|-----------------------------------------|--------------|---------|---------------|
-| API             | Get new signed Measurement values       | 🟢           | 🟡      | 🟡            |
-|                 | Provide current values                  | 🟢           | 🟡      | 🟡            |
-|                 | Provide values over time with deviation | 🟢           | 🟡      | 🟡            |
+| Module          | Feature                                 | Implemented     | Testing | Documentation |
+|-----------------|-----------------------------------------|-----------------|---------|---------------|
+| API             | Get new signed Measurement values       | 🟢              | 🟡      | 🟡            |
+|                 | Provide current values                  | 🟢              | 🟡      | 🟡            |
+|                 | Provide values over time with deviation | 🟢              | 🟡      | 🟡            |
+|                 | Check data signature                    |  🟢             | 🟡      | 🟡            |
+|                 | Authentication with Token               |  🟢 (unsecure!) | 🟡      | 🟡            |
 | Dashboard       | Show current status plot                | 🟢           | 🔴      | 🔴            |
 |                 | Show time plot                          | 🟢           | 🔴      | 🔴            |
 |                 | Show deviation plot                     | 🟢           | 🔴      | 🔴            |
