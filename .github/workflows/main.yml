@@ -20,13 +20,14 @@ jobs:
 
       - name: Create Release Tag
         id: create_tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME=v$(date +'%Y%m%d%H%M%S')
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           git tag $TAG_NAME
           git push origin $TAG_NAME
-        env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        
 
       - name: Create tar.gz and tar.bz2 for Server
         run: |
