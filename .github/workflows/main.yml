@@ -28,31 +28,30 @@ jobs:
           git tag $TAG_NAME
           git push origin $TAG_NAME
         
-
       - name: Create tar.gz and tar.bz2 for Server
         run: |
-          tar -czvf Server_${{ env.TAG_NAME }}.tar.gz Server
-          tar -cjvf Server_${{ env.TAG_NAME }}.tar.bz2 Server
+          tar -czvf WM2_Server_${{ env.TAG_NAME }}.tar.gz Server
+          tar -cjvf WM2_Server_${{ env.TAG_NAME }}.tar.bz2 Server
 
       - name: Create tar.gz and tar.bz2 for Pi
         run: |
-          tar -czvf Pi_${{ env.TAG_NAME }}.tar.gz Pi
-          tar -cjvf Pi_${{ env.TAG_NAME }}.tar.bz2 Pi
+          tar -czvf WM2_Pi_${{ env.TAG_NAME }}.tar.gz Pi
+          tar -cjvf WM2_Pi_${{ env.TAG_NAME }}.tar.bz2 Pi
 
       - name: Generate Checksums
         run: |
-          sha256sum Server_${{ env.TAG_NAME }}.tar.gz > Server_${{ env.TAG_NAME }}.tar.gz.sha256
-          sha256sum Server_${{ env.TAG_NAME }}.tar.bz2 > Server_${{ env.TAG_NAME }}.tar.bz2.sha256
-          sha256sum Pi_${{ env.TAG_NAME }}.tar.gz > Pi_${{ env.TAG_NAME }}.tar.gz.sha256
-          sha256sum Pi_${{ env.TAG_NAME }}.tar.bz2 > Pi_${{ env.TAG_NAME }}.tar.bz2.sha256
+          sha256sum WM2_Server_${{ env.TAG_NAME }}.tar.gz > WM2_Server_${{ env.TAG_NAME }}.tar.gz.sha256
+          sha256sum WM2_Server_${{ env.TAG_NAME }}.tar.bz2 > WM2_Server_${{ env.TAG_NAME }}.tar.bz2.sha256
+          sha256sum WM2_Pi_${{ env.TAG_NAME }}.tar.gz > WM2_Pi_${{ env.TAG_NAME }}.tar.gz.sha256
+          sha256sum WM2_Pi_${{ env.TAG_NAME }}.tar.bz2 > WM2_Pi_${{ env.TAG_NAME }}.tar.bz2.sha256
 
       - name: Create index.html
         run: |
           echo "<html><body><h1>Release ${{ env.TAG_NAME }}</h1><ul>" > index.html
-          echo "<li><a href='Server_${{ env.TAG_NAME }}.tar.gz'>Server_${{ env.TAG_NAME }}.tar.gz</a> (<a href='Server_${{ env.TAG_NAME }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='Server_${{ env.TAG_NAME }}.tar.bz2'>Server_${{ env.TAG_NAME }}.tar.bz2</a> (<a href='Server_${{ env.TAG_NAME }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='Pi_${{ env.TAG_NAME }}.tar.gz'>Pi_${{ env.TAG_NAME }}.tar.gz</a> (<a href='Pi_${{ env.TAG_NAME }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='Pi_${{ env.TAG_NAME }}.tar.bz2'>Pi_${{ env.TAG_NAME }}.tar.bz2</a> (<a href='Pi_${{ env.TAG_NAME }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='WM2_Server_${{ env.TAG_NAME }}.tar.gz'>WM2_Server_${{ env.TAG_NAME }}.tar.gz</a> (<a href='WM2_Server_${{ env.TAG_NAME }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='WM2_Server_${{ env.TAG_NAME }}.tar.bz2'>WM2_Server_${{ env.TAG_NAME }}.tar.bz2</a> (<a href='WM2_Server_${{ env.TAG_NAME }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='WM2_Pi_${{ env.TAG_NAME }}.tar.gz'>WM2_Pi_${{ env.TAG_NAME }}.tar.gz</a> (<a href='WM2_Pi_${{ env.TAG_NAME }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='WM2_Pi_${{ env.TAG_NAME }}.tar.bz2'>WM2_Pi_${{ env.TAG_NAME }}.tar.bz2</a> (<a href='WM2_Pi_${{ env.TAG_NAME }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
           echo "</ul></body></html>" >> index.html
 
       - name: Upload to Server
@@ -63,13 +62,13 @@ jobs:
           key: ${{ secrets.SSH_PRIV_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           source: |
-            Server_${{ env.TAG_NAME }}.tar.gz
-            Server_${{ env.TAG_NAME }}.tar.bz2
-            Pi_${{ env.TAG_NAME }}.tar.gz
-            Pi_${{ env.TAG_NAME }}.tar.bz2
-            Server_${{ env.TAG_NAME }}.tar.gz.sha256
-            Server_${{ env.TAG_NAME }}.tar.bz2.sha256
-            Pi_${{ env.TAG_NAME }}.tar.gz.sha256
-            Pi_${{ env.TAG_NAME }}.tar.bz2.sha256
+            WM2_Server_${{ env.TAG_NAME }}.tar.gz
+            WM2_Server_${{ env.TAG_NAME }}.tar.bz2
+            WM2_Pi_${{ env.TAG_NAME }}.tar.gz
+            WM2_Pi_${{ env.TAG_NAME }}.tar.bz2
+            WM2_Server_${{ env.TAG_NAME }}.tar.gz.sha256
+            WM2_Server_${{ env.TAG_NAME }}.tar.bz2.sha256
+            WM2_Pi_${{ env.TAG_NAME }}.tar.gz.sha256
+            WM2_Pi_${{ env.TAG_NAME }}.tar.bz2.sha256
             index.html
-          target: ${{ secrets.SERVER_TARGET_PATH }}
+          target: ${{ secrets.CODE_DEPLOY_PATH }}
