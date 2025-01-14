@@ -22,20 +22,20 @@ jobs:
       - name: Determine next version
         id: get_version
         run: |
-          latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+          latest_tag=$(git tag --list | sort -V | tail -n 1)
           echo "Latest tag: $latest_tag"
           if [ -z "$latest_tag" ]; then
-            next_version="v1.0.0"
+             next_version="v1.0.0"
           else
-            major=$(echo $latest_tag | cut -d. -f1)
-            minor=$(echo $latest_tag | cut -d. -f2)
-            patch=$(echo $latest_tag | cut -d. -f3)
-            next_patch=$((patch + 1))
-            next_version="$major.$minor.$next_patch"
+             major=$(echo $latest_tag | cut -d. -f1 | tr -d 'v')
+             minor=$(echo $latest_tag | cut -d. -f2)
+             patch=$(echo $latest_tag | cut -d. -f3)
+             next_patch=$((patch + 1))
+             next_version="v$major.$minor.$next_patch"
           fi
           echo "Next version: $next_version"
           echo "next_version=$next_version" >> $GITHUB_ENV
-
+    
       - name: Create new tag
         run: |
           git tag ${{ env.next_version }}
