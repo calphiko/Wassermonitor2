@@ -26,9 +26,9 @@ jobs:
 
       - name: Run semantic-release
         id: semantic_release
+        run: semantic-release publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: semantic-release publish
 
       - name: Set Release Tag
         run: echo "RELEASE_TAG=$(semantic-release version)" >> $GITHUB_ENV
