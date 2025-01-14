@@ -33,7 +33,11 @@ jobs:
           if [ -z "$latest_tag" ]; then
             next_version="v1.0.0"
           else
-            next_version=$(echo $latest_tag | awk -F. '{print $1"."$2"."$3+1}')
+            major=$(echo $latest_tag | cut -d. -f1)
+            minor=$(echo $latest_tag | cut -d. -f2)
+            patch=$(echo $latest_tag | cut -d. -f3)
+            next_patch=$((patch + 1))
+            next_version="$major.$minor.$next_patch"
           fi
           echo "Next version: $next_version"
           echo "next_version=$next_version" >> $GITHUB_ENV
