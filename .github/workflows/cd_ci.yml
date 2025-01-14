@@ -21,17 +21,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Install semantic-release
-        run: pip install python-semantic-release
 
-      - name: Run semantic-release
-        id: semantic_release
-        run: semantic-release publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set Release Tag
-        run: echo "RELEASE_TAG=$(semantic-release version)" >> $GITHUB_ENV
 
       - name: Create tar.gz and tar.bz2 for Server
         run: |
@@ -50,14 +40,14 @@ jobs:
           sha256sum WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz > WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz.sha256
           sha256sum WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2 > WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2.sha256
 
-      - name: Create index.html
+      - name: Create ${{ env.RELEASE_TAG }}.html
         run: |
-          echo "<html><body><h1>Release ${{ env.RELEASE_TAG }}</h1><ul>" > index.html
-          echo "<li><a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.gz'>WM2_Server_${{ env.RELEASE_TAG }}.tar.gz</a> (<a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2'>WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2</a> (<a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz'>WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz</a> (<a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2'>WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2</a> (<a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
-          echo "</ul></body></html>" >> index.html
+          echo "<html><body><h1>Release ${{ env.RELEASE_TAG }}</h1><ul>" > ${{ env.RELEASE_TAG }}.html
+          echo "<li><a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.gz'>WM2_Server_${{ env.RELEASE_TAG }}.tar.gz</a> (<a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.gz.sha256'>sha256</a>)</li>" >> ${{ env.RELEASE_TAG }}.html
+          echo "<li><a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2'>WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2</a> (<a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2.sha256'>sha256</a>)</li>" >> ${{ env.RELEASE_TAG }}.html
+          echo "<li><a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz'>WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz</a> (<a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz.sha256'>sha256</a>)</li>" >> ${{ env.RELEASE_TAG }}.html
+          echo "<li><a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2'>WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2</a> (<a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2.sha256'>sha256</a>)</li>" >> ${{ env.RELEASE_TAG }}.html
+          echo "</ul></body></html>" >> ${{ env.RELEASE_TAG }}.html
 
       - name: Upload to Server
         env:
