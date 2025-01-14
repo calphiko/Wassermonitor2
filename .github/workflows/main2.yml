@@ -44,8 +44,14 @@ jobs:
       - name: Set GEM_HOME
         run: echo "GEM_HOME=$HOME/.gem" >> $GITHUB_ENV
 
+      - name: Install Ruby and Bundler
+        run: |
+           sudo apt-get update
+           sudo apt-get install -y ruby-full build-essential
+           gem install bundler
+
       - name: Install github_changelog_generator
-        run: gem install github_changelog_generator
+        run: gem install github_changelog_generator --no-document
 
       - name: Generate Changelog
         run: github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }}
