@@ -55,21 +55,37 @@ jobs:
           echo "</ul></body></html>" >> index.html
 
       - name: Upload to Server
-        uses: appleboy/scp-action@v0.1.1
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIV_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: |
-            WM2_Server_${{ env.TAG_NAME }}.tar.gz
-            WM2_Server_${{ env.TAG_NAME }}.tar.bz2
-            WM2_Pi_${{ env.TAG_NAME }}.tar.gz
-            WM2_Pi_${{ env.TAG_NAME }}.tar.bz2
-            WM2_Server_${{ env.TAG_NAME }}.tar.gz.sha256
-            WM2_Server_${{ env.TAG_NAME }}.tar.bz2.sha256
-            WM2_Pi_${{ env.TAG_NAME }}.tar.gz.sha256
-            WM2_Pi_${{ env.TAG_NAME }}.tar.bz2.sha256
-            index.html
-          target: ${{ secrets.CODE_DEPLOY_PATH }}
-          debug: true
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIV_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          DEPLOY_PATH: ${{ secrets.CODE_DEPLOY_PATH }}
+        run: |
+          echo "Home directory: $HOME"
+          echo "Available disk space"
+          
+          mkdir -p ~/.ssh
+          echo ".ssh created"
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          cat ~/.ssh/id_rsa
+          echo "priv key copied"
+          chmod 600 ~/.ssh/id_rsa
+          echo "privileges set"
+          ssh-keyscan -p $SERVER_PORT -H $SERVER_HOST >> ~/.ssh/known_hosts
+          echo "added to keychain"
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.TAG_NAME }}.tar.gz.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.TAG_NAME }}.tar.bz2.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.TAG_NAME }}.tar.gz.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.TAG_NAME }}.tar.bz2.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.TAG_NAME }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.TAG_NAME }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.TAG_NAME }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.TAG_NAME }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+
+          scp -P $SERVER_PORT -r index.html $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          
+          echo "data copied"
+
+      
