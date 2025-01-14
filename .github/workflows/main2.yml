@@ -17,7 +17,14 @@ jobs:
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-
+      
+      - name: Ensure at least one tag exists
+        run: |
+          if [ -z "$(git tag)" ]; then
+            git tag v0.1.0
+            git push origin v0.1.0
+          fi
+      
       - name: Determine next version
         id: get_version
         run: |
