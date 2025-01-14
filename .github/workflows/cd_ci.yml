@@ -1,0 +1,90 @@
+name: Create Release and Upload
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Git
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install semantic-release
+        run: pip install python-semantic-release
+
+      - name: Run semantic-release
+        id: semantic_release
+        run: semantic-release publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Release Tag
+        run: echo "RELEASE_TAG=$(semantic-release version)" >> $GITHUB_ENV
+
+      - name: Create tar.gz and tar.bz2 for Server
+        run: |
+          tar -czvf WM2_Server_${{ env.RELEASE_TAG }}.tar.gz Server
+          tar -cjvf WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2 Server
+
+      - name: Create tar.gz and tar.bz2 for Pi
+        run: |
+          tar -czvf WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz Pi
+          tar -cjvf WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2 Pi
+
+      - name: Generate Checksums
+        run: |
+          sha256sum WM2_Server_${{ env.RELEASE_TAG }}.tar.gz > WM2_Server_${{ env.RELEASE_TAG }}.tar.gz.sha256
+          sha256sum WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2 > WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2.sha256
+          sha256sum WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz > WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz.sha256
+          sha256sum WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2 > WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2.sha256
+
+      - name: Create index.html
+        run: |
+          echo "<html><body><h1>Release ${{ env.RELEASE_TAG }}</h1><ul>" > index.html
+          echo "<li><a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.gz'>WM2_Server_${{ env.RELEASE_TAG }}.tar.gz</a> (<a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2'>WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2</a> (<a href='WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz'>WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz</a> (<a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
+          echo "<li><a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2'>WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2</a> (<a href='WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
+          echo "</ul></body></html>" >> index.html
+
+      - name: Upload to Server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIV_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          DEPLOY_PATH: ${{ secrets.CODE_DEPLOY_PATH }}
+        run: |
+          echo "Home directory: $HOME"
+          echo "Available disk space"
+          
+          mkdir -p ~/.ssh
+          echo ".ssh created"
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          cat ~/.ssh/id_rsa
+          echo "priv key copied"
+          chmod 600 ~/.ssh/id_rsa
+          echo "privileges set"
+          ssh-keyscan -p $SERVER_PORT -H $SERVER_HOST >> ~/.ssh/known_hosts
+          echo "added to keychain"
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.RELEASE_TAG }}.tar.gz.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.RELEASE_TAG }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.RELEASE_TAG }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.RELEASE_TAG }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.RELEASE_TAG }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
