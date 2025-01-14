@@ -1,0 +1,51 @@
+name: Create Release Tag and Changelog
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Git
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+
+      - name: Determine next version
+        id: get_version
+        run: |
+          latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+          echo "Latest tag: $latest_tag"
+          if [ -z "$latest_tag" ]; then
+            next_version="v1.0.0"
+          else
+            next_version=$(echo $latest_tag | awk -F. '{print $1"."$2"."$3+1}')
+          fi
+          echo "Next version: $next_version"
+          echo "next_version=$next_version" >> $GITHUB_ENV
+
+      - name: Create new tag
+        run: |
+          git tag ${{ env.next_version }}
+          git push origin ${{ env.next_version }}
+
+      - name: Install github_changelog_generator
+        run: gem install github_changelog_generator
+
+      - name: Generate Changelog
+        run: github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }}
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=${{ env.next_version }}
+          body=$(cat CHANGELOG.md)
+          gh release create $tag --notes "$body"
