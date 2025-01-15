@@ -54,6 +54,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ruby-full build-essential
           gem install bundler
+          gem uninstall faraday
           gem install faraday -v 1.10.0
           gem install faraday-http-cache -v 2.5.0
           gem install async-http-faraday -v 0.18.0
