@@ -17,9 +17,27 @@ project = 'Wassermonitor2'
 copyright = '2024, 2025, Carl Philipp Koppen'
 author = 'Carl Philipp Koppen'
 
+version = 'unknown'  # Standardwert, wird durch den Workflow überschrieben
+release = 'unknown release'  # Standardwert, wird durch den Workflow überschrieben
+
 html_favicon = '_static/favicon.png'
 html_logo = '_static/favicon.png'
 html_static_path = ['_static']
+
+# -- HTML output options ------------------------------------------------------
+
+html_title = f'{project} {version}'  # Zeigt die Version im Dokumentationstitel an
+
+# Anzeige der Version im Footer oder Untertitel
+html_context = {
+    "display_github": True,
+    "github_user": "DeinGitHubName",
+    "github_repo": "DeinRepository",
+    "github_version": "main",  # Branch, der für die Dokumentation verwendet wird
+    "conf_py_path": "/docs/",
+    "version": version,  # Diese Version wird durch den Workflow gesetzt
+}
+
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
