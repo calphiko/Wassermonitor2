@@ -64,12 +64,12 @@ jobs:
 
       - name: Create index.html
         run: |
-          echo "<html><body><h1>Release ${{ env.next_version }}</h1><ul>" > env.next_version.html
-          echo "<li><a href='WM2_Server_${{ env.next_version }}.tar.gz'>WM2_Server_${{ env.next_version }}.tar.gz</a> (<a href='WM2_Server_${{ env.next_version }}.tar.gz.sha256'>sha256</a>)</li>" >> env.next_version.html
-          echo "<li><a href='WM2_Server_${{ env.next_version }}.tar.bz2'>WM2_Server_${{ env.next_version }}.tar.bz2</a> (<a href='WM2_Server_${{ env.next_version }}.tar.bz2.sha256'>sha256</a>)</li>" >> env.next_version.html
-          echo "<li><a href='WM2_Pi_${{ env.next_version }}.tar.gz'>WM2_Pi_${{ env.next_version }}.tar.gz</a> (<a href='WM2_Pi_${{ env.next_version }}.tar.gz.sha256'>sha256</a>)</li>" >> env.next_version.html
-          echo "<li><a href='WM2_Pi_${{ env.next_version }}.tar.bz2'>WM2_Pi_${{ env.next_version }}.tar.bz2</a> (<a href='WM2_Pi_${{ env.next_version }}.tar.bz2.sha256'>sha256</a>)</li>" >> env.next_version.html
-          echo "</ul></body></html>" >> env.next_version.html
+          echo "<html><body><h1>Release ${{ env.next_version }}</h1><ul>" >  ${{ env.next_version }}.html
+          echo "<li><a href='WM2_Server_${{ env.next_version }}.tar.gz'>WM2_Server_${{ env.next_version }}.tar.gz</a> (<a href='WM2_Server_${{ env.next_version }}.tar.gz.sha256'>sha256</a>)</li>" >>  ${{ env.next_version }}.html
+          echo "<li><a href='WM2_Server_${{ env.next_version }}.tar.bz2'>WM2_Server_${{ env.next_version }}.tar.bz2</a> (<a href='WM2_Server_${{ env.next_version }}.tar.bz2.sha256'>sha256</a>)</li>" >>  ${{ env.next_version }}.html
+          echo "<li><a href='WM2_Pi_${{ env.next_version }}.tar.gz'>WM2_Pi_${{ env.next_version }}.tar.gz</a> (<a href='WM2_Pi_${{ env.next_version }}.tar.gz.sha256'>sha256</a>)</li>" >>  ${{ env.next_version }}.html
+          echo "<li><a href='WM2_Pi_${{ env.next_version }}.tar.bz2'>WM2_Pi_${{ env.next_version }}.tar.bz2</a> (<a href='WM2_Pi_${{ env.next_version }}.tar.bz2.sha256'>sha256</a>)</li>" >>  ${{ env.next_version }}.html
+          echo "</ul></body></html>" >>  ${{ env.next_version }}.html
 
       - name: Upload to Server
         env:
@@ -101,7 +101,7 @@ jobs:
           scp -P $SERVER_PORT -r WM2_Pi_${{ env.next_version }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
           scp -P $SERVER_PORT -r WM2_Pi_${{ env.next_version }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
 
-          scp -P $SERVER_PORT -r env.next_version.html $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r ${{ env.next_version }}.html $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
           
           echo "data copied"
 
