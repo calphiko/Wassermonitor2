@@ -2,8 +2,8 @@ name: Build and Deploy Sphinx Docs
 
 on:
   push:
-    tags:
-      - 'v*'  # Only for new version tags
+    branches:
+      - main  # Only for new version tags
 
 jobs:
   build-and-deploy:
@@ -13,6 +13,12 @@ jobs:
       # Checkout Repository
       - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Wait for 2 minutes
+        run: |
+          echo "Waiting for 2 minutes..."
+          sleep 120  
+
 
       # Set up Python Environment
       - name: Set up Python
