@@ -13,12 +13,12 @@ sys.path.insert(0, os.path.abspath("../../Pi/"))
 sys.path.insert(0, os.path.abspath("../../Server/Warningbot/"))
 print(sys.path)
 
-project = 'Wassermonitor2'
-copyright = '2024, 2025, Carl Philipp Koppen'
-author = 'Carl Philipp Koppen'
-
 version = 'unknown'  # Standardwert, wird durch den Workflow überschrieben
 release = 'unknown'  # Standardwert, wird durch den Workflow überschrieben
+
+project = 'Wassermonitor2 {version}'
+copyright = '2024, 2025, Carl Philipp Koppen'
+author = 'Carl Philipp Koppen'
 
 html_favicon = '_static/favicon.png'
 html_logo = '_static/favicon.png'
