@@ -18,23 +18,23 @@ The Project is currently under development, but I'm sure to deploy a full implem
 
 ### Features
 
-| Module          | Feature                                 | Implemented     | Testing | Documentation |
-|-----------------|-----------------------------------------|-----------------|---------|---------------|
-| API             | Get new signed Measurement values       | 🟢              | 🟡      | 🟡            |
-|                 | Provide current values                  | 🟢              | 🟡      | 🟡            |
-|                 | Provide values over time with deviation | 🟢              | 🟡      | 🟡            |
-|                 | Check data signature                    |  🟢             | 🟡      | 🟡            |
-|                 | Authentication with Token               |  🟢 (unsecure!) | 🟡      | 🟡            |
-| Dashboard       | Show current status plot                | 🟢           | 🔴      | 🔴            |
-|                 | Show time plot                          | 🟢           | 🔴      | 🔴            |
-|                 | Show deviation plot                     | 🟢           | 🔴      | 🔴            |
-|                 | Support light and dark mode             | 🟢           | 🔴      | 🔴            |
-| Warning Bot     | Warn via telegram                       | 🟢           | 🔴      | 🟡            |
-|                 | Warn via email                          | 🟡           | 🔴      | 🟡            |
-|                 | Warn via signal                         | 🟡           | 🔴      | 🟡            |
-|                 | Support multi language                  | 🟢  (en, de) | 🔴      | 🟡            |
-| Datacrawler     | Crawl data from I2C sensors             | 🟢           | 🔴      | 🟡            |
-| Datatransmitter | Sign data with psk and send to API      | 🟢           | 🔴      | 🟡            |
+| Module          | Feature                                 | Implemented    | Testing | Documentation |
+|-----------------|-----------------------------------------|----------------|---------|---------------|
+| API             | Get new signed Measurement values       | 🟢             | 🟡      | 🟡            |
+|                 | Provide current values                  | 🟢             | 🟡      | 🟡            |
+|                 | Provide values over time with deviation | 🟢             | 🟡      | 🟡            |
+|                 | Check data signature                    | 🟢             | 🟡      | 🟡            |
+|                 | Authentication with Token               | 🟢 (unsecure!) | 🟡      | 🟡            |
+| Dashboard       | Show current status plot                | 🟢             | 🔴      | 🔴            |
+|                 | Show time plot                          | 🟢             | 🔴      | 🔴            |
+|                 | Show deviation plot                     | 🟢             | 🔴      | 🔴            |
+|                 | Support light and dark mode             | 🟢             | 🔴      | 🔴            |
+| Warning Bot     | Warn via telegram                       | 🟢             | 🔴      | 🟡            |
+|                 | Warn via email                          | 🟢             | 🟡      | 🟡            |
+|                 | Warn via signal                         | 🟡             | 🔴      | 🟡            |
+|                 | Support multi language                  | 🟢  (en, de)   | 🔴      | 🟡            |
+| Datacrawler     | Crawl data from I2C sensors             | 🟢             | 🔴      | 🟡            |
+| Datatransmitter | Sign data with psk and send to API      | 🟢             | 🔴      | 🟡            |
 
 ### Documentation
 | Module      | Documentation feature   | Status |
