@@ -18,6 +18,10 @@ jobs:
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
 
+      # Tags abrufen
+      - name: Fetch tags
+        run: git fetch --tags
+        
       - name: Determine next version
         id: get_version
         run: |
