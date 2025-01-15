@@ -53,7 +53,7 @@ jobs:
 
       - name: Generate Checksums
         run: |
-          sha256sum WM2_Server_${{ env.next_version }}.tar.gz > WM2_Server_${{ env.next_versionE }}.tar.gz.sha256
+          sha256sum WM2_Server_${{ env.next_version }}.tar.gz > WM2_Server_${{ env.next_version }}.tar.gz.sha256
           sha256sum WM2_Server_${{ env.next_version }}.tar.bz2 > WM2_Server_${{ env.next_version }}.tar.bz2.sha256
           sha256sum WM2_Pi_${{ env.next_version }}.tar.gz > WM2_Pi_${{ env.next_version }}.tar.gz.sha256
           sha256sum WM2_Pi_${{ env.next_version }}.tar.bz2 > WM2_Pi_${{ env.next_version }}.tar.bz2.sha256
