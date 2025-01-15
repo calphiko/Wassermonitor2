@@ -59,7 +59,7 @@ jobs:
           gem install async-http-faraday -v 0.18.0
       
       - name: Install github_changelog_generator
-        run: gem install github_changelog_generator --no-document
+        run: gem install github_changelog_generator
       
 
 
@@ -67,7 +67,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHANGELOG_GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }}
+        run: |
+           export CHANGELOG_GITHUB_TOKEN=${{ secrets.PERSONAL_ACCESS_TOKEN }}
+           github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }}
 
       - name: Create GitHub Release
         env:
