@@ -28,7 +28,7 @@ jobs:
           latest_tag=$(git tag --list | sort -V | tail -n 1)
           echo "Latest tag: $latest_tag"
           if [ -z "$latest_tag" ]; then
-             next_version="v1.0.0"
+             next_version="v0.1.0"
           else
              major=$(echo $latest_tag | cut -d. -f1 | tr -d 'v')
              minor=$(echo $latest_tag | cut -d. -f2)
