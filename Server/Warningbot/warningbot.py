@@ -69,54 +69,15 @@ import os
 from datetime import datetime, timedelta
 import configparser
 import json
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import smtplib
+
 from requests import post
 import logging
 import pytz
 
-# LOAD CONFIGURATION FROM CONFIG FILE
-config_file = str()
-config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg")]
-for c in config_file_pos:
-    print (os.path.abspath(c))
-    if os.path.exists(c):
-        config_file = c
-        break
 
-# Parse Config File
-config = configparser.RawConfigParser()
-config.read(config_file)
-
-# LOAD MESSAGES FROM JSON
-msg_json = str()
-msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json")]
-for c in msg_json_pos:
-    print (os.path.abspath(c))
-    if os.path.exists(c):
-        msg_json = c
-        break
-with open(msg_json,'r', encoding='utf-8') as f:
-    messages = json.load(f)
-
-
-# LOGGERCONFIG
-logger = logging.getLogger('wassermonitor warning bot')
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-
-#now with timezone
-now = datetime.now(tz=pytz.utc)
-local_tz = pytz.timezone(config['warning']['timezone'])
-
-
-
-if config_file == str():
-    raise FileNotFoundError("ERROR: config_file not found")
-logger.info(f"Warning-Bot starting at {now} ...")
-logger.info(f"reading config from {config_file} ...")
 
 def format_message(message_template, placeholders):
     """
@@ -300,15 +261,101 @@ def message_signal(message):
     logger.debug (f"Warn via signal\n\t{message}")
 
 
-def message_email(message):
+def message_email(message, subject, logger=None):
     """
-    To be implemented
+    Sends an email with the specified message and subject.
 
-    :param message:
-    :return:
+    This function loads email server credentials and configurations from a local JSON file
+    and sends an email to the specified recipients. The function logs the operation and
+    handles common errors, such as missing configuration or failed email sending.
+
+    :param message: The message body to be sent via email.
+    :type message: str
+    :param subject: The subject line of the email.
+    :type subject: str
+    :return: None
+
+    :raises FileNotFoundError: If the `creds.json` configuration file is missing.
+    :raises json.JSONDecodeError: If the `creds.json` file contains invalid JSON.
+    :raises KeyError: If required fields (e.g., `smtp_server`, `recipients`) are missing in the configuration.
+    :raises smtplib.SMTPException: If an error occurs during the SMTP connection or email sending.
+
+    **Example**:
+
+    .. code-block:: python
+
+        message_email("System alert: CPU usage exceeds 90%.", "High CPU Usage Alert")
+
+    **Notes**:
+    - The `creds.json` file should be located in the `./email/` directory.
+    - It must include the following fields:
+        - `smtp_server`: The SMTP server address.
+        - `smtp_port`: The SMTP server port.
+        - `sender_email`: The sender's email address.
+        - `sender_password`: The sender's email password.
+        - `recipients`: A list of recipient email addresses.
+
+    **Structure of `creds.json`**:
+
+    .. code-block:: json
+
+        {
+            "smtp_server": "smtp.example.com",
+            "smtp_port": 587,
+            "sender_email": "your_email@example.com",
+            "sender_password": "your_password",
+            "recipients": [
+                "recipient1@example.com",
+                "recipient2@example.com"
+            ]
+        }
     """
 
     logger.debug (f"Warn via email\n\t{message}")
+    creds_path = os.path.abspath('./email/creds.json')
+
+    try:
+        with open(creds_path, 'r') as file:
+            mail_config = json.load(file)
+    except FileNotFoundError:
+        logger.warn(f"Konfigurationsdatei '{creds_path}' nicht gefunden.")
+        return
+    except json.JSONDecodeError:
+        logger.warn("Fehler beim Lesen der JSON-Datei. Überprüfe das Format.")
+        return
+
+    # Extrahiere die Konfigurationswerte
+    smtp_server = mail_config.get("smtp_server")
+    smtp_port = mail_config.get("smtp_port")
+    sender_email = mail_config.get("sender_email")
+    sender_password = mail_config.get("sender_password")
+    recipients = mail_config.get("recipients")
+    subject = subject
+    body = message
+
+    if not all([smtp_server, smtp_port, sender_email, sender_password, recipients, subject, body]):
+        logging.warning("missing email configuration in JSON File")
+        return
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = ", ".join(recipients)
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        with (smtplib.SMTP(smtp_server, smtp_port)) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, recipients, msg.as_string())
+
+
+        logger.info("Mail successfully sent.")
+    except Exception as e:
+        logger.warning(f"Not able to send email: {e}")
+
+
+
 
 
 def message_telegram(message):
@@ -412,7 +459,7 @@ def select_channels_and_warn(message):
             message_signal(message)
 
         if config['warning']['en_email']:
-            message_email(message)
+            message_email(message, messages['email_subject'][config['API']['language']], logger=logger)
 
         if config['warning']['en_telegram']:
             message_telegram(message)
@@ -701,5 +748,48 @@ def dedeprecated_warning(meas_point, sens_name):
         select_channels_and_warn(text)
 
 if __name__ == '__main__':
+    # LOAD CONFIGURATION FROM CONFIG FILE
+    config_file = str()
+    config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg"),
+                       os.path.abspath("../../Server/config.cfg"), os.path.abspath("../../../Server/config.cfg")]
+    for c in config_file_pos:
+        print(os.path.abspath(c))
+        if os.path.exists(c):
+            config_file = c
+            break
+
+    # Parse Config File
+    config = configparser.RawConfigParser()
+    config.read(config_file)
+
+    # LOAD MESSAGES FROM JSON
+    msg_json = str()
+    msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json"),
+                    os.path.abspath("../../Server/messages.json"), os.path.abspath("../../../Server/messages.json")]
+    for c in msg_json_pos:
+        print(os.path.abspath(c))
+        if os.path.exists(c):
+            msg_json = c
+            break
+    with open(msg_json, 'r', encoding='utf-8') as f:
+        messages = json.load(f)
+
+    # LOGGERCONFIG
+    logger = logging.getLogger('wassermonitor warning bot')
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    # now with timezone
+    now = datetime.now(tz=pytz.utc)
+    local_tz = pytz.timezone(config['warning']['timezone'])
+
+    if config_file == str():
+        raise FileNotFoundError("ERROR: config_file not found")
+    logger.info(f"Warning-Bot starting at {now} ...")
+    logger.info(f"reading config from {config_file} ...")
     data = get_last_data_from_api()
     check_thresholds(data)

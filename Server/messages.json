@@ -23,8 +23,13 @@
     "en": "INFO: Station {meas_point} Sensor {sensor} is reporting current data again. The warning from {date} is deprecated. System functioning properly.",
     "de": "INFO: Station {meas_point} Sensor {sensor} meldet wieder aktuelle Daten. Die Warnung vom {date} ist hinfällig. System funktioniert einwandfrei."
   },
+  "email_subject": {
+    "en": "Wassermonitor status mail",
+    "de": "Wassermonitor status mail"
+  },
   "dtformat": {
     "en": "%m-%d-%Y at %H:%M",
     "de": "%d.%m.%Y um %H:%M Uhr"
   }
+
 }

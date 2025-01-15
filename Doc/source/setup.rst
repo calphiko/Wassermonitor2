@@ -41,16 +41,30 @@ Telegram
 
 2. Create a group for your users to be warned
 
-3. Add your bot to the group``
+3. Add your bot to the group.
 
-3. Enter API token, group_name and username to ``/Server/Warningbot/telegram/creds.json``
+4. Copy ``creds.json.template`` file to a json and add your telegram configuration
 
-4. start the ``find_group_id.py``-script in the telegram-directory
-    It will automatically add the group id to your telegram-creds.json and enables messaging via telegram.
+    .. code-block:: console
+        cd Server/Warningbot/telegram
+        cp creds.json.tmpl creds.json
+
+
+5. Enter API token, group_name and username to ``/Server/Warningbot/telegram/creds.json``
+
+
+6. Start the ``find_group_id.py``-script in the telegram-directory. It will automatically add the group id to your telegram-creds.json and enables messaging via telegram.
 
 Email
 """""
+1. Copy ``creds.json.template`` file to a json and add your mail server configuration
 
+    .. code-block:: console
+
+        cd Server/Warningbot/email
+        cp creds.json.tmpl creds.json
+
+2. Enable mail notification in the server config file ``Server/config.cfg`` in the warning-section-
 
 Signal
 """"""

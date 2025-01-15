@@ -21,7 +21,7 @@ copyright = '2024, 2025, Carl Philipp Koppen'
 author = 'Carl Philipp Koppen'
 
 html_favicon = '_static/favicon.png'
-html_logo = '_static/favicon.png'
+html_logo = '_static/Logo.png'
 html_static_path = ['_static']
 
 # -- HTML output options ------------------------------------------------------
