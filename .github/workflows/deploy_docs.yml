@@ -16,8 +16,8 @@ jobs:
 
       - name: Wait for 2 minutes
         run: |
-          echo "Waiting for 2 minutes..."
-          sleep 120  
+          echo "Waiting for 1 minutes..."
+          sleep 60  
 
 
       # Set up Python Environment
@@ -32,13 +32,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install sphinx sphinx_rtd_theme paramiko scp  # Installiere Sphinx und SSH-Tools
           pip install -r requirements.txt
-
-      # Set Tag in Sphinx config
-      - name: Set Tag Version in Sphinx config
+          
+      # Get the latest tag and set it as the version in conf.py
+      - name: Set Version from Git Tag
         run: |
-          echo "Setting version to ${GITHUB_REF#refs/tags/}"
-          sed -i "s/^version = .*/version = '${GITHUB_REF#refs/tags/}'/" Doc/source/conf.py
-          sed -i "s/^release = .*/release = '${GITHUB_REF#refs/tags/}'/" Doc/source/conf.py
+          # Get the most recent tag (assumes you have a tag format like v1.0.0)
+          latest_tag=$(git describe --tags --abbrev=0)
+          
+          # Check if a tag was found
+          if [ -z "$latest_tag" ]; then
+            echo "No tags found, setting version to 'v0.0.0'"
+            latest_tag="v0.0.0"
+          fi
+
+          echo "Setting version to $latest_tag"
+
+          # Update conf.py with the version and release
+          sed -i "s/^version = .*/version = '${latest_tag}'/" Doc/source/conf.py
+          sed -i "s/^release = .*/release = '${latest_tag}'/" Doc/source/conf.py
 
       # Build Sphinx Documentation
       - name: Build Sphinx Documentation
