@@ -18,21 +18,11 @@ jobs:
         run: |
           echo "Waiting for 1 minutes..."
           sleep 60  
-
-
-      # Set up Python Environment
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'  # Passe die Python-Version an
-
-      # Install Dependencies
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install sphinx sphinx_rtd_theme paramiko scp  # Installiere Sphinx und SSH-Tools
-          pip install -r requirements.txt
           
+     # Tags abrufen
+      - name: Fetch tags
+        run: git fetch --tags
+
       # Get the latest tag and set it as the version in conf.py
       - name: Set Version from Git Tag
         run: |
@@ -50,6 +40,21 @@ jobs:
           # Update conf.py with the version and release
           sed -i "s/^version = .*/version = '${latest_tag}'/" Doc/source/conf.py
           sed -i "s/^release = .*/release = '${latest_tag}'/" Doc/source/conf.py
+
+      # Set up Python Environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'  # Passe die Python-Version an
+
+      # Install Dependencies
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install sphinx sphinx_rtd_theme paramiko scp  # Installiere Sphinx und SSH-Tools
+          pip install -r requirements.txt
+          
+
 
       # Build Sphinx Documentation
       - name: Build Sphinx Documentation
