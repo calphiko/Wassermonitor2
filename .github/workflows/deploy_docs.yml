@@ -2,8 +2,8 @@ name: Build and Deploy Sphinx Docs
 
 on:
   push:
-    branches:
-      - main  # Passe den Branch an, bei dem der Workflow ausgeführt werden soll.
+    tags:
+      - 'v*'  # Passe den Branch an, bei dem der Workflow ausgeführt werden soll.
 
 jobs:
   build-and-deploy:
@@ -26,6 +26,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install sphinx sphinx_rtd_theme paramiko scp  # Installiere Sphinx und SSH-Tools
           pip install -r requirements.txt
+
+      # Set Tag in Sphinx config
+      - name: Set Tag Version in Sphinx config
+        run: |
+          echo "Setting version to ${GITHUB_REF#refs/tags/}"
+          sed -i "s/^version = .*/version = '${GITHUB_REF#refs/tags/}'/" Doc/source/conf.py
+          sed -i "s/^release = .*/release = '${GITHUB_REF#refs/tags/}'/" Doc/source/conf.py
 
       # Build Sphinx Documentation
       - name: Build Sphinx Documentation
