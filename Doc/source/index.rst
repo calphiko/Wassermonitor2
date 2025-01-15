@@ -6,7 +6,9 @@
 Wassermonitor2 documentation
 ============================
 
-This is the full documentation for the wassermonitor2 project, whis is a reimplementation of wassermonitor.
+This is the full documentation for the wassermonitor2 project, which is a reimplementation of wassermonitor.
+
+The current version is |version|.
 
 The project is a full setup for collecting sensor data from distributed measurement points and sensors and save them in
 central database, monitor the values and make it possible to warn if the values deviate from configurable target values.
