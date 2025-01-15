@@ -16,7 +16,7 @@ print(sys.path)
 version = 'unknown'  # Standardwert, wird durch den Workflow überschrieben
 release = 'unknown'  # Standardwert, wird durch den Workflow überschrieben
 
-project = 'Wassermonitor2 {version}'
+project = f'Wassermonitor2 {version}'
 copyright = '2024, 2025, Carl Philipp Koppen'
 author = 'Carl Philipp Koppen'
 
