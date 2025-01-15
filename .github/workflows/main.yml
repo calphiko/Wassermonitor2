@@ -18,41 +18,54 @@ jobs:
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
 
-      - name: Create Release Tag
-        id: create_tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Determine next version
+        id: get_version
         run: |
-          TAG_NAME=v$(date +'%Y%m%d_%H%M')
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
+          latest_tag=$(git tag --list | sort -V | tail -n 1)
+          echo "Latest tag: $latest_tag"
+          if [ -z "$latest_tag" ]; then
+             next_version="v1.0.0"
+          else
+             major=$(echo $latest_tag | cut -d. -f1 | tr -d 'v')
+             minor=$(echo $latest_tag | cut -d. -f2)
+             patch=$(echo $latest_tag | cut -d. -f3)
+             next_patch=$((patch + 1))
+             next_version="v$major.$minor.$next_patch"
+          fi
+          echo "Next version: $next_version"
+          echo "next_version=$next_version" >> $GITHUB_ENV
+    
+      - name: Create new tag
+        run: |
+          git tag ${{ env.next_version }}
+          git push origin ${{ env.next_version }}
+
         
       - name: Create tar.gz and tar.bz2 for Server
         run: |
-          tar -czvf WM2_Server_${{ env.TAG_NAME }}.tar.gz Server
-          tar -cjvf WM2_Server_${{ env.TAG_NAME }}.tar.bz2 Server
+          tar -czvf WM2_Server_${{ env.next_version }}.tar.gz Server
+          tar -cjvf WM2_Server_${{ env.next_version }}.tar.bz2 Server
 
       - name: Create tar.gz and tar.bz2 for Pi
         run: |
-          tar -czvf WM2_Pi_${{ env.TAG_NAME }}.tar.gz Pi
-          tar -cjvf WM2_Pi_${{ env.TAG_NAME }}.tar.bz2 Pi
+          tar -czvf WM2_Pi_${{ env.next_version }}.tar.gz Pi
+          tar -cjvf WM2_Pi_${{ env.next_version }}.tar.bz2 Pi
 
       - name: Generate Checksums
         run: |
-          sha256sum WM2_Server_${{ env.TAG_NAME }}.tar.gz > WM2_Server_${{ env.TAG_NAME }}.tar.gz.sha256
-          sha256sum WM2_Server_${{ env.TAG_NAME }}.tar.bz2 > WM2_Server_${{ env.TAG_NAME }}.tar.bz2.sha256
-          sha256sum WM2_Pi_${{ env.TAG_NAME }}.tar.gz > WM2_Pi_${{ env.TAG_NAME }}.tar.gz.sha256
-          sha256sum WM2_Pi_${{ env.TAG_NAME }}.tar.bz2 > WM2_Pi_${{ env.TAG_NAME }}.tar.bz2.sha256
+          sha256sum WM2_Server_${{ env.next_version }}.tar.gz > WM2_Server_${{ env.next_versionE }}.tar.gz.sha256
+          sha256sum WM2_Server_${{ env.next_version }}.tar.bz2 > WM2_Server_${{ env.next_version }}.tar.bz2.sha256
+          sha256sum WM2_Pi_${{ env.next_version }}.tar.gz > WM2_Pi_${{ env.next_version }}.tar.gz.sha256
+          sha256sum WM2_Pi_${{ env.next_version }}.tar.bz2 > WM2_Pi_${{ env.next_version }}.tar.bz2.sha256
 
       - name: Create index.html
         run: |
-          echo "<html><body><h1>Release ${{ env.TAG_NAME }}</h1><ul>" > index.html
-          echo "<li><a href='WM2_Server_${{ env.TAG_NAME }}.tar.gz'>WM2_Server_${{ env.TAG_NAME }}.tar.gz</a> (<a href='WM2_Server_${{ env.TAG_NAME }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='WM2_Server_${{ env.TAG_NAME }}.tar.bz2'>WM2_Server_${{ env.TAG_NAME }}.tar.bz2</a> (<a href='WM2_Server_${{ env.TAG_NAME }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='WM2_Pi_${{ env.TAG_NAME }}.tar.gz'>WM2_Pi_${{ env.TAG_NAME }}.tar.gz</a> (<a href='WM2_Pi_${{ env.TAG_NAME }}.tar.gz.sha256'>sha256</a>)</li>" >> index.html
-          echo "<li><a href='WM2_Pi_${{ env.TAG_NAME }}.tar.bz2'>WM2_Pi_${{ env.TAG_NAME }}.tar.bz2</a> (<a href='WM2_Pi_${{ env.TAG_NAME }}.tar.bz2.sha256'>sha256</a>)</li>" >> index.html
-          echo "</ul></body></html>" >> index.html
+          echo "<html><body><h1>Release ${{ env.next_version }}</h1><ul>" > env.next_version.html
+          echo "<li><a href='WM2_Server_${{ env.next_version }}.tar.gz'>WM2_Server_${{ env.next_version }}.tar.gz</a> (<a href='WM2_Server_${{ env.next_version }}.tar.gz.sha256'>sha256</a>)</li>" >> env.next_version.html
+          echo "<li><a href='WM2_Server_${{ env.next_version }}.tar.bz2'>WM2_Server_${{ env.next_version }}.tar.bz2</a> (<a href='WM2_Server_${{ env.next_version }}.tar.bz2.sha256'>sha256</a>)</li>" >> env.next_version.html
+          echo "<li><a href='WM2_Pi_${{ env.next_version }}.tar.gz'>WM2_Pi_${{ env.next_version }}.tar.gz</a> (<a href='WM2_Pi_${{ env.next_version }}.tar.gz.sha256'>sha256</a>)</li>" >> env.next_version.html
+          echo "<li><a href='WM2_Pi_${{ env.next_version }}.tar.bz2'>WM2_Pi_${{ env.next_version }}.tar.bz2</a> (<a href='WM2_Pi_${{ env.next_version }}.tar.bz2.sha256'>sha256</a>)</li>" >> env.next_version.html
+          echo "</ul></body></html>" >> env.next_version.html
 
       - name: Upload to Server
         env:
@@ -74,17 +87,17 @@ jobs:
           echo "privileges set"
           ssh-keyscan -p $SERVER_PORT -H $SERVER_HOST >> ~/.ssh/known_hosts
           echo "added to keychain"
-          scp -P $SERVER_PORT -r WM2_Server_${{ env.TAG_NAME }}.tar.gz.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
-          scp -P $SERVER_PORT -r WM2_Server_${{ env.TAG_NAME }}.tar.bz2.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
-          scp -P $SERVER_PORT -r WM2_Pi_${{ env.TAG_NAME }}.tar.gz.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
-          scp -P $SERVER_PORT -r WM2_Pi_${{ env.TAG_NAME }}.tar.bz2.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.next_version }}.tar.gz.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.next_version }}.tar.bz2.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.next_version }}.tar.gz.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.next_version }}.tar.bz2.sha256 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
           
-          scp -P $SERVER_PORT -r WM2_Server_${{ env.TAG_NAME }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
-          scp -P $SERVER_PORT -r WM2_Server_${{ env.TAG_NAME }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
-          scp -P $SERVER_PORT -r WM2_Pi_${{ env.TAG_NAME }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
-          scp -P $SERVER_PORT -r WM2_Pi_${{ env.TAG_NAME }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.next_version }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Server_${{ env.next_version }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.next_version }}.tar.gz $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r WM2_Pi_${{ env.next_version }}.tar.bz2 $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
 
-          scp -P $SERVER_PORT -r index.html $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
+          scp -P $SERVER_PORT -r env.next_version.html $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
           
           echo "data copied"
 
