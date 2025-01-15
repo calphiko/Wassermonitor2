@@ -63,12 +63,13 @@ jobs:
       - name: Generate Changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGELOG_GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }}
 
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHANGELOG_GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          
         run: |
           tag=${{ env.next_version }}
           body=$(cat CHANGELOG.md)
