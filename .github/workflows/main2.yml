@@ -53,8 +53,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ruby-full build-essential
-          gem install bundler
-          gem uninstall faraday
+          gem install bundle
           gem install faraday -v 1.10.0
           gem install faraday-http-cache -v 2.5.0
           gem install async-http-faraday -v 0.18.0
@@ -70,7 +69,7 @@ jobs:
           CHANGELOG_GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
            export CHANGELOG_GITHUB_TOKEN=${{ secrets.PERSONAL_ACCESS_TOKEN }}
-           github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }}
+           github_changelog_generator -u ${{ github.repository_owner }} -p ${{ github.event.repository.name }} --verbose
 
       - name: Create GitHub Release
         env:
