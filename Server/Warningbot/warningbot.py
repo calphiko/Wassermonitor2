@@ -69,6 +69,10 @@ import os
 from datetime import datetime, timedelta
 import configparser
 import json
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import smtplib
+
 from requests import post
 import logging
 import pytz
@@ -300,15 +304,101 @@ def message_signal(message):
     logger.debug (f"Warn via signal\n\t{message}")
 
 
-def message_email(message):
+def message_email(message, subject):
     """
-    To be implemented
+    Sends an email with the specified message and subject.
 
-    :param message:
-    :return:
+    This function loads email server credentials and configurations from a local JSON file
+    and sends an email to the specified recipients. The function logs the operation and
+    handles common errors, such as missing configuration or failed email sending.
+
+    :param message: The message body to be sent via email.
+    :type message: str
+    :param subject: The subject line of the email.
+    :type subject: str
+    :return: None
+
+    :raises FileNotFoundError: If the `creds.json` configuration file is missing.
+    :raises json.JSONDecodeError: If the `creds.json` file contains invalid JSON.
+    :raises KeyError: If required fields (e.g., `smtp_server`, `recipients`) are missing in the configuration.
+    :raises smtplib.SMTPException: If an error occurs during the SMTP connection or email sending.
+
+    **Example**:
+
+    .. code-block:: python
+
+        message_email("System alert: CPU usage exceeds 90%.", "High CPU Usage Alert")
+
+    **Notes**:
+    - The `creds.json` file should be located in the `./email/` directory.
+    - It must include the following fields:
+        - `smtp_server`: The SMTP server address.
+        - `smtp_port`: The SMTP server port.
+        - `sender_email`: The sender's email address.
+        - `sender_password`: The sender's email password.
+        - `recipients`: A list of recipient email addresses.
+
+    **Structure of `creds.json`**:
+
+    .. code-block:: json
+
+        {
+            "smtp_server": "smtp.example.com",
+            "smtp_port": 587,
+            "sender_email": "your_email@example.com",
+            "sender_password": "your_password",
+            "recipients": [
+                "recipient1@example.com",
+                "recipient2@example.com"
+            ]
+        }
     """
 
     logger.debug (f"Warn via email\n\t{message}")
+    creds_path = os.path.abspath('./email/creds.json')
+
+    try:
+        with open(creds_path, 'r') as file:
+            mail_config = json.load(file)
+    except FileNotFoundError:
+        print(f"Konfigurationsdatei '{creds_path}' nicht gefunden.")
+        return
+    except json.JSONDecodeError:
+        print("Fehler beim Lesen der JSON-Datei. Überprüfe das Format.")
+        return
+
+    # Extrahiere die Konfigurationswerte
+    smtp_server = mail_config.get("smtp_server")
+    smtp_port = mail_config.get("smtp_port")
+    sender_email = mail_config.get("sender_email")
+    sender_password = mail_config.get("sender_password")
+    recipients = mail_config.get("recipients")
+    subject = subject
+    body = message
+
+    if not all([smtp_server, smtp_port, sender_email, sender_password, recipients, subject, body]):
+        logging.warning("missing email configuration in JSON File")
+        return
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = ", ".join(recipients)
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        with (smtplib.SMTP(smtp_server, smtp_port)) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, recipients, msg.as_string())
+
+
+        logging.info("Mail successfully sent.")
+    except Exception as e:
+        logging.warning(f"Not able to send email: {e}")
+
+
+
 
 
 def message_telegram(message):
@@ -412,7 +502,7 @@ def select_channels_and_warn(message):
             message_signal(message)
 
         if config['warning']['en_email']:
-            message_email(message)
+            message_email(message, messages['email_subject'][config['API']['language']])
 
         if config['warning']['en_telegram']:
             message_telegram(message)
