@@ -3,7 +3,7 @@ name: Build and Deploy Sphinx Docs
 on:
   push:
     tags:
-      - 'v*'  # Passe den Branch an, bei dem der Workflow ausgeführt werden soll.
+      - 'v*'  # Only for new version tags
 
 jobs:
   build-and-deploy:
