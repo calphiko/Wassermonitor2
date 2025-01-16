@@ -1,161 +1,143 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 import os
 import json
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import configparser
 
+from black.handle_ipynb_magics import MagicFinder
+
 sys.path.append(os.path.abspath("../../../Server/Warningbot/"))
-from Server.Warningbot.warningbot import message_email
 
-class TestMessageEmail(unittest.TestCase):
+def dict_to_configparser(data):
+    config = configparser.ConfigParser()
+    for section, values in data.items():
+        config[section] = values
+    return config
 
+#from Server.Warningbot.warningbot import check_thresholds
 
-    @patch('builtins.open', create=True)
-    @patch('json.load')
-    @patch('smtplib.SMTP')
-    @patch('logging.getLogger')
-
-    def test_message_email_success(self, mock_get_logger, mock_smtp, mock_json_load, mock_open):
-        """Tests successful email sending."""
-        # Mock JSON configuration file
-        mock_json_load.return_value = {
-            "smtp_server": "smtp.example.com",
-            "smtp_port": 587,
-            "sender_email": "test@example.com",
-            "sender_password": "password",
-            "recipients": ["recipient1@example.com", "recipient2@example.com"]
-        }
-
-        # Mock SMTP server
+class TestWarningBot(unittest.TestCase):
+    @patch('Server.Warningbot.warningbot.smtplib.SMTP')
+    @patch('Server.Warningbot.warningbot.post')
+    @patch('Server.Warningbot.warningbot.os.path.exists')
+    @patch('Server.Warningbot.warningbot.touch_file')
+    @patch('Server.Warningbot.warningbot.load_email_creds_from_file')
+    @patch('Server.Warningbot.warningbot.load_telegram_creds_from_file')
+    def test_full_chain(self,  mock_tgram_creds, mock_email_creds, mock_touch_file, mock_exists, mock_post, mock_smtp):
+        mock_exists.return_value = False
         mock_smtp_instance = MagicMock()
-        mock_smtp.return_value = mock_smtp_instance
+        mock_smtp.return_value.__enter__.return_value = mock_smtp_instance
 
-        # Mock file opening
-        mock_open.return_value.__enter__.return_value = MagicMock()
-
-        # Mock logger
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
-        # Test data
-        message = "Test message"
-        subject = "Test Subject"
-
-        # Call the function
-        message_email(message, subject, logger=mock_logger)
-
-        # Assertions for SMTP connection and sending
-        mock_smtp.assert_called_once_with("smtp.example.com", 587)
-        mock_smtp_instance.starttls.assert_called_once()
-        mock_smtp_instance.login.assert_called_once_with("test@example.com", "password")
-        mock_smtp_instance.sendmail.assert_called_once()
-
-        # Assertions for logging
-        mock_logger.info.assert_called()
-
-    @patch('builtins.open', side_effect=FileNotFoundError)
-    def test_message_email_file_not_found(self, mock_get_logger, mock_open):
-        """Tests the case where the configuration file is missing."""
-
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
-        with self.assertLogs(level='WARNING') as log:
-            message_email("Test message", "Test Subject", logger=mock_logger)
-            self.assertIn("Konfigurationsdatei", log.output[0])
-
-    @patch('builtins.open', create=True)
-    @patch('json.load', side_effect=json.JSONDecodeError("Expecting value", "", 0))
-    def test_message_email_invalid_json(self, mock_get_logger, mock_json_load, mock_open):
-        """Tests the case where the JSON configuration file is invalid."""
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
-        with self.assertLogs(level='WARNING') as log:
-            message_email("Test message", "Test Subject", logger=mock_logger)
-            self.assertIn("Fehler beim Lesen der JSON-Datei", log.output[0])
-
-    @patch('builtins.open', create=True)
-    @patch('json.load')
-    def test_message_email_missing_configuration(self, mock_get_logger, mock_json_load, mock_open):
-        """Tests the case where the JSON configuration is incomplete."""
-        # Mock JSON configuration file with missing values
-        mock_json_load.return_value = {
-            "smtp_server": "smtp.example.com",
-            "smtp_port": 587
-            # Missing fields: sender_email, sender_password, recipients
+        mock_post.return_value.json.return_value = {
+            "ok" : True
         }
 
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
+        now = datetime.now(tz=pytz.utc)
 
-        with self.assertLogs(level='WARNING') as log:
-            message_email("Test message", "Test Subject", logger=mock_logger)
-            self.assertIn("missing email configuration", log.output[0])
+        data = {
+            "raspi1": {
+                "color": ["normal","warning", "alarm"],
+                "sensor_name": ["Sens1", "Sens2", "Sens3"],
+                "dt": [
+                    (now - timedelta(minutes=0)).isoformat(),
+                    (now - timedelta(minutes=30)).isoformat(),
+                    (now - timedelta(minutes=10)).isoformat(),
+                ],
+                "value": [75, 72, 63],
+            }
+        }
 
-    @patch('builtins.open', create=True)
-    @patch('json.load')
-    @patch('smtplib.SMTP', side_effect=Exception("SMTP error"))
-    def test_message_email_smtp_error(self, mock_get_logger, mock_smtp, mock_json_load, mock_open):
-        """Tests the case where an SMTP error occurs."""
-        # Mock JSON configuration file
-        mock_json_load.return_value = {
+        # Inhalte der `messages.json`
+        mocked_messages_content = json.dumps({
+            "message_warn": {"en": "Warning: {sensor} at {meas_point}, value {value}"},
+            "message_alarm": {"en": "Alarm: {sensor} at {meas_point}, value {value}"},
+            "message_deprecated": {"en": "Decrepation: {sensor} at {meas_point}, value is from {date}. too old."},
+            "dtformat": {"en": "%Y-%m-%d %H:%M:%S"},
+            "email_subject": {"en": "Threshold Alert"}
+        })
+
+        # Inhalte der `config.cfg`
+        mocked_config_content = {
+            "warning": {
+                "enable": "on",
+                "en_signal": "on",
+                "en_email": "on",
+                "en_telegram": "on",
+                "deprecated_interval": "16",
+                "timezone": "Europe/Berlin",
+            },
+            "API": {
+                "language": "en",
+                "token": "test-token",
+                "host": "localhost",
+                "port": "5000",
+            },
+        }
+
+        mock_email_creds.return_value = {
             "smtp_server": "smtp.example.com",
-            "smtp_port": 587,
-            "sender_email": "test@example.com",
+            "smtp_port": "587",
+            "sender_email": "your_email@example.com",
             "sender_password": "password",
-            "recipients": ["recipient1@example.com", "recipient2@example.com"]
+            "recipients": [
+                "cp@koppen.me",
+                "carl.philipp@koppen-siegen.de",
+                "carl.ph.koppen@gmail.com"
+            ]
         }
 
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
+        mock_tgram_creds.return_value = {
+            "name": "TestBot",
+            "api_token": "TestToken",
+            "group_name": "WmTest",
+            "group_id": "YOUR_GROUP_ID"
+        }
 
-        with self.assertLogs(level='WARNING') as log:
-            message_email("Test message", "Test Subject", logger=mock_logger)
-            self.assertIn("Not able to send email", log.output[0])
+        mocked_config_content = dict_to_configparser(mocked_config_content)
 
-        # Assertions for logging
-        mock_logger.warning.assert_called()
+        # Überprüfe, ob die Funktion korrekt gemockt wurde
+        self.assertIsNotNone(mock_email_creds.return_value)
+        self.assertEqual(mock_email_creds.return_value['smtp_server'], "smtp.example.com")
+
+        #mock_msgs.return_value = json.loads(mocked_messages_content)
+        #mock_config.return_value = mocked_config_content
+
+        # Mock für `configparser.RawConfigParser`
+        #mock_config_instance = MagicMock()
+        #mock_config_instance.__getitem__.side_effect = mocked_config_content.__getitem__
+        #mock_config_instance.get.side_effect = lambda section, key: mocked_config_content[section][key]
+        #mock_configparser.return_value = mock_config_instance
+
+        # Funktion `check_thresholds` importieren und aufrufen
+        with patch('warningbot.now', mocked_config_content):
+            from Server.Warningbot.warningbot import check_thresholds
+            check_thresholds(data, mocked_config_content, json.loads(mocked_messages_content))
+
+        # Assertions für Email
+        #mock_smtp.assert_called_once_with("smtp.example.com", 587)  # Beispiel-Konfig
+        # Überprüfe, ob der Mock dreimal aufgerufen wurde
+        self.assertEqual(mock_smtp.call_count, 3)
+        self.assertEqual(mock_smtp_instance.starttls.call_count, 3)
+        mock_smtp_instance.login.assert_called_with("your_email@example.com", "password")
+        mock_smtp_instance.sendmail.assert_called()
+
+        # Assertions für Telegram
+        mock_post.assert_called_with(
+            "https://api.telegram.org/botTestToken/sendMessage",
+            data={
+                "chat_id": "YOUR_GROUP_ID",
+                "text": ANY
+            }
+        )
+
+        # Assertions für Dateien
+        mock_touch_file.assert_any_call(os.path.abspath("./raspi1-Sens2.dec"))
+        mock_touch_file.assert_any_call(os.path.abspath("./raspi1-Sens2.warn"))
+        mock_touch_file.assert_any_call(os.path.abspath("./raspi1-Sens3.alarm"))
 
 if __name__ == '__main__':
-    # LOAD CONFIGURATION FROM CONFIG FILE
-    config_file = str()
-    config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg"),
-                       os.path.abspath("../../Server/config.cfg"), os.path.abspath("../../../Server/config.cfg")]
-    for c in config_file_pos:
-        print(os.path.abspath(c))
-        if os.path.exists(c):
-            config_file = c
-            break
-
-    # Parse Config File
-    config = configparser.RawConfigParser()
-    config.read(config_file)
-
-    # LOAD MESSAGES FROM JSON
-    msg_json = str()
-    msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json"),
-                    os.path.abspath("../../Server/messages.json"), os.path.abspath("../../../Server/messages.json")]
-    for c in msg_json_pos:
-        print(os.path.abspath(c))
-        if os.path.exists(c):
-            msg_json = c
-            break
-    with open(msg_json, 'r', encoding='utf-8') as f:
-        messages = json.load(f)
-
-
-
-    # now with timezone
-    now = datetime.now(tz=pytz.utc)
-    local_tz = pytz.timezone(config['warning']['timezone'])
-
-    if config_file == str():
-        raise FileNotFoundError("ERROR: config_file not found")
-    logger.info(f"Warning-Bot starting at {now} ...")
-    logger.info(f"reading config from {config_file} ...")
     unittest.main()
