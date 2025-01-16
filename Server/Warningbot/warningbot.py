@@ -77,6 +77,14 @@ from requests import post
 import logging
 import pytz
 
+# LOGGERCONFIG
+logger = logging.getLogger('wassermonitor warning bot')
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 
 def format_message(message_template, placeholders):
@@ -261,7 +269,7 @@ def message_signal(message):
     logger.debug (f"Warn via signal\n\t{message}")
 
 
-def message_email(message, subject, logger=None):
+def message_email(message, subject):
     """
     Sends an email with the specified message and subject.
 
@@ -312,16 +320,17 @@ def message_email(message, subject, logger=None):
     """
 
     logger.debug (f"Warn via email\n\t{message}")
+    #print(f"Warn via email\n\t{message}")
     creds_path = os.path.abspath('./email/creds.json')
 
     try:
         with open(creds_path, 'r') as file:
             mail_config = json.load(file)
     except FileNotFoundError:
-        logger.warn(f"Konfigurationsdatei '{creds_path}' nicht gefunden.")
+        logger.warning(f"Config file '{creds_path}' not found.")
         return
     except json.JSONDecodeError:
-        logger.warn("Fehler beim Lesen der JSON-Datei. Überprüfe das Format.")
+        logger.warning(f"Cannot parse JSON file {creds_path}. Please check format...")
         return
 
     # Extrahiere die Konfigurationswerte
@@ -459,7 +468,7 @@ def select_channels_and_warn(message):
             message_signal(message)
 
         if config['warning']['en_email']:
-            message_email(message, messages['email_subject'][config['API']['language']], logger=logger)
+            message_email(message, messages['email_subject'][config['API']['language']])
 
         if config['warning']['en_telegram']:
             message_telegram(message)
@@ -774,14 +783,7 @@ if __name__ == '__main__':
     with open(msg_json, 'r', encoding='utf-8') as f:
         messages = json.load(f)
 
-    # LOGGERCONFIG
-    logger = logging.getLogger('wassermonitor warning bot')
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
+
 
     # now with timezone
     now = datetime.now(tz=pytz.utc)
