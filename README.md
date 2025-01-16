@@ -35,17 +35,20 @@ The Project is currently under development, but I'm sure to deploy a full implem
 |                 | Support multi language                  | 🟢  (en, de)   | 🔴      | 🟡            |
 | Datacrawler     | Crawl data from I2C sensors             | 🟢             | 🔴      | 🟡            |
 | Datatransmitter | Sign data with psk and send to API      | 🟢             | 🔴      | 🟡            |
+| Setup method    | Docker                                  | 🔴             | 🔴      | 🔴            | 
+|                 | From Source                             | 🔴             | 🔴      | 🔴            | 
 
 ### Documentation
-| Module      | Documentation feature   | Status |
-|-------------|-------------------------|--------|
-| API         | Doc-Strings for Sphinx  | 🟢     |
-|             | Full Text Documentation | 🔴     |
-| warningbot  | Doc Strings for Sphinx  | 🟡     |
-|             | Full Text documentation | 🔴     |
-| Pi          | Doc-Strings for Sphinx  | 🟢     |
-|             | Full Text documentation | 🟡     |
-| Setup Guide | full Text documentation | 🟡     |
+| Module               | Documentation feature   | Status |
+|----------------------|-------------------------|--------|
+| API                  | Doc-Strings for Sphinx  | 🟢     |
+|                      | Full Text Documentation | 🔴     |
+| warningbot           | Doc Strings for Sphinx  | 🟡     |
+|                      | Full Text documentation | 🔴     |
+| Pi                   | Doc-Strings for Sphinx  | 🟢     |
+|                      | Full Text documentation | 🟡     |
+| Setup Guide - src    | full Text documentation | 🟡     |
+| Setup Guide - Docker | full Text documentation | 🟡     |
 
 
 ### Distribution
