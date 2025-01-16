@@ -30,7 +30,7 @@ The Project is currently under development, but I'm sure to deploy a full implem
 |                 | Show deviation plot                     | 🟢             | 🔴      | 🔴            |
 |                 | Support light and dark mode             | 🟢             | 🔴      | 🔴            |
 | Warning Bot     | Warn via telegram                       | 🟢             | 🔴      | 🟡            |
-|                 | Warn via email                          | 🟡             | 🟡      | 🟡            |
+|                 | Warn via email                          | 🟢             | 🟡      | 🟡            |
 |                 | Warn via signal                         | 🟡             | 🔴      | 🟡            |
 |                 | Support multi language                  | 🟢  (en, de)   | 🔴      | 🟡            |
 | Datacrawler     | Crawl data from I2C sensors             | 🟢             | 🔴      | 🟡            |
