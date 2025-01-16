@@ -11,15 +11,24 @@ import configparser
 sys.path.append(os.path.abspath("../../../Server/Warningbot/"))
 from Server.Warningbot.warningbot import message_email
 
+# LOGGERCONFIG
+logger = logging.getLogger('mock logger')
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
 class TestMessageEmail(unittest.TestCase):
 
 
     @patch('builtins.open', create=True)
     @patch('json.load')
     @patch('smtplib.SMTP')
-    @patch('logging.getLogger')
+    #@patch('logging.getLogger')
 
-    def test_message_email_success(self, mock_get_logger, mock_smtp, mock_json_load, mock_open):
+    def test_message_email_success(self, mock_smtp, mock_json_load, mock_open):
         """Tests successful email sending."""
         # Mock JSON configuration file
         mock_json_load.return_value = {
@@ -32,21 +41,14 @@ class TestMessageEmail(unittest.TestCase):
 
         # Mock SMTP server
         mock_smtp_instance = MagicMock()
-        mock_smtp.return_value = mock_smtp_instance
-
-        # Mock file opening
-        mock_open.return_value.__enter__.return_value = MagicMock()
-
-        # Mock logger
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
+        mock_smtp.return_value.__enter__.return_value = mock_smtp_instance
 
         # Test data
         message = "Test message"
         subject = "Test Subject"
 
         # Call the function
-        message_email(message, subject, logger=mock_logger)
+        message_email(message, subject)
 
         # Assertions for SMTP connection and sending
         mock_smtp.assert_called_once_with("smtp.example.com", 587)
@@ -54,34 +56,27 @@ class TestMessageEmail(unittest.TestCase):
         mock_smtp_instance.login.assert_called_once_with("test@example.com", "password")
         mock_smtp_instance.sendmail.assert_called_once()
 
-        # Assertions for logging
-        mock_logger.info.assert_called()
 
     @patch('builtins.open', side_effect=FileNotFoundError)
-    def test_message_email_file_not_found(self, mock_get_logger, mock_open):
+    def test_message_email_file_not_found(self,  mock_open):
         """Tests the case where the configuration file is missing."""
 
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
         with self.assertLogs(level='WARNING') as log:
-            message_email("Test message", "Test Subject", logger=mock_logger)
-            self.assertIn("Konfigurationsdatei", log.output[0])
+            message_email("Test message", "Test Subject")
+            self.assertIn("Config file", log.output[0])
 
     @patch('builtins.open', create=True)
     @patch('json.load', side_effect=json.JSONDecodeError("Expecting value", "", 0))
-    def test_message_email_invalid_json(self, mock_get_logger, mock_json_load, mock_open):
+    def test_message_email_invalid_json(self, mock_json_load, mock_open):
         """Tests the case where the JSON configuration file is invalid."""
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
 
         with self.assertLogs(level='WARNING') as log:
-            message_email("Test message", "Test Subject", logger=mock_logger)
-            self.assertIn("Fehler beim Lesen der JSON-Datei", log.output[0])
+            message_email("Test message", "Test Subject")
+            self.assertIn("Cannot parse JSON file", log.output[0])
 
     @patch('builtins.open', create=True)
     @patch('json.load')
-    def test_message_email_missing_configuration(self, mock_get_logger, mock_json_load, mock_open):
+    def test_message_email_missing_configuration(self, mock_json_load, mock_open):
         """Tests the case where the JSON configuration is incomplete."""
         # Mock JSON configuration file with missing values
         mock_json_load.return_value = {
@@ -90,17 +85,14 @@ class TestMessageEmail(unittest.TestCase):
             # Missing fields: sender_email, sender_password, recipients
         }
 
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
         with self.assertLogs(level='WARNING') as log:
-            message_email("Test message", "Test Subject", logger=mock_logger)
+            message_email("Test message", "Test Subject")
             self.assertIn("missing email configuration", log.output[0])
 
     @patch('builtins.open', create=True)
     @patch('json.load')
     @patch('smtplib.SMTP', side_effect=Exception("SMTP error"))
-    def test_message_email_smtp_error(self, mock_get_logger, mock_smtp, mock_json_load, mock_open):
+    def test_message_email_smtp_error(self, mock_smtp, mock_json_load, mock_open):
         """Tests the case where an SMTP error occurs."""
         # Mock JSON configuration file
         mock_json_load.return_value = {
@@ -111,15 +103,10 @@ class TestMessageEmail(unittest.TestCase):
             "recipients": ["recipient1@example.com", "recipient2@example.com"]
         }
 
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
         with self.assertLogs(level='WARNING') as log:
-            message_email("Test message", "Test Subject", logger=mock_logger)
+            message_email("Test message", "Test Subject")
             self.assertIn("Not able to send email", log.output[0])
 
-        # Assertions for logging
-        mock_logger.warning.assert_called()
 
 if __name__ == '__main__':
     # LOAD CONFIGURATION FROM CONFIG FILE
@@ -156,6 +143,5 @@ if __name__ == '__main__':
 
     if config_file == str():
         raise FileNotFoundError("ERROR: config_file not found")
-    logger.info(f"Warning-Bot starting at {now} ...")
-    logger.info(f"reading config from {config_file} ...")
+
     unittest.main()
