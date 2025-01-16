@@ -86,6 +86,46 @@ ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+now = datetime.now(tz=pytz.utc)
+
+
+def load_config_from_file():
+    # LOAD CONFIGURATION FROM CONFIG FILE
+    config_file = str()
+    config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg"),
+                       os.path.abspath("../../Server/config.cfg"), os.path.abspath("../../../Server/config.cfg")]
+    for c in config_file_pos:
+        print(os.path.abspath(c))
+        if os.path.exists(c):
+            config_file = c
+            break
+
+    if config_file == str():
+        raise FileNotFoundError("ERROR: config_file not found")
+
+    logger.info(f"reading config from {config_file} ...")
+
+    # Parse Config File
+    config = configparser.RawConfigParser()
+    config.read(config_file)
+
+    return config
+
+
+
+def load_msgs_from_json():
+    # LOAD MESSAGES FROM JSON
+    msg_json = str()
+    msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json"),
+                    os.path.abspath("../../Server/messages.json"), os.path.abspath("../../../Server/messages.json")]
+    for c in msg_json_pos:
+        print(os.path.abspath(c))
+        if os.path.exists(c):
+            msg_json = c
+            break
+    with open(msg_json, 'r', encoding='utf-8') as f:
+        messages = json.load(f)
+    return messages
 
 def format_message(message_template, placeholders):
     """
@@ -193,7 +233,7 @@ def get_last_data_from_api():
         return {}
 
 
-def check_thresholds(data):
+def check_thresholds(data, config, messages):
     """
     Evaluates sensor data against thresholds and triggers corresponding actions.
 
@@ -222,8 +262,10 @@ def check_thresholds(data):
         }
         check_thresholds(sensor_data)
     """
-
+    print (config)
+    print (messages)
     warn_inverval = int(config["warning"]["deprecated_interval"])
+
     for mp in data:
         for i in range(len(data[mp]['color'])):
             if data[mp]['color'][i] == 'warning':
@@ -232,6 +274,8 @@ def check_thresholds(data):
                     data[mp]['sensor_name'][i].split("\n")[0],
                     datetime.fromisoformat(data[mp]['dt'][i]),
                     data[mp]['value'][i],
+                    config,
+                    messages
 
                 )
             elif data[mp]['color'][i] == 'alarm':
@@ -240,25 +284,33 @@ def check_thresholds(data):
                     data[mp]['sensor_name'][i].split("\n")[0],
                     datetime.fromisoformat(data[mp]['dt'][i]),
                     data[mp]['value'][i],
+                    config,
+                    messages
                 )
             elif data[mp]['color'][i] == 'alarm':
-                dewarn()
+                dewarn(
+                    config,
+                    messages
+                )
 
             if datetime.fromisoformat(data[mp]['dt'][i]) < (now - timedelta(minutes=warn_inverval)):
                 deprecated_warning(
                     mp,
                     data[mp]["sensor_name"][i].split("\n")[0],
-                    datetime.fromisoformat(data[mp]['dt'][i])
+                    datetime.fromisoformat(data[mp]['dt'][i]),
+                    config,
+                    messages
                 )
             else:
                 dedeprecated_warning(
                     mp,
                     data[mp]["sensor_name"][i].split("\n")[0],
-
+                    config,
+                    messages
                 )
 
 
-def message_signal(message):
+def message_signal(message, config, messages):
     """
     To be implemented
 
@@ -268,8 +320,59 @@ def message_signal(message):
 
     logger.debug (f"Warn via signal\n\t{message}")
 
+def load_email_creds_from_file():
+    """
+    Loads email credentials from a local JSON file.
 
-def message_email(message, subject):
+    This function reads the `creds.json` file from the `./email/` directory
+    and returns the parsed content as a dictionary. The credentials file should
+    include the required fields for email operations, such as SMTP server details,
+    email addresses, and passwords.
+
+    :return: A dictionary containing email credentials, or None if the file is not found or cannot be parsed.
+    :rtype: dict | None
+
+    :raises json.JSONDecodeError: If the `creds.json` file contains invalid JSON.
+    :raises FileNotFoundError: If the `creds.json` file is missing.
+
+    **Example**:
+
+    .. code-block:: python
+
+        email_creds = load_email_creds_from_file()
+        if email_creds:
+            print("Email credentials loaded successfully.")
+        else:
+            print("Failed to load email credentials.")
+
+    **Notes**:
+    - The `creds.json` file should be located in the `./email/` directory.
+    - If the file is missing, ensure it is created and populated with the correct fields.
+    - The structure of the `creds.json` file is as follows:
+
+    .. code-block:: json
+
+        {
+            "smtp_server": "smtp.example.com",
+            "port": 587,
+            "username": "your_email@example.com",
+            "password": "your_password"
+        }
+    """
+
+    creds_path = os.path.abspath('./email/creds.json')
+
+    try:
+        with open(creds_path, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        logger.warning(f"Config file '{creds_path}' not found.")
+        return
+    except json.JSONDecodeError:
+        logger.warning(f"Cannot parse JSON file {creds_path}. Please check format...")
+        return
+
+def message_email(message, subject, config, messages):
     """
     Sends an email with the specified message and subject.
 
@@ -321,17 +424,8 @@ def message_email(message, subject):
 
     logger.debug (f"Warn via email\n\t{message}")
     #print(f"Warn via email\n\t{message}")
-    creds_path = os.path.abspath('./email/creds.json')
 
-    try:
-        with open(creds_path, 'r') as file:
-            mail_config = json.load(file)
-    except FileNotFoundError:
-        logger.warning(f"Config file '{creds_path}' not found.")
-        return
-    except json.JSONDecodeError:
-        logger.warning(f"Cannot parse JSON file {creds_path}. Please check format...")
-        return
+    mail_config = load_email_creds_from_file()
 
     # Extrahiere die Konfigurationswerte
     smtp_server = mail_config.get("smtp_server")
@@ -365,9 +459,57 @@ def message_email(message, subject):
 
 
 
+def load_telegram_creds_from_file():
+    """
+    Loads Telegram bot credentials from a local JSON file.
+
+    This function reads the `creds.json` file from the `./telegram/` directory
+    and returns the parsed content as a dictionary. The credentials file should
+    include fields required for Telegram bot operations, such as `api_token` and `group_id`.
+
+    :return: A dictionary containing the Telegram bot credentials, or False if the file does not exist.
+    :rtype: dict | bool
+
+    :raises json.JSONDecodeError: If the `creds.json` file contains invalid JSON.
+    :raises FileNotFoundError: If the `creds.json` file is missing.
+    :raises KeyError: If required fields (e.g., `api_token` or `group_id`) are missing in the credentials file.
+
+    **Example**:
+
+    .. code-block:: python
+
+        credentials = load_telegram_creds_from_file()
+        if credentials:
+            print("Credentials loaded successfully.")
+        else:
+            print("Credentials file not found.")
+
+    **Notes**:
+    - The `creds.json` file should be located in the `./telegram/` directory.
+    - If the file is missing, create it from the provided template `creds.json.tmpl`.
+    - The structure of the `creds.json` file is as follows:
+
+    .. code-block:: json
+
+        {
+            "api_token": "your_bot_token",
+            "group_id": "your_chat_id"
+        }
+    """
+    creds_path = os.path.abspath('./telegram/creds.json')
+
+    # Load tgram credentials from file
+    if not os.path.exists(creds_path):
+        print(
+            "No creds.json found. Please copy the creds.json.tmpl file to creds.json and add your telegram bot credentials.")
+        return False
+
+    with open(creds_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 
-def message_telegram(message):
+
+def message_telegram(message, config, messages):
     """
     Sends a message via Telegram to a configured group or chat.
 
@@ -407,24 +549,15 @@ def message_telegram(message):
     """
 
     logger.debug (f"Warn via telegram\n\t{message}")
-    creds_path = os.path.abspath('./telegram/creds.json')
-
-    # Load tgram credentials from file
-    if not os.path.exists(creds_path):
-        print("No creds.json found. Please copy the creds.json.tmpl file to creds.json and add your telegram bot credentials.")
-        return False
-
-    with open(creds_path, 'r', encoding='utf-8') as f:
-        tgram_creds = json.load(f)
+    tgram_creds = load_telegram_creds_from_file()
 
     bot_token = tgram_creds['api_token']
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
     data = {
-        "chat_id":tgram_creds["group_id"],
+        "chat_id": tgram_creds["group_id"],
         "text": message
     }
-
 
     response = post(url, data=data)
 
@@ -433,7 +566,7 @@ def message_telegram(message):
     else:
         return False
 
-def select_channels_and_warn(message):
+def select_channels_and_warn(message, config, messages):
     """
     Sends a warning message through enabled communication channels.
 
@@ -460,21 +593,21 @@ def select_channels_and_warn(message):
         - `en_telegram`: Enables sending messages via Telegram.
     """
 
-    if not config['warning']['enable']:
+    if not config.getboolean('warning','enable'):
         logger.debug ("warning disabled...")
 
     else:
-        if config['warning']['en_signal']:
-            message_signal(message)
+        if config.getboolean('warning','en_signal'):
+            message_signal(message, config, messages)
 
-        if config['warning']['en_email']:
-            message_email(message, messages['email_subject'][config['API']['language']])
+        if config.getboolean('warning','en_email'):
+            message_email(message, messages['email_subject'][config['API']['language']], config, messages)
 
-        if config['warning']['en_telegram']:
-            message_telegram(message)
+        if config.getboolean('warning','en_telegram'):
+            message_telegram(message, config, messages)
 
 
-def warn(meas_point, sens_name, dt, value):
+def warn(meas_point, sens_name, dt, value, config, messages):
     """
     Issues a warning for a specific measurement point and sensor.
 
@@ -515,7 +648,7 @@ def warn(meas_point, sens_name, dt, value):
 
     filename = f"./{meas_point}-{sens_name}.warn"
     filename = os.path.abspath(filename)
-
+    local_tz = pytz.timezone(config['warning']['timezone'])
     if not os.path.exists(filename):
         touch_file(filename)
         placeholders = {
@@ -526,10 +659,10 @@ def warn(meas_point, sens_name, dt, value):
         }
         text = format_message(messages['message_warn'][config['API']['language']], placeholders)
         logging.info("Users will be warned!")
-        select_channels_and_warn(text)
+        select_channels_and_warn(text, config, messages)
 
 
-def dewarn(meas_point, sens_name):
+def dewarn(meas_point, sens_name, config, messages):
     """
     Removes a warning and notifies users that the warning has been lifted.
 
@@ -567,10 +700,10 @@ def dewarn(meas_point, sens_name):
         }
         text = format_message(messages['message_dewarn'][config['API']['language']], placeholders)
         logging.info("Users will be dewarned!")
-        select_channels_and_warn(text)
+        select_channels_and_warn(text, config, messages)
 
 
-def alarm(meas_point, sens_name, dt, value):
+def alarm(meas_point, sens_name, dt, value, config, messages):
     """
     Issues an alarm for a specific measurement point and sensor.
 
@@ -611,6 +744,7 @@ def alarm(meas_point, sens_name, dt, value):
 
     filename = f"./{meas_point}-{sens_name}.alarm"
     filename = os.path.abspath(filename)
+    local_tz = pytz.timezone(config['warning']['timezone'])
     if not os.path.exists(filename):
         touch_file(filename)
         placeholders = {
@@ -621,10 +755,10 @@ def alarm(meas_point, sens_name, dt, value):
         }
         text = format_message(messages['message_alarm'][config['API']['language']], placeholders)
         logging.info("Users will be alarmed!")
-        select_channels_and_warn(text)
+        select_channels_and_warn(text, config, messages)
 
 
-def dealarm(meas_point,sens_name ):
+def dealarm(meas_point,sens_name, config, messages ):
     """
     Removes a alarm and notifies users that the warning has been lifted.
 
@@ -662,10 +796,10 @@ def dealarm(meas_point,sens_name ):
         }
         text = format_message(messages['message_dealarm'][config['API']['language']], placeholders)
         logging.info("Users will be dealarmed!")
-        select_channels_and_warn(text)
+        select_channels_and_warn(text, config, messages)
 
 
-def deprecated_warning(meas_point, sens_name, dt):
+def deprecated_warning(meas_point, sens_name, dt, config, messages):
     """
    Issues a deprecated warning for a specific measurement point and sensor.
 
@@ -703,6 +837,7 @@ def deprecated_warning(meas_point, sens_name, dt):
 
     filename = f"./{meas_point}-{sens_name}.dec"
     filename = os.path.abspath(filename)
+    local_tz = pytz.timezone(config['warning']['timezone'])
     if not os.path.exists(filename):
         touch_file(filename)
         placeholders = {
@@ -712,10 +847,10 @@ def deprecated_warning(meas_point, sens_name, dt):
         }
         text = format_message(messages['message_deprecated'][config['API']['language']], placeholders)
         logging.info("Users will get a deprecated warning!")
-        select_channels_and_warn (text)
+        select_channels_and_warn (text, config, messages)
 
 
-def dedeprecated_warning(meas_point, sens_name):
+def dedeprecated_warning(meas_point, sens_name, config, messages):
     """
     Removes a deprecated warning and notifies users that the warning has been lifted.
 
@@ -745,6 +880,7 @@ def dedeprecated_warning(meas_point, sens_name):
 
     filename = f"./{meas_point}-{sens_name}.dec"
     filename = os.path.abspath(filename)
+    local_tz = pytz.timezone(config['warning']['timezone'])
     if os.path.exists(filename):
         dt = destroy_file(filename)
         placeholders = {
@@ -754,44 +890,19 @@ def dedeprecated_warning(meas_point, sens_name):
         }
         text = format_message(messages['message_dedeprecated'][config['API']['language']], placeholders)
         logging.info("Users will be dedeprecated!")
-        select_channels_and_warn(text)
+        select_channels_and_warn(text, config, messages)
+
+
+
+
+
 
 if __name__ == '__main__':
-    # LOAD CONFIGURATION FROM CONFIG FILE
-    config_file = str()
-    config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg"),
-                       os.path.abspath("../../Server/config.cfg"), os.path.abspath("../../../Server/config.cfg")]
-    for c in config_file_pos:
-        print(os.path.abspath(c))
-        if os.path.exists(c):
-            config_file = c
-            break
-
-    # Parse Config File
-    config = configparser.RawConfigParser()
-    config.read(config_file)
-
-    # LOAD MESSAGES FROM JSON
-    msg_json = str()
-    msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json"),
-                    os.path.abspath("../../Server/messages.json"), os.path.abspath("../../../Server/messages.json")]
-    for c in msg_json_pos:
-        print(os.path.abspath(c))
-        if os.path.exists(c):
-            msg_json = c
-            break
-    with open(msg_json, 'r', encoding='utf-8') as f:
-        messages = json.load(f)
-
-
-
+    config = load_config_from_file()
+    messages = load_msgs_from_json()
     # now with timezone
-    now = datetime.now(tz=pytz.utc)
-    local_tz = pytz.timezone(config['warning']['timezone'])
 
-    if config_file == str():
-        raise FileNotFoundError("ERROR: config_file not found")
     logger.info(f"Warning-Bot starting at {now} ...")
-    logger.info(f"reading config from {config_file} ...")
+    #print (config))
     data = get_last_data_from_api()
-    check_thresholds(data)
+    check_thresholds(data, config, messages)
