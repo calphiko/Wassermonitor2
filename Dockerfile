@@ -29,8 +29,14 @@ RUN apt-get update && apt-get install -y nginx && apt-get clean
 COPY Docker/nginx.conf /etc/nginx/nginx.conf
 
 # PORTS
-EXPOSE 8000 80
+EXPOSE 8012 80
+
+# Configfile
+COPY Server/config.cfg .
+COPY Server/messages.json .
 
 # Startscript
 COPY Docker/start.sh .
 RUN chmod +x start.sh
+
+CMD ["./start.sh"]

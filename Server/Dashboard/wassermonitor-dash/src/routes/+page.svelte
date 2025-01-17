@@ -4,9 +4,10 @@
     import { formatDateForInput, formatDateForISO, fetchChartConfig } from './utils';
     import { loadFillChart, loadTimeChart } from './charts';
 
-    const cConfigUrl = 'http://localhost:5173/chartConfig.json';
-    const apiUrl = 'http://localhost:8012/'
-
+    const cConfigUrl = '/chartConfig.json';
+    //const apiUrl = 'http://localhost:8012/'
+    const apiUrl = `${window.location.protocol}//${window.location.hostname}:8012/`
+    
     const now = new Date();
     const twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 14));
 

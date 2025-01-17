@@ -1,7 +1,10 @@
 #!/bin/sh
 
 # Start FastAPI im Hintergrund
-uvicorn API.main:app --host 0.0.0.0 --port 8000 &
+cd API
+#uvicorn main:app --host 0.0.0.0 --port 8000 &
+python3 main.py &
 
-# Start nginx im Vordergrund
+# Start nginx im Vordergrun
+cd ..
 nginx -g "daemon off;"
