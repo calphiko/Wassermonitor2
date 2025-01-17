@@ -6,7 +6,7 @@
 
     const cConfigUrl = '/chartConfig.json';
     //const apiUrl = 'http://localhost:8012/'
-    const apiUrl = `${window.location.protocol}//${window.location.hostname}:8012/`
+    let apiUrl;
     
     const now = new Date();
     const twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 14));
@@ -53,6 +53,7 @@
 
     async function loadCharts() {
         const chartConfig = await fetchChartConfig(cConfigUrl);
+	apiUrl = chartConfig.APIUrl;	
         heading = chartConfig.title;
         mpNameOptions = await getAvailableMeasPointsFromApi(apiUrl);
         if (!mpName) {

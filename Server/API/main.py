@@ -502,7 +502,7 @@ async def post_data(request: Request):
 async def post_last_data():
     return request_last_measurements()
 
-@app.post("/get_available_meas_points")
+@app.post("/get_available_meas_points/")
 async def post_meas_points():
     return request_measurement_points()
 
