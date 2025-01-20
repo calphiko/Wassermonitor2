@@ -47,13 +47,13 @@ jobs:
         
       - name: Create tar.gz and tar.bz2 for Server
         run: |
-          tar -czvf WM2_Server_${{ env.next_version }}.tar.gz Server
-          tar -cjvf WM2_Server_${{ env.next_version }}.tar.bz2 Server
+          tar -czvf WM2_Server_${{ env.next_version }}.tar.gz Server requirements.txt
+          tar -cjvf WM2_Server_${{ env.next_version }}.tar.bz2 Server requirements.txt
 
       - name: Create tar.gz and tar.bz2 for Pi
         run: |
-          tar -czvf WM2_Pi_${{ env.next_version }}.tar.gz Pi
-          tar -cjvf WM2_Pi_${{ env.next_version }}.tar.bz2 Pi
+          tar -czvf WM2_Pi_${{ env.next_version }}.tar.gz Pi requirements.txt
+          tar -cjvf WM2_Pi_${{ env.next_version }}.tar.bz2 Pi requirements.txt
 
       - name: Generate Checksums
         run: |
