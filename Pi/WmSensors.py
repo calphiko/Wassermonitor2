@@ -117,7 +117,7 @@ class IFM_O1(Sensor):
 
         super().__init__(sensor_dict, cnt_of_vals_per_meas)
 
-        self.i2c_addr = sensor_dict["i2c"]["addr"]
+        self.i2c_addr = int(sensor_dict["i2c"]["addr"], 16)
         self.i2c_name = sensor_dict["i2c"]["name"]
         self.i2c_id = sensor_dict["i2c"]["id"]
         self.i2c_StBy = sensor_dict["i2c"]["StBy"]
@@ -212,7 +212,7 @@ class IFM_O1(Sensor):
             raw_value = self.get_raw_voltage()
             #distance = raw_value * 100
             calib = interp1d(self.calib_data["x"], self.calib_data["y"])
-            calib_value = calib(raw_value)
+            calib_value = float(calib(raw_value))
             return calib_value
         except Exception as e:
             print(f"\tWARNING get_calib_voltage: No data occurred:\n\t\t{e}")
