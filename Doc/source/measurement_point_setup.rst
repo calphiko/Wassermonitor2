@@ -36,15 +36,158 @@ In this example we see the following setup.
 Raspberry Pi Setup
 ------------------
 
+Basic Setup
+~~~~~~~~~~~
+
 At first, please follow `this tutorial <https://projects.raspberrypi.org/en/projects/raspberry-pi-setting-up/4>`_ to setup the sd card for your raspberry pi.
 
 After that please activate the i2c-bus on your device to enable communicating with the sensors:
 
-.. code-block:: RST
+.. code-block:: console
 
     sudo raspi-config
     navigate to Interfacing-Options >> I2C
     Would you like to ARM I2C interface to enabled? --> <Yes>
+
+Buffer Volume
+~~~~~~~~~~~~~
+
+.. code-block:: console
+    sudo mkdir /mnt/buffervol
+    sudo chmod 770 /mnt/buffervol
+
+    sudo mount /dev/sda1 /mnt/buffervol/
+    sudo cp /etc/fstab /etc/fstab.backup
+
+    lsblk -lf -o+PARTUUID /dev/sda
+        NAME FSTYPE FSVER LABEL UUID                                 FSAVAIL FSUSE% MOUNTPOINTS PARTUUID
+        sda
+        sda1 vfat   FAT32       .red {<your-uuid>}                              57.3G     0% /mnt/buffervol
+
+    sudo nano /etc/fstab
+
+add a line to fstab to mount your buffer device automatically on mount:
+
+.. code-block:: console
+    UUID=<your-uuid>  /mnt/buffervol  vfat    auto,nofail,sync,users,rw,umask=000     0       0
+
+Install wassermonitor pi software
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+1. Download source from code-server
+
+    .. code-block:: console
+        wget https://code.wassermonitor.de/WM2_Pi_|version|.tar.gz
+        wget https://code.wassermonitor.de/WM2_Pi_|version|.tar.gz.sha256
+
+2. Verify checksum
+
+    .. code-block:: console
+        sha256sum -c WM2_Pi_|version|.tar.gz
+        sha256sum -c WM2_Pi_|version|.tar.gz.sha256
+
+    Output should seem like:
+
+    .. code-block:: console
+        WM2_Pi_|version|.tar.gz: OK
+
+3. Extract source
+
+    .. code-block:: console
+        tar xzvf WM2_Pi_|version|.tar.gz
+
+4. Create virtual environment and install requirements
+
+    .. code-block:: console
+        python3 -m venv .venv
+        source .venv/bin/activate
+        pip3 install -r requirements.txt
+
+5. Create calibration file
+
+For this step, you need a special setup to place a dummy target in a specified distance from your sensor.
+Wassermonitor will not work without this step!
+
+    .. code-block:: console
+        cd Pi/
+        python3 calib.py
+
+6. Create private key
+
+    1. Create Key Pair
+
+        .. code-block:: console
+            python3 generate_key_pair.py
+
+    2. ON THE SERVER: Edit /etc/wassermonitor/authorized_keys and add public key which comes from generate_key_pair.py standard output.
+
+
+
+7. Configure Pi-System
+
+    1. edit config.json with your settings. Configure your sensors, and API settings
+
+    .. code-block:: JSON
+        {
+          "name": "teststation",
+          "api_url": "https://api.url",
+          "token": "secret_token",
+          "psk_path": ".psk",
+          "temp_storage_path": "/mnt/buffervol",
+          "count_of_vals_per_meas": 5,
+          "meas_interval": 30,
+          "sensors": [
+            {
+              "name": "sens1",
+              "type": "IFM_O1",
+              "tank_height": 155,
+              "max_val": 135,
+              "warn": 90,
+              "alarm": 70,
+              "calib_file": "calib/calib_date_sensor_1.csv",
+              "i2c": {
+                "addr": "0x68",
+                "name": "0",
+                "id": "13",
+                "StBy": 128
+              }
+            },
+            {
+              "name": "sens2",
+              "type": "IFM_O1",
+              "tank_height": 155,
+              "max_val": 135,
+              "warn": 90,
+              "alarm": 70,
+              "calib_file": "calib/calib_date_sensor_2.csv",
+              "i2c": {
+                "addr": "0x68",
+                "name": "0",
+                "id": "13",
+                "StBy": 160
+              }
+            }
+          ]
+        }
+
+    2. Configure datacrawler as a system daemon
+        TBD
+
+    3. Configure datatransmitter, that sends data e.g. every minute. Therefore edit contab with
+
+        .. code-block:: console
+            crontab -e
+
+    Add
+
+    .. code-block:: console
+        */1 * * * * /path/to/datatransmitter.py
+
+    to the file and save it. Allow the system to install a new crontab
+
+
+5.
+
 
 Hardware
 --------
