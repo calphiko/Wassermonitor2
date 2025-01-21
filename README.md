@@ -35,8 +35,8 @@ The Project is currently under development, but I'm sure to deploy a full implem
 |                 | Support multi language                  | 🟢  (en, de)   | 🔴      | 🟡            |
 | Datacrawler     | Crawl data from I2C sensors             | 🟢             | 🔴      | 🟡            |
 | Datatransmitter | Sign data with psk and send to API      | 🟢             | 🔴      | 🟡            |
-| Setup method    | Docker                                  | 🔴             | 🔴      | 🔴            | 
-|                 | From Source                             | 🔴             | 🔴      | 🔴            | 
+| Setup method    | Docker                                  | 🟡             | 🔴      | 🔴            | 
+|                 | From Source                             | 🟡             | 🔴      | 🔴            | 
 
 ### Documentation
 | Module               | Documentation feature   | Status |
