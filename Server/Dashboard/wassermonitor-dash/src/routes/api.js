@@ -28,7 +28,10 @@ export async function getAvailableMeasPointsFromApi(apiUrl) {
         var mPs = await response.json();
         mPs = JSON.parse(mPs);
         //console.log('Available Meas Points fetched:', JSON.stringify(mPs,null,2));
-        return mPs
+        const output = Object.entries(mPs).map(([key, values]) => {
+            return {'value':key, 'label':`${key} ${values.join(" ")}`};
+        });
+        return output
     } catch (error) {
         console.error('Error while fetching time data from API:',error);
     }
