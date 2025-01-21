@@ -53,6 +53,7 @@ Buffer Volume
 ~~~~~~~~~~~~~
 
 .. code-block:: console
+
     sudo mkdir /mnt/buffervol
     sudo chmod 770 /mnt/buffervol
 
@@ -69,6 +70,7 @@ Buffer Volume
 add a line to fstab to mount your buffer device automatically on mount:
 
 .. code-block:: console
+
     UUID=<your-uuid>  /mnt/buffervol  vfat    auto,nofail,sync,users,rw,umask=000     0       0
 
 Install wassermonitor pi software
@@ -77,28 +79,33 @@ Install wassermonitor pi software
 1. Download source from code-server
 
     .. code-block:: console
+
         wget https://code.wassermonitor.de/WM2_Pi_|version|.tar.gz
         wget https://code.wassermonitor.de/WM2_Pi_|version|.tar.gz.sha256
 
 2. Verify checksum
 
     .. code-block:: console
+
         sha256sum -c WM2_Pi_|version|.tar.gz
         sha256sum -c WM2_Pi_|version|.tar.gz.sha256
 
     Output should seem like:
 
     .. code-block:: console
+
         WM2_Pi_|version|.tar.gz: OK
 
 3. Extract source
 
     .. code-block:: console
+
         tar xzvf WM2_Pi_|version|.tar.gz
 
 4. Create virtual environment and install requirements
 
     .. code-block:: console
+
         python3 -m venv .venv
         source .venv/bin/activate
         pip3 install -r requirements.txt
@@ -109,6 +116,7 @@ For this step, you need a special setup to place a dummy target in a specified d
 Wassermonitor will not work without this step!
 
     .. code-block:: console
+
         cd Pi/
         python3 calib.py
 
@@ -117,6 +125,7 @@ Wassermonitor will not work without this step!
     1. Create Key Pair
 
         .. code-block:: console
+
             python3 generate_key_pair.py
 
     2. ON THE SERVER: Edit /etc/wassermonitor/authorized_keys and add public key which comes from generate_key_pair.py standard output.
@@ -128,6 +137,7 @@ Wassermonitor will not work without this step!
     1. edit config.json with your settings. Configure your sensors, and API settings
 
     .. code-block:: JSON
+
         {
           "name": "teststation",
           "api_url": "https://api.url",
@@ -176,11 +186,13 @@ Wassermonitor will not work without this step!
     3. Configure datatransmitter, that sends data e.g. every minute. Therefore edit contab with
 
         .. code-block:: console
+
             crontab -e
 
     Add
 
     .. code-block:: console
+
         */1 * * * * /path/to/datatransmitter.py
 
     to the file and save it. Allow the system to install a new crontab
