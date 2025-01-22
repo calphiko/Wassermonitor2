@@ -56,6 +56,7 @@ class Sensor():
         :type cnt_of_vals_per_meas: int
         """
         self.name = sensor_dict["name"]
+        self.type = sensor_dict["type"]
         self.calib_file = os.path.abspath(sensor_dict["calib_file"])
         self.sensor_offset_zero = float(sensor_dict["tank_height"])
         self.max_val = float(sensor_dict["max_val"])
@@ -116,13 +117,40 @@ class IFM_O1(Sensor):
         """
 
         super().__init__(sensor_dict, cnt_of_vals_per_meas)
-
         self.i2c_addr = int(sensor_dict["i2c"]["addr"], 16)
-        self.i2c_name = sensor_dict["i2c"]["name"]
-        self.i2c_id = sensor_dict["i2c"]["id"]
-        self.i2c_StBy = sensor_dict["i2c"]["StBy"]
-        self.calib_data = self.get_calib_data()
+        self.i2c_device = sensor_dict["i2c"]["i2c_device"]
+        self.i2c_StBy = 128 + int(sensor_dict["i2c"]["adc_channel"])*32
+        try:
+            self.calib_data = self.get_calib_data()
+        except FileNotFoundError:
+            q_create_calib = str()
+            while (q_create_calib == str()):
+                q_create_calib=input (f"\tNo calibration file found for Sensor {self.name}. Should we create one (you will need a calibration setup for this). Otherwise we can use a default calibration file, but here, the measured value will be inaccurate or wrong. Press 'y' for creating a new file (default no)!" or "n")
+                if q_create_calib == "y":
+                    self.calib_file = self.create_calibration_file()
+                elif q_create_calib == 'n':
+                    self.calib_file = os.path.abspath("./calib_date_sensor.tmpl")
+                else:
+                    print ("please type 'y' or 'n'")
 
+        self.test_connection()
+
+    def create_calibration_file(self):
+        print ("\tcreating calibration file....")
+        if not os.path.exists(self.calib_file):
+            pass
+        elif os.path.isdir(self.calib_file):
+          pass
+        else:
+            pass
+        return
+
+    def test_connection(self):
+        try:
+            self.get_raw_voltage()
+            return True
+        except ConnectionError as e\:
+            print (f"\tWARNING: sensor {self.name} has no connection.")
 
     def get_i2c_address(self):
         """
@@ -131,7 +159,7 @@ class IFM_O1(Sensor):
         :return: A formatted string with I2C information.
         :rtype: str
         """
-        return f"#### I2C Address for sensor {self.name} ####\n\taddr:{self.i2c_addr}\n\tname:{self.i2c_name}\tid:{self.i2c_id}\tStBy:{self.i2c_StBy}"
+        return f"#### I2C Address for sensor {self.name} ####\n\ti2c_device:{self.i2c_device}\n\taddr:{self.i2c_addr}\n\tStBy:{self.i2c_StBy}"
 
     def get_full_sensor_config(self):
         """
@@ -190,6 +218,9 @@ class IFM_O1(Sensor):
 
         if not os.path.exists(self.calib_file):
             raise FileNotFoundError(f"ERROR: No calibration file {self.calib_file} found. Please create one using ./calib.py (Please see readme file...).")
+
+        if not os.path.isfile(self.calib_file):
+            raise FileNotFoundError(f"ERROR: The path in '{self.calib_file}' is a directory. Please specify a calibration file!")
 
         with open(self.calib_file) as csvfile:
             reader = csv.reader(csvfile, delimiter=";")
