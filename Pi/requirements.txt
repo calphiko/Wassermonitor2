@@ -9,4 +9,5 @@ pytz==2024.2
 requests==2.32.3
 scipy==1.13.1
 smbus2==0.5.0
+termplotlib==0.3.9
 urllib3==2.3.0
