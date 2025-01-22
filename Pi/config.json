@@ -1,40 +1,70 @@
 {
-  "name": "teststation2",
-  "api_url": "https://dev-api.wassermonitor.de",
-  "token": "secret_token",
+  "name": "<enter your station name>",
+  "api_url": "<api_url>",
+  "token": "<token>",
   "psk_path": ".psk",
   "temp_storage_path": "/tmp/wassermonitor",
   "count_of_vals_per_meas": 5,
   "meas_interval": 60,
   "sensors": [
     {
-      "name": "left_tank",
+      "name": "<sensor_name_1>",
       "type": "IFM_O1",
       "tank_height": 155,
       "max_val": 135,
       "warn": 90,
       "alarm": 70,
-      "calib_file": "calib/calib_date_sensor_3.csv",
+      "calib_file": "",
       "i2c": {
         "addr": "0x68",
         "name": "0",
-        "id": "13",
+        "id": "1",
         "StBy": 128
       }
     },
     {
-      "name": "right_tank",
+      "name": "<sensor_name_2>",
       "type": "IFM_O1",
       "tank_height": 165,
       "max_val": 145,
       "warn": 92,
       "alarm": 40,
-      "calib_file": "calib/calib_date_sensor_13.csv",
+      "calib_file": "",
       "i2c": {
         "addr": "0x68",
         "name": "1",
-        "id": "18",
+        "id": "2",
         "StBy": 160
+      }
+    },
+    {
+      "name": "<sensor_name_3>",
+      "type": "IFM_O1",
+      "tank_height": 165,
+      "max_val": 145,
+      "warn": 92,
+      "alarm": 40,
+      "calib_file": "",
+      "i2c": {
+        "addr": "0x68",
+        "name": "1",
+        "id": "3",
+        "StBy": 192
+      }
+    },
+    {
+      "name": "<sensor_name_4>",
+      "type": "IFM_O1",
+      "tank_height": 165,
+      "max_val": 145,
+      "warn": 92,
+      "alarm": 40,
+      "calib_file": "",
+      "i2c": {
+        "addr": "0x68",
+        "name": "1",
+        "id": "4",
+        "StBy": 224
       }
     }
   ]
