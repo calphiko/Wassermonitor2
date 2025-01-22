@@ -10,6 +10,7 @@ from time import sleep
 import smbus2 as smbus
 import csv
 import os
+import termplotlib as tmpl
 from scipy.interpolate import interp1d
 
 class Sensor():
@@ -134,6 +135,22 @@ class IFM_O1(Sensor):
                     self.calib_file = os.path.abspath("./calib_date_sensor.tmpl")
                 else:
                     print ("please type 'y' or 'n'")
+            
+        # TERM PLOT 
+        cd = {
+            "x":[],
+            "y":[]
+        }
+        with open(self.calib_file, 'r') as csvfile:
+            reader = csv.reader(csvfile, delimiter=";")
+            for row in reader:
+                # print (row)
+                cd["x"].append(float(row[1]))
+                cd["y"].append(float(row[0]))
+
+        fig = tmpl.figure()
+        fig.plot(cd["x"], cd["y"])#, width=60, height=20)
+        fig.show()
 
         print()
         self.test_connection()
