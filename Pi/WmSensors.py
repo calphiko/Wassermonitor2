@@ -125,14 +125,17 @@ class IFM_O1(Sensor):
         except FileNotFoundError:
             q_create_calib = str()
             while (q_create_calib == str()):
-                q_create_calib=input (f"\tNo calibration file found for Sensor {self.name}. Should we create one (you will need a calibration setup for this). Otherwise we can use a default calibration file, but here, the measured value will be inaccurate or wrong. Press 'y' for creating a new file (default no)!" or "n")
+                q_create_calib=input (f"\tNo calibration file found for Sensor {self.name}. \n\tShould we create one (you will need a calibration setup for this). \n\tOtherwise we can use a default calibration file, but here, the measured value will be inaccurate or wrong. \n\tPress 'y' for creating a new file (default no)! " or "n")
                 if q_create_calib == "y":
                     self.calib_file = self.create_calibration_file()
-                elif q_create_calib == 'n':
+                elif q_create_calib == "n" or q_create_calib == "no" or q_create_calib == "":
+                    q_create_calib = "n"
+                    print (f"\tWARNING: {self.name} uses the default calibration file. The values will me incorrect or inaccurate")
                     self.calib_file = os.path.abspath("./calib_date_sensor.tmpl")
                 else:
                     print ("please type 'y' or 'n'")
 
+        print()
         self.test_connection()
 
     def create_calibration_file(self):
@@ -149,8 +152,10 @@ class IFM_O1(Sensor):
         try:
             self.get_raw_voltage()
             return True
-        except ConnectionError as e\:
+        except ConnectionError as e:
             print (f"\tWARNING: sensor {self.name} has no connection.")
+        except FileNotFoundError as e:
+            print (f"\tERROR: ic2 device {self.i2c_device} was not found. Please check, if configuration is correct")
 
     def get_i2c_address(self):
         """
