@@ -754,6 +754,14 @@ def assign_color(value, warn, alarm):
     else:
         return 'normal'
 
+def assign_sign(value,warn,alarm):
+    if value < alarm:
+        return '🔴'
+    elif value < warn:
+        return '🟡'
+    else:
+        return '🟢'
+
 def get_last_meas_data_from_sqlite_db(db_conf):
     """
     Retrieves the most recent measurement data from a SQLite database.
@@ -877,13 +885,21 @@ def get_available_meas_points_from_sqlite_db(db_conf):
     db_path_list = [db_conf['sqlite_path'] + x for x in get_all_sqlite_files(db_conf['sqlite_path'])]
 
     sql = "SELECT DISTINCT(name) FROM meas_point;"
-    output = []
+    last_data = get_last_meas_data_from_sqlite_db(db_conf)
+
+    output = {}
     for db_path in db_path_list:
         conn, cur = get_sqlite3_connection(db_path)
         cur.execute(sql)
         res = cur.fetchall()
         for row in res:
             if not row[0] in output:
-                output.append(row[0])
+                #output.append({
+                #    "name":row[0],
+                #    "status": [{'sensor':x, 'status':assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])} for x in last_data[row[0]]]
+                #})
+                #o_str = f"{row[0]}".join([(f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}") for x in last_data[row[0]]])
+                output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}" for x in last_data[row[0]]]
+
     return output
 

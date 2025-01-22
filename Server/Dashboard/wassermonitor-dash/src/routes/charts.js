@@ -46,7 +46,7 @@ function reInitEchart(name, divName, charts, plotTheme, plotThemeDark) {
         //console.log("reinit: ", name);
         echarts.dispose(charts[name]);
     }
-    const c = echarts.init(divName,theme);
+    const c = echarts.init(divName,theme, {height:600 });
     return c
 }
 
