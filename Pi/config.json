@@ -16,10 +16,9 @@
       "alarm": 70,
       "calib_file": "",
       "i2c": {
-        "addr": "0x68",
-        "name": "0",
-        "id": "1",
-        "StBy": 128
+        "i2c_device": "",
+        "adc_channel": 0,
+        "addr": "0x68"
       }
     },
     {
@@ -31,10 +30,9 @@
       "alarm": 40,
       "calib_file": "",
       "i2c": {
-        "addr": "0x68",
-        "name": "1",
-        "id": "2",
-        "StBy": 160
+        "i2c_device": "",
+        "adc_channel": 1,
+        "addr": "0x68"
       }
     },
     {
@@ -46,11 +44,9 @@
       "alarm": 40,
       "calib_file": "",
       "i2c": {
-        "addr": "0x68",
-        "name": "1",
-        "id": "3",
-        "StBy": 192
-      }
+        "i2c_device": "",
+        "adc_channel": 2,
+        "addr": "0x68"      }
     },
     {
       "name": "<sensor_name_4>",
@@ -61,10 +57,9 @@
       "alarm": 40,
       "calib_file": "",
       "i2c": {
-        "addr": "0x68",
-        "name": "1",
-        "id": "4",
-        "StBy": 224
+        "i2c_device": "",
+        "adc_channel": 3,
+        "addr": "0x68"
       }
     }
   ]
