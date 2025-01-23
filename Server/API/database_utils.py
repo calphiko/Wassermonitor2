@@ -810,13 +810,21 @@ def get_last_meas_data_from_sqlite_db(db_conf):
     print (db_path_list)
 
     sql = """
-        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s. warn, s.alarm, AVG(v.value), tank_height
-        FROM meas_val v 
-        INNER JOIN measurement m ON v.measurement_id=m.id 
-        INNER JOIN sensor s ON m.sensor_id = s.id 
-        INNER JOIN meas_point mp ON s.meas_point_id = mp.id 
-        WHERE m.id IN (SELECT max(id) FROM measurement GROUP BY sensor_id)
-        GROUP BY m.dt;
+        SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height
+        FROM meas_val v
+        INNER JOIN measurement m ON v.measurement_id = m.id
+        INNER JOIN sensor s ON m.sensor_id = s.id
+        INNER JOIN meas_point mp ON s.meas_point_id = mp.id
+        WHERE m.id IN (
+            SELECT id
+            FROM measurement m_inner
+            WHERE m_inner.dt = (
+                SELECT MAX(m_inner2.dt)
+                FROM measurement m_inner2
+                WHERE m_inner2.sensor_id = m_inner.sensor_id
+            )
+        )
+        GROUP BY m.dt;  
     """
     output = {}
     for db_path in db_path_list:
