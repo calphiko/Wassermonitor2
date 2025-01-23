@@ -12,6 +12,16 @@
 
 # Please execute from the Pi directory! This is mandatory!!!!
 
+# CREATE NEW USER FOR DAEMON
+if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    echo "Create new user: $SERVICE_USER"
+    sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
+else
+    echo "User $SERVICE_USER already exists."
+fi
+
+sudo chown -R $SERVICE_USER:$SERVICE_USER ./
+
 echo "Installing wassermonitor pi daemons on your raspberry pi"
 
 CONFIGFILENAME="config.json"
@@ -36,8 +46,7 @@ sudo apt update && sudo apt install -y  libopenblas-dev gnuplot
 # CREATE PYTHON3 VENV
 
 echo "\n\tCreating virtual environment and activate"
-python3 -m venv $VENV_PATH
-. "$VENV_PATH/bin/activate"
+sudo -u $SERVICE_USER -m venv $VENV_PATH
 
 
 # Optional: Überprüfen, ob das venv erfolgreich aktiviert wurde
@@ -50,31 +59,25 @@ fi
 
 echo "\n\t Installing python requirements"
 # INSTALL REQUIREMENTS.txt
-pip3 install -r requirements.txt
+sudo -u $SERVICE_USER $VENV_PATH/bin/pip3 install -r requirements.txt
 
 # CALIBRATION
 echo "\n\t Configuring sensors"
-python3 configure_sensors.py
+sudo -u $SERVICE_USER $VENV_PATH/bin/python3 configure_sensors.py
 
 # GENERATE KEY PAIR FOR DATA SIGNING
-python3 generate_key_pair.py
+sudo -u $SERVICE_USER $VENV_PATH/bin/python3 generate_key_pair.py
 
 # INSTALL datacrawler AS SYSTEM DAEMON
 echo ""
-echo "CRAETE SYSTEMD DAEMON FOR DATASCRAWLER"
-SERVICE_USER="wm2"
+echo "CREATE SYSTEMD DAEMON FOR DATASCRAWLER"
+
 SERVICE_NAME="wassermonitor_datascrawler"
 PYTHON_PROGRAMM="datascrawler.py"
 CURRENT_DIR=$(pwd)
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 
-# CREATE NEW USER FOR DAEMON
-if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
-    echo "Create new user: $SERVICE_USER"
-    sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
-else
-    echo "User $SERVICE_USER already exists."
-fi
+
 
 # CREATE SERVICE FILE
 echo "Create systemd-service file: $SERVICE_FILE"
