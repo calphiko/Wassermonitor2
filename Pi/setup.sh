@@ -12,6 +12,8 @@
 
 # Please execute from the Pi directory! This is mandatory!!!!
 
+SERVICE_USER="wm2"
+
 # CREATE NEW USER FOR DAEMON
 if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
     echo "Create new user: $SERVICE_USER"
