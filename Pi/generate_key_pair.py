@@ -116,8 +116,11 @@ def convert_to_ssh_format(public_key_path, name ):
         format=serialization.PublicFormat.OpenSSH
     ).decode("utf-8")
 
-    print("SSH Public Key Format:")
+    print("SSH Public Key Format (please copy to your servers authorized_keys file for enabling sending data to the API:")
     print(f"{ssh_key} {name}")
+
+    with open(f"{public_key_path}/public_key.rsa", 'w') as f:
+        f.write(f"{ssh_key} {name}")
 
 if __name__ == "__main__":
     psk_path,name = read_config_json()
