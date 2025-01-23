@@ -25,5 +25,5 @@ config = read_pi_config_from_json(config_file)
 
 for sensor in config['sensors']:
     print(f"\nTest sensor {sensor['name']}")
-    s = Sensor(sensor, config["count_of_vals_per_meas"])
-    
+    s = Sensor(sensor, config["count_of_vals_per_meas"], configure=True)
+
