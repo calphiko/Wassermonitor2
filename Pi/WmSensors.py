@@ -10,6 +10,7 @@ from time import sleep
 import smbus2 as smbus
 import csv
 import os
+import termplotlib as tmpl
 from scipy.interpolate import interp1d
 import WmPiUtils
 
@@ -25,7 +26,7 @@ class Sensor():
     :param cnt_of_vals_per_meas: The number of values per measurement.
     :type cnt_of_vals_per_meas: int
     """
-    def __new__(cls, sensor_dict, cnt_of_vals_per_meas):
+    def __new__(cls, sensor_dict, cnt_of_vals_per_meas, configure = False):
         """
         Factory method for dynamically selecting the sensor class based on its type.
 
@@ -47,7 +48,7 @@ class Sensor():
         instance = super().__new__(sensor_class)
         return instance
 
-    def __init__(self, sensor_dict, cnt_of_vals_per_meas, config_file = "./config.json"):
+    def __init__(self, sensor_dict, cnt_of_vals_per_meas, config_file = "./config.json", configure = False):
         """
         Initialize common sensor attributes.
 
@@ -134,10 +135,10 @@ class IFM_O1(Sensor):
                 while (q_create_calib == str()):
                     q_create_calib=input (f"\tNo calibration file found for Sensor {self.name}. \n\tShould we create one (you will need a calibration setup for this). \n\tOtherwise we can use a default calibration file, but here, the measured value will be inaccurate or wrong. \n\tPress 'y' for creating a new file (default no)! " or "n")
                     if q_create_calib == "y":
-                        self.calib_file = self.create_calibration_file()
+                        self.create_calibration_file()
                     elif q_create_calib == "n" or q_create_calib == "no" or q_create_calib == "":
                         q_create_calib = "n"
-                        print (f"\tWARNING: {self.name} uses the default calibration file. The values will me incorrect or inaccurate")
+                        print (f"\tWARNING: {self.name} uses the default calibration file. The values will be incorrect or inaccurate")
                         self.calib_file = os.path.abspath("./calib_date_sensor.tmpl")
                     else:
                         print ("please type 'y' or 'n'")
@@ -153,8 +154,11 @@ class IFM_O1(Sensor):
                         # print (row)
                         cd["x"].append(float(row[1]))
                         cd["y"].append(float(row[0]))
+                fig = tmpl.figure()
+                fig.plot(cd["x"], cd["y"])
+                fig.show()
             else:
-                print(f"\tWARNING: {self.name} uses the default calibration file. The values will me incorrect or inaccurate")
+                print(f"\tWARNING: {self.name} uses the default calibration file. The values will be incorrect or inaccurate")
                 self.calib_file = os.path.abspath("./calib_date_sensor.tmpl")
 
             self.calib_data = self.get_calib_data()
@@ -179,7 +183,7 @@ class IFM_O1(Sensor):
         """
 
         CALIB_DIST = [17, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
-        print(f"\tcreating calibration file.... (from {CALIB_DIST[0]} cm to {CALIB_DIST[-1]} cm)")
+        print(f"\n\tcreating calibration file.... (from {CALIB_DIST[0]} cm to {CALIB_DIST[-1]} cm)")
 
         if os.path.isdir(self.calib_file):
             self.calib_file = f"{self.calib_file}/calib_file_{self.name}.csv"
@@ -197,17 +201,20 @@ class IFM_O1(Sensor):
                     print("please type 'y' or 'n'")
                     overwrite = str()
 
+        print (f"\n\tSTARTING SENSOR CALIBRATION FOR SENSOR {self.name}\n\tSaving calibration data to {self.calib_file}")
         with open(self.calib_file, 'w') as f:
             for d in CALIB_DIST:
-                input(f"Set sensor to {d} cm distance and press ENTER")
+                input(f"\t\tSet sensor to {d} cm distance and press ENTER")
                 d_m = self.get_raw_voltage()
-                f.write(f"{d};{d_m}")
-                print (d_m)
+                f.write(f"{d};{d_m}\n")
+                print (f"\t\t\t{d_m}")
 
 
         # DON'T FORGET TO WRITE CALIB FILE TO CONFIG
         c_dict = WmPiUtils.read_pi_config_from_json(self.config_file)
-        c_dict["sensors"][self.name]["calib_file"] = self.calib_file
+        for i in range(len(c_dict["sensors"])):
+            if c_dict["sensors"][i]["name"] == self.name:
+                c_dict["sensors"][i]["calib_file"] = self.calib_file
         WmPiUtils.update_pi_config_from_dict(c_dict, self.config_file)
         return
 
@@ -260,7 +267,7 @@ class IFM_O1(Sensor):
             \t\tname:{self.i2c_name}
             \t\taddr:{self.i2c_addr}
             \t\tid:{self.i2c_id}
-            \t\tStBy:{self.i2c_StBy}          
+            \t\tStBy:{self.i2c_StBy}
         """
     def get_raw_voltage(self):
         """
