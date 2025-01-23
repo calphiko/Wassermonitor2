@@ -10,8 +10,8 @@ from time import sleep
 import smbus2 as smbus
 import csv
 import os
-import termplotlib as tmpl
 from scipy.interpolate import interp1d
+import WmPiUtils
 
 class Sensor():
     """
@@ -47,7 +47,7 @@ class Sensor():
         instance = super().__new__(sensor_class)
         return instance
 
-    def __init__(self, sensor_dict, cnt_of_vals_per_meas):
+    def __init__(self, sensor_dict, cnt_of_vals_per_meas, config_file = "./config.json"):
         """
         Initialize common sensor attributes.
 
@@ -63,7 +63,10 @@ class Sensor():
         self.max_val = float(sensor_dict["max_val"])
         self.warn = float(sensor_dict["warn"])
         self.alarm = float(sensor_dict["alarm"])
+        self.config_file = os.path.abspath(config_file)
         self.cnt_of_vals_per_meas = cnt_of_vals_per_meas
+
+
     def calibrate_data(self, raw_data):
         """
         Calibrate raw data into meaningful values.
@@ -107,14 +110,16 @@ class IFM_O1(Sensor):
     :type cnt_of_vals_per_meas: int
     """
 
-    def __init__(self, sensor_dict, cnt_of_vals_per_meas):
+    def __init__(self, sensor_dict, cnt_of_vals_per_meas = 5, configure = False):
         """
-        Initialize the IFM_O1 sensor attributes.
+        Initialize the IFM_O1 sensor attributes. If no calibration file is found, it can be created or replaced by a default one
 
         :param sensor_dict: A dictionary containing the sensor configuration.
         :type sensor_dict: dict
         :param cnt_of_vals_per_meas: The number of values per measurement.
-        :type cnt_of_vals_per_meas: int
+        :type cnt_of_vals_per_meas: int (default 5)
+        :param configure: Should ask for configration scripts
+        :type configure: bool (default False)
         """
 
         super().__init__(sensor_dict, cnt_of_vals_per_meas)
@@ -125,54 +130,105 @@ class IFM_O1(Sensor):
             self.calib_data = self.get_calib_data()
         except FileNotFoundError:
             q_create_calib = str()
-            while (q_create_calib == str()):
-                q_create_calib=input (f"\tNo calibration file found for Sensor {self.name}. \n\tShould we create one (you will need a calibration setup for this). \n\tOtherwise we can use a default calibration file, but here, the measured value will be inaccurate or wrong. \n\tPress 'y' for creating a new file (default no)! " or "n")
-                if q_create_calib == "y":
-                    self.calib_file = self.create_calibration_file()
-                elif q_create_calib == "n" or q_create_calib == "no" or q_create_calib == "":
-                    q_create_calib = "n"
-                    print (f"\tWARNING: {self.name} uses the default calibration file. The values will me incorrect or inaccurate")
-                    self.calib_file = os.path.abspath("./calib_date_sensor.tmpl")
-                else:
-                    print ("please type 'y' or 'n'")
-            
-        # TERM PLOT 
-        cd = {
-            "x":[],
-            "y":[]
-        }
-        with open(self.calib_file, 'r') as csvfile:
-            reader = csv.reader(csvfile, delimiter=";")
-            for row in reader:
-                # print (row)
-                cd["x"].append(float(row[1]))
-                cd["y"].append(float(row[0]))
+            if configure:
+                while (q_create_calib == str()):
+                    q_create_calib=input (f"\tNo calibration file found for Sensor {self.name}. \n\tShould we create one (you will need a calibration setup for this). \n\tOtherwise we can use a default calibration file, but here, the measured value will be inaccurate or wrong. \n\tPress 'y' for creating a new file (default no)! " or "n")
+                    if q_create_calib == "y":
+                        self.calib_file = self.create_calibration_file()
+                    elif q_create_calib == "n" or q_create_calib == "no" or q_create_calib == "":
+                        q_create_calib = "n"
+                        print (f"\tWARNING: {self.name} uses the default calibration file. The values will me incorrect or inaccurate")
+                        self.calib_file = os.path.abspath("./calib_date_sensor.tmpl")
+                    else:
+                        print ("please type 'y' or 'n'")
 
-        fig = tmpl.figure()
-        fig.plot(cd["x"], cd["y"])#, width=60, height=20)
-        fig.show()
+                # TERM PLOT
+                cd = {
+                    "x":[],
+                    "y":[]
+                }
+                with open(self.calib_file, 'r') as csvfile:
+                    reader = csv.reader(csvfile, delimiter=";")
+                    for row in reader:
+                        # print (row)
+                        cd["x"].append(float(row[1]))
+                        cd["y"].append(float(row[0]))
+            else:
+                print(f"\tWARNING: {self.name} uses the default calibration file. The values will me incorrect or inaccurate")
+                self.calib_file = os.path.abspath("./calib_date_sensor.tmpl")
 
-        print()
+            self.calib_data = self.get_calib_data()
+
         self.test_connection()
 
     def create_calibration_file(self):
-        print ("\tcreating calibration file....")
-        if not os.path.exists(self.calib_file):
-            pass
-        elif os.path.isdir(self.calib_file):
-          pass
-        else:
-            pass
+        """
+        Create a calibration file for a sensor.
+
+        This function guides the user through the creation of a calibration file for a sensor.
+        The calibration involves measuring raw sensor output at predefined distances and saving
+        the results to a CSV file. If a calibration file already exists, the user is prompted to
+        confirm overwriting it. Once created, the calibration file path is saved to the sensor's
+        configuration.
+
+        :return: True if the calibration file is successfully created, False if the process is aborted.
+        :rtype: bool
+        :raises FileNotFoundError: If the specified configuration file does not exist.
+        :raises OSError: If there is an error during file operations (e.g., permissions issues).
+        :raises ValueError: If invalid user input is provided during overwrite confirmation.
+        """
+
+        CALIB_DIST = [17, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
+        print(f"\tcreating calibration file.... (from {CALIB_DIST[0]} cm to {CALIB_DIST[-1]} cm)")
+
+        if os.path.isdir(self.calib_file):
+            self.calib_file = f"{self.calib_file}/calib_file_{self.name}.csv"
+
+        if os.path.exists(self.calib_file):
+            overwrite = str()
+            while overwrite == str:
+                overwrite = input(f"\tCalibration file\n\t\t{self.calib_file}\n\texists. Are you sure to overwrite (n): " or "n")
+                if overwrite == "n" or overwrite == "no":
+                    print ("Aborting...")
+                    return False
+                elif overwrite == "y" or overwrite =="yes":
+                    overwrite = "y"
+                else:
+                    print("please type 'y' or 'n'")
+                    overwrite = str()
+
+        with open(self.calib_file, 'w') as f:
+            for d in CALIB_DIST:
+                input(f"Set sensor to {d} cm distance and press ENTER")
+                d_m = self.get_raw_voltage()
+                f.write(f"{d};{d_m}")
+                print (d_m)
+
+
+        # DON'T FORGET TO WRITE CALIB FILE TO CONFIG
+        c_dict = WmPiUtils.read_pi_config_from_json(self.config_file)
+        c_dict["sensors"][self.name]["calib_file"] = self.calib_file
+        WmPiUtils.update_pi_config_from_dict(c_dict, self.config_file)
         return
 
     def test_connection(self):
+        """
+       Test the connection to the sensor.
+
+       This function checks whether the sensor is properly connected by attempting to read its raw voltage.
+       If the connection is successful, it returns `True`. Otherwise, it prints a warning and returns `False`.
+
+       :return: True if the sensor connection is successful, False if the connection fails.
+       :rtype: bool
+       :raises ConnectionError: If the sensor cannot be reached or is not connected.
+       """
+
         try:
             self.get_raw_voltage()
             return True
         except ConnectionError as e:
             print (f"\tWARNING: sensor {self.name} has no connection.")
-        except FileNotFoundError as e:
-            print (f"\tERROR: ic2 device {self.i2c_device} was not found. Please check, if configuration is correct")
+            return False
 
     def get_i2c_address(self):
         """
