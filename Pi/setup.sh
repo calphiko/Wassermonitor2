@@ -133,3 +133,4 @@ sudo crontab -u "$SERVICE_USER" -l
 echo ""
 echo "For uploading data to the API, please add this public key to your APIs authorized-keys file (Consider Server documentation)."
 cat $CURRENT_DIR/.psk/public_key.rsa
+echo ""
