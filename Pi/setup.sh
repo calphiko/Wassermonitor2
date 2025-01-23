@@ -53,9 +53,10 @@ echo "\n\t Installing python requirements"
 pip3 install -r requirements.txt
 
 # CALIBRATION
-#python3 calib.py
+echo "\n\t Configuring sensors"
+python3 configure_sensors.py
 
 # GENERATE KEY PAIR FOR DATA SIGNING
- #python3 generate_key_pair.py
+python3 generate_key_pair.py
 
 
