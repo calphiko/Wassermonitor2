@@ -1,6 +1,6 @@
 {
-  "name": "raspi1",
-  "api_url": "http://127.0.0.1:8012",
+  "name": "teststation2",
+  "api_url": "https://dev-api.wassermonitor.de",
   "token": "secret_token",
   "psk_path": ".psk",
   "temp_storage_path": "/tmp/wassermonitor",

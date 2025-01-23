@@ -41,12 +41,9 @@
         DarkMode = darkModeQuery.matches;
         await loadCharts();
 
-        // Event-Listener registrieren
+        // Register event listener
         darkModeQuery.addEventListener("change", handleDarkModeChange);
 
-        //onDestroy(() => {
-        //    darkModeQuery.removeEventListener("change", handleDarkModeChange);
-        //});
     });
 
 
@@ -57,7 +54,7 @@
         heading = chartConfig.title;
         mpNameOptions = await getAvailableMeasPointsFromApi(apiUrl);
         if (!mpName) {
-            mpName = mpNameOptions[0];
+            mpName = mpNameOptions[0].value;
         };
         chartInstances = [
          {'name':'fillChart', 'divName': document.getElementById('fillChart')},
@@ -71,11 +68,21 @@
 
  </script>
 
+<header>
+    <nav class="fill-yellow-50  dark:fill-gray-600 text-gray-900 dark:text-gray-50 text-center">
+        <div class="bg-yellow-50 dark:bg-gray-600 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-b-lg m-0">
+		    <h1>{heading}</h1>
+		</div>
+	</nav>
+</header>
+
 <main>
-    <h1  id='html_title' class="text-3xl font-bold text-gray-800 dark:text-white h-12">{heading}</h1>
+
+
+    <h1  id='html_title' class="text-3xl font-bold text-gray-800 dark:text-white h-12"></h1>
     <select bind:value={mpName} on:change={loadCharts}  class='bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5'>
         {#each mpNameOptions as option}
-           <option value={option}>{option}</option>
+           <option value={option.value}>{option.label}</option>
         {/each}
     </select>
     <div id='fillChart' style='width: 100%; height: 600%;'></div>
@@ -104,8 +111,8 @@
         />
       </div>
     </div>
-    <div id='timeChart' style='width: 100%; height: 600%;'>TimeChart</div>
-    <div id='derivChart' style='width: 100%; height: 600%;' >DerivChart</div>
+    <div id='timeChart' class='chartDiv' style='width: 100%; height: 600%;'>TimeChart</div>
+    <div id='derivChart' class='chartDiv' style='width: 100%; height: 600%;' >DerivChart</div>
 </main>
 
 <style>
@@ -126,6 +133,25 @@
   label {
     font-weight: bold;
     margin-bottom: 0.25rem;
+  }
+
+
+  header {
+    position: sticky;
+    top:0;
+    padding: -2px 16px;
+    z-index: 10;
+  }
+
+  nav {
+		display: flex;
+		justify-content: center;
+
+  }
+
+  chartDiv {
+    z-index:0;
+
   }
 </style>
 
