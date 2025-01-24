@@ -46,7 +46,8 @@
       "i2c": {
         "i2c_device": "",
         "adc_channel": 2,
-        "addr": "0x68"      }
+        "addr": "0x68"
+      }
     },
     {
       "name": "<sensor_name_4>",
