@@ -156,10 +156,9 @@ Wassermonitor will not work without this step!
               "alarm": 70,
               "calib_file": "calib/calib_date_sensor_1.csv",
               "i2c": {
-                "addr": "0x68",
-                "name": "0",
-                "id": "13",
-                "StBy": 128
+                "i2c_device": "i2c-1",
+                "adc_channel": 0,
+                "addr": "0x68"
               }
             },
             {
@@ -171,10 +170,9 @@ Wassermonitor will not work without this step!
               "alarm": 70,
               "calib_file": "calib/calib_date_sensor_2.csv",
               "i2c": {
-                "addr": "0x68",
-                "name": "0",
-                "id": "13",
-                "StBy": 160
+                "i2c_device": "i2c-1",
+                "adc_channel": 1,
+                "addr": "0x68"
               }
             }
           ]
@@ -230,7 +228,7 @@ Partlist
 Part-assembly
 ~~~~~~~~~~~~~
 
-.. figure:: pictures/I2C_Adapter_w_Input_Card.jpeg
+.. figure:: pictures/I2C_Adapter_w_Input_card.jpeg
     :width: 80%
 
     The I2C Adapter for modifing the voltage levels and analog input card with four channels.
