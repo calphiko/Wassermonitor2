@@ -17,6 +17,25 @@ Setup of the server
 Docker
 ~~~~~~
 
+1. Clone directory and create authorized_keys-file and data directory.
+
+.. code-block:: console
+    git clone -b docker https://github.com/calphiko/Wassermonitor2.git
+    mkdir .wassermonitor
+    touch "<public key of measurement point in rsa format>" >> .wassermonitor/authozired_keys
+    mkdir data
+
+2. Build container
+
+.. code-block:: console
+    cd Wassermonitor2
+    docker build --rm -t wassermonitor2 .
+
+3. Start container
+
+.. code-block:: console
+    docker run --rm -it -d -v /path/to/data/:/Data/ -v /path/to/.wassermonitor/:/etc/wassermonitor/ -p 8012:8012 -p 7070:5173 --name wm2 wassermonitor2
+
 From source
 ~~~~~~~~~~~
 
