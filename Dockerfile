@@ -21,6 +21,9 @@ RUN pip3 install -r requirements.txt
 # COPY API
 COPY Server/API ./API
 
+# Warningbot
+COPY Server/Warningbot ./Warningbot
+
 # COPY DASHBOARD
 COPY --from=dashboard-builder /Dashboard/build ./Dashboard
 
@@ -34,6 +37,8 @@ EXPOSE 8012 80
 # Configfile
 COPY Server/config.cfg .
 COPY Server/messages.json .
+
+
 
 # Startscript
 COPY Docker/start.sh .
