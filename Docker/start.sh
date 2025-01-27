@@ -6,6 +6,8 @@ cd API
 python3 main.py &
 cd ..
 
+sleep 15
+
 # Start Warningbot
 cd Warningbot
 python3 warningbot.py &
