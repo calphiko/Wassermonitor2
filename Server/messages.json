@@ -1,1 +1,35 @@
-./config/messages.json
+{
+  "message_warn": {
+    "en": "WARNING: Sensor {sensor} at station {meas_point} at {date} below the warning threshold. Last value is {value}. Immediate attention advised!",
+    "de": "WARNUNG: Sensor {sensor} an Station {meas_point} am {date} unter der Warnschwelle. Letzter Wert: {value}. Bitte umgehende Aufmerksamkeit!"
+  },
+  "message_dewarn": {
+    "en": "Sensor {sensor} at station {meas_point} is back above the warning threshold. Situation stabilized.",
+    "de": "Sensor {sensor} an Station {meas_point} liegt wieder über der Warnschwelle. Situation stabilisiert."
+  },
+  "message_alarm": {
+    "en": "ALARM: Sensor {sensor} at station {meas_point} at {date} is below the alarm threshold. Last value is {value}. Critical situation detected!",
+    "de": "ALARM: Sensor {sensor} an Station {meas_point} am {date} unter der Alarmschwelle. Letzter Wert: {value}. Kritische Situation erkannt!"
+  },
+  "message_dealarm": {
+    "en": "Sensor {sensor} at station {meas_point} is back above the alarm threshold. Critical issue resolved but please give attention.",
+    "de": "Sensor {sensor} an Station {meas_point} liegt wieder über der Alarmschwelle. Kritisches Problem behoben, bitte weiterhin aufmerksam bleiben."
+  },
+  "message_deprecated": {
+    "en": "INFO: The data of the station {meas_point} and sensor {sensor} is from {date}. The data is outdated! Please verify the system.",
+    "de": "INFO: Die Daten von Station {meas_point} und Sensor {sensor} stammen vom {date}. Die Daten sind veraltet! Bitte System überprüfen."
+  },
+  "message_dedeprecated": {
+    "en": "INFO: Station {meas_point} Sensor {sensor} is reporting current data again. The warning from {date} is deprecated. System functioning properly.",
+    "de": "INFO: Station {meas_point} Sensor {sensor} meldet wieder aktuelle Daten. Die Warnung vom {date} ist hinfällig. System funktioniert einwandfrei."
+  },
+  "email_subject": {
+    "en": "Wassermonitor status mail",
+    "de": "Wassermonitor status mail"
+  },
+  "dtformat": {
+    "en": "%m-%d-%Y at %H:%M",
+    "de": "%d.%m.%Y um %H:%M Uhr"
+  }
+
+}
