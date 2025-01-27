@@ -72,6 +72,7 @@ import json
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import smtplib
+from time import sleep
 
 from requests import post
 import logging
@@ -903,6 +904,9 @@ if __name__ == '__main__':
     # now with timezone
 
     logger.info(f"Warning-Bot starting at {now} ...")
-    #print (config))
-    data = get_last_data_from_api()
-    check_thresholds(data, config, messages)
+
+    while True:
+
+        data = get_last_data_from_api()
+        check_thresholds(data, config, messages)
+        sleep(60)
