@@ -308,6 +308,8 @@ def check_thresholds(data, config, messages):
                 )
             else:
                 dewarn(
+                    mp,
+                    data[mp]['sensor_name'][i].split("\n")[0],
                     config,
                     messages
                 )
