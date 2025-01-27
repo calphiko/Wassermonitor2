@@ -754,13 +754,16 @@ def assign_color(value, warn, alarm):
     else:
         return 'normal'
 
-def assign_sign(value,warn,alarm):
-    if value < alarm:
-        return '🔴'
-    elif value < warn:
-        return '🟡'
+def assign_sign(value,warn,alarm, dt):
+    if dt < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
+        return '⚪'
     else:
-        return '🟢'
+        if value < alarm:
+            return '🔴'
+        elif value < warn:
+            return '🟡'
+        else:
+            return '🟢'
 
 def get_last_meas_data_from_sqlite_db(db_conf):
     """
@@ -844,11 +847,14 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                 output[row[2]][row[3]]['max_val'] = row[4]
                 output[row[2]][row[3]]['tank_height'] = row[8]
                 output[row[2]][row[3]]['value'] = round(row[8] - row[7],1)
-                output[row[2]][row[3]]['color'] = assign_color(
-                    output[row[2]][row[3]]['value'],
-                    row[5],
-                    row[6]
-                )
+                if row[1] < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
+                    output[row[2]][row[3]]['color'] = 'decrepated'
+                else:
+                    output[row[2]][row[3]]['color'] = assign_color(
+                        output[row[2]][row[3]]['value'],
+                        row[5],
+                        row[6]
+                    )
     return output
 
 def get_available_meas_points_from_sqlite_db(db_conf):
@@ -907,7 +913,7 @@ def get_available_meas_points_from_sqlite_db(db_conf):
                 #    "status": [{'sensor':x, 'status':assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])} for x in last_data[row[0]]]
                 #})
                 #o_str = f"{row[0]}".join([(f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}") for x in last_data[row[0]]])
-                output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}" for x in last_data[row[0]]]
+                output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'],last_data[row[0]][x]['value'])}" for x in last_data[row[0]]]
 
     return output
 
