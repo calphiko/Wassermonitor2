@@ -899,10 +899,10 @@ def dedeprecated_warning(meas_point, sens_name, config, messages):
 
 
 if __name__ == '__main__':
-
     config = load_config_from_file()
     messages = load_msgs_from_json()
     # now with timezone
+
     logger.info(f"Warning-Bot starting at {now} ...")
 
     while True:
