@@ -913,7 +913,7 @@ def get_available_meas_points_from_sqlite_db(db_conf):
                 #    "status": [{'sensor':x, 'status':assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])} for x in last_data[row[0]]]
                 #})
                 #o_str = f"{row[0]}".join([(f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}") for x in last_data[row[0]]])
-                output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'],last_data[row[0]][x]['value'])}" for x in last_data[row[0]]]
+                output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'],last_data[row[0]][x]['dt'])}" for x in last_data[row[0]]]
 
     return output
 
