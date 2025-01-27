@@ -33,6 +33,16 @@
         "offset": 1,
         "color": "#f50000"
       }
+    ],
+    "deprecated": [
+      {
+        "offset": 0,
+        "color": "#aaaaaa"
+      },
+      {
+        "offset": 1,
+        "color": "#555555"
+      }
     ]
   }
 }
