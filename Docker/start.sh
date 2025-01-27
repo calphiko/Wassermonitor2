@@ -8,7 +8,7 @@ cd ..
 
 # Start Warningbot
 cd Warningbot
-python3 warningbot.py
+python3 warningbot.py &
 cd ..
 
 # Start nginx
