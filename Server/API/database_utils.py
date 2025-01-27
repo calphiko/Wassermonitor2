@@ -848,7 +848,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                 output[row[2]][row[3]]['tank_height'] = row[8]
                 output[row[2]][row[3]]['value'] = round(row[8] - row[7],1)
                 if datetime.fromisoformat(row[1]) < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
-                    output[row[2]][row[3]]['color'] = 'decrepated'
+                    output[row[2]][row[3]]['color'] = 'deprecated'
                 else:
                     output[row[2]][row[3]]['color'] = assign_color(
                         output[row[2]][row[3]]['value'],
