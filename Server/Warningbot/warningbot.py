@@ -83,11 +83,13 @@ from urllib3.exceptions import NewConnectionError
 
 # LOGGERCONFIG
 logger = logging.getLogger('wassermonitor warning bot')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh = logging.FileHandler(os.path.abspath("../log/warningbot.log"))
+fh.setFormatter(formatter)
+fh.setLevel(logging.INFO)
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+ch.setLevel(logging.INFO)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 logger.addHandler(fh)
@@ -926,6 +928,6 @@ if __name__ == '__main__':
     while True:
         #print (config))
         data = get_last_data_from_api()
-        logger.info(f"Got data from API at {now}")
+        logger.info(f"Got data from API at {datetime.now(tz=pytz.utc)} (utc)")
         check_thresholds(data, config, messages)
         sleep(60)
