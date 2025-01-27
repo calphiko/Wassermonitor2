@@ -755,7 +755,7 @@ def assign_color(value, warn, alarm):
         return 'normal'
 
 def assign_sign(value,warn,alarm, dt):
-    if dt < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
+    if datetime.fromisoformat(dt) < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
         return '⚪'
     else:
         if value < alarm:
@@ -847,7 +847,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                 output[row[2]][row[3]]['max_val'] = row[4]
                 output[row[2]][row[3]]['tank_height'] = row[8]
                 output[row[2]][row[3]]['value'] = round(row[8] - row[7],1)
-                if row[1] < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
+                if datetime.fromisoformat([1]) < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
                     output[row[2]][row[3]]['color'] = 'decrepated'
                 else:
                     output[row[2]][row[3]]['color'] = assign_color(
