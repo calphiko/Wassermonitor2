@@ -1,5 +1,5 @@
 <script>
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { getAvailableMeasPointsFromApi } from './api';
     import { formatDateForInput, formatDateForISO, fetchChartConfig } from './utils';
     import { loadFillChart, loadTimeChart } from './charts';
@@ -7,12 +7,14 @@
     const cConfigUrl = '/chartConfig.json';
     //const apiUrl = 'http://localhost:8012/'
     let apiUrl;
-    
-    const now = new Date();
-    const twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 14));
+    let intervalId = null;
 
-    let dtFrom = formatDateForInput(twoWeeksAgo);
-    let dtUntil = formatDateForInput(now);
+    let now;
+    let twoWeeksAgo;
+    let dtFrom;
+    let dtUntil;
+
+    let autoUpdateEnabled = true;
 
     let chartInstances = [];
 
@@ -35,22 +37,35 @@
         loadCharts();              // Charts neu laden
     }
 
-    onMount(async () => {
+    async function loadPage() {
+        if (typeof window === "undefined") {
+            return;
+        }
+        now = new Date();
+        twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 2));
 
-        const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-        DarkMode = darkModeQuery.matches;
+        dtFrom = formatDateForInput(twoWeeksAgo);
+        dtUntil = formatDateForInput(now);
+
         await loadCharts();
 
+
+    }
+
+
+    onMount(async () => {
+        await loadPage();
+        const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        DarkMode = darkModeQuery.matches;
         // Register event listener
         darkModeQuery.addEventListener("change", handleDarkModeChange);
-
+        startAutoUpdate()
     });
-
 
 
     async function loadCharts() {
         const chartConfig = await fetchChartConfig(cConfigUrl);
-	apiUrl = chartConfig.APIUrl;	
+	    apiUrl = chartConfig.APIUrl;
         heading = chartConfig.title;
         mpNameOptions = await getAvailableMeasPointsFromApi(apiUrl);
         if (!mpName) {
@@ -66,6 +81,35 @@
         await loadTimeChart(chartInstances, charts, chartConfig, dtFrom, dtUntil, mpName);
     }
 
+    function toggleAutoUpdate() {
+        autoUpdateEnabled = !autoUpdateEnabled;
+
+        if (autoUpdateEnabled) {
+            startAutoUpdate(); // Timer starten
+        } else {
+            stopAutoUpdate(); // Timer stoppen
+        }
+    }
+
+    function startAutoUpdate() {
+        if (!intervalId) {
+            intervalId = setInterval(async () => {
+                await loadPage();
+            }, 60000); // Alle 60 Sekunden aktualisieren
+        }
+    }
+
+    function stopAutoUpdate() {
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+    }
+
+    onDestroy(() => {
+        stopAutoUpdate();
+    });
+
  </script>
 
 <header>
@@ -79,7 +123,9 @@
 <main>
 
 
-    <h1  id='html_title' class="text-3xl font-bold text-gray-800 dark:text-white h-12"></h1>
+    <h1  id='html_title' class="text-3xl font-bold text-gray-800 dark:text-white h-12">
+        <button on:click={toggleAutoUpdate} class={autoUpdateEnabled ? "bg-yellow-600 dark:bg-gray-500" : "disabled"}>↻</button>
+    </h1>
     <select bind:value={mpName} on:change={loadCharts}  class='bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5'>
         {#each mpNameOptions as option}
            <option value={option.value}>{option.label}</option>
@@ -153,5 +199,6 @@
     z-index:0;
 
   }
+
 </style>
 
