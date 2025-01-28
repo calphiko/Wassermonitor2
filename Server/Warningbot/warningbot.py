@@ -924,7 +924,7 @@ if __name__ == '__main__':
     # now with timezone
 
     while True:
-
+        now = datetime.now(tz=pytz.utc)
         data = get_last_data_from_api()
         check_thresholds(data, config, messages)
         sleep(60)
