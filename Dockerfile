@@ -11,6 +11,9 @@ RUN npm run build
 # Main Container: Python with API and dashboard
 FROM python:3.10-slim
 
+# Add User
+RUN useradd -m -s /bin/bash appuser
+
 #RUN apt update && apt -y install python3-pip && apt clean
 
 # INSTALL PYTHON REQUIREMENTS
@@ -38,10 +41,13 @@ EXPOSE 8012 80
 COPY Server/config.cfg .
 COPY Server/messages.json .
 
-
+RUN chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /etc/nginx
+RUN mkdir -p /app/run && chown appuser:appuser /app/run
 
 # Startscript
 COPY Docker/start.sh .
-RUN chmod +x start.sh
+RUN chmod +x start.sh && chown appuser:appuser start.sh
+
+USER appuser
 
 CMD ["./start.sh"]
