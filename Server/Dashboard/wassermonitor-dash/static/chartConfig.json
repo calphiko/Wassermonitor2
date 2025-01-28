@@ -1,6 +1,6 @@
 {
-  "APIUrl" : "https://dev-api.wassermonitor.de/",
-  "title": "Wassermonitor2 Test",
+  "APIUrl" : "http://127.0.0.1:8012/",
+  "title": "Wassermonitor2 Test1012",
   "plotTheme": "vintage",
   "plotThemeDark": "dark",
   "colors": {
