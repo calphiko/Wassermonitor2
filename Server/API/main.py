@@ -69,12 +69,16 @@ import logging
 
 # Loggerconfig
 logger = logging.getLogger('wassermonitor warning bot')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh = logging.FileHandler(os.path.abspath("../log/API.log"))
+fh.setFormatter(formatter)
+fh.setLevel(logging.INFO)
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+ch.setLevel(logging.INFO)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+logger.addHandler(fh)
 
 
 config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg")]

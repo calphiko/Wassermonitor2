@@ -15,3 +15,4 @@
 /Server/Warningbot/*.dec
 /Server/Warningbot/telegram/creds.json
 /Server/Warningbot/email/creds.json
+/Server/log/*

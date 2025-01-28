@@ -754,13 +754,16 @@ def assign_color(value, warn, alarm):
     else:
         return 'normal'
 
-def assign_sign(value,warn,alarm):
-    if value < alarm:
-        return '🔴'
-    elif value < warn:
-        return '🟡'
+def assign_sign(value,warn,alarm, dt):
+    if datetime.fromisoformat(dt) < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
+        return '⚪'
     else:
-        return '🟢'
+        if value < alarm:
+            return '🔴'
+        elif value < warn:
+            return '🟡'
+        else:
+            return '🟢'
 
 def get_last_meas_data_from_sqlite_db(db_conf):
     """
@@ -810,13 +813,21 @@ def get_last_meas_data_from_sqlite_db(db_conf):
     print (db_path_list)
 
     sql = """
-        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s. warn, s.alarm, AVG(v.value), tank_height
-        FROM meas_val v 
-        INNER JOIN measurement m ON v.measurement_id=m.id 
-        INNER JOIN sensor s ON m.sensor_id = s.id 
-        INNER JOIN meas_point mp ON s.meas_point_id = mp.id 
-        WHERE m.id IN (SELECT max(id) FROM measurement GROUP BY sensor_id)
-        GROUP BY m.dt;
+        SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height
+        FROM meas_val v
+        INNER JOIN measurement m ON v.measurement_id = m.id
+        INNER JOIN sensor s ON m.sensor_id = s.id
+        INNER JOIN meas_point mp ON s.meas_point_id = mp.id
+        WHERE m.id IN (
+            SELECT id
+            FROM measurement m_inner
+            WHERE m_inner.dt = (
+                SELECT MAX(m_inner2.dt)
+                FROM measurement m_inner2
+                WHERE m_inner2.sensor_id = m_inner.sensor_id
+            )
+        )
+        GROUP BY m.dt;  
     """
     output = {}
     for db_path in db_path_list:
@@ -836,11 +847,14 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                 output[row[2]][row[3]]['max_val'] = row[4]
                 output[row[2]][row[3]]['tank_height'] = row[8]
                 output[row[2]][row[3]]['value'] = round(row[8] - row[7],1)
-                output[row[2]][row[3]]['color'] = assign_color(
-                    output[row[2]][row[3]]['value'],
-                    row[5],
-                    row[6]
-                )
+                if datetime.fromisoformat(row[1]) < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
+                    output[row[2]][row[3]]['color'] = 'deprecated'
+                else:
+                    output[row[2]][row[3]]['color'] = assign_color(
+                        output[row[2]][row[3]]['value'],
+                        row[5],
+                        row[6]
+                    )
     return output
 
 def get_available_meas_points_from_sqlite_db(db_conf):
@@ -899,7 +913,7 @@ def get_available_meas_points_from_sqlite_db(db_conf):
                 #    "status": [{'sensor':x, 'status':assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])} for x in last_data[row[0]]]
                 #})
                 #o_str = f"{row[0]}".join([(f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}") for x in last_data[row[0]]])
-                output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}" for x in last_data[row[0]]]
+                output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'],last_data[row[0]][x]['dt'])}" for x in last_data[row[0]]]
 
     return output
 

@@ -72,19 +72,25 @@ import json
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import smtplib
+from http.client import HTTPException
+from time import sleep
 
 from requests import post
 import logging
 import pytz
+from urllib3 import HTTPConnectionPool
+from urllib3.exceptions import NewConnectionError
 
 # LOGGERCONFIG
 logger = logging.getLogger('wassermonitor warning bot')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh = logging.FileHandler(os.path.abspath("../log/warningbot.log"))
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+logger.addHandler(fh)
 
 now = datetime.now(tz=pytz.utc)
 
@@ -226,11 +232,18 @@ def get_last_data_from_api():
     headers = {
         "Authorization": f"Bearer {config['API']['token']}"
     }
-    r = post(f"http://{config['API']['host']}:{config['API']['port']}/get_latest/", headers=headers)
-    if r.status_code == 200:
-        return json.loads(r.json())
-    else:
+    try:
+        r = post(f"http://{config['API']['host']}:{config['API']['port']}/get_latest/", headers=headers)
+        if r.status_code == 200:
+            logger.info("Received data from API")
+            return json.loads(r.json())
+        else:
+            logger.warning(f"Didn't receive data from API. Status code was: {r.status_code}")
+            return {}
+    except:
+        logger.error(f"Connection Error. No data received")
         return {}
+
 
 
 def check_thresholds(data, config, messages):
@@ -269,6 +282,12 @@ def check_thresholds(data, config, messages):
     for mp in data:
         for i in range(len(data[mp]['color'])):
             if data[mp]['color'][i] == 'warning':
+                dealarm(
+                    mp,
+                    data[mp]['sensor_name'][i].split("\n")[0],
+                    config,
+                    messages
+                )
                 warn(
                     mp,
                     data[mp]['sensor_name'][i].split("\n")[0],
@@ -287,8 +306,10 @@ def check_thresholds(data, config, messages):
                     config,
                     messages
                 )
-            elif data[mp]['color'][i] == 'alarm':
+            else:
                 dewarn(
+                    mp,
+                    data[mp]['sensor_name'][i].split("\n")[0],
                     config,
                     messages
                 )
@@ -902,7 +923,8 @@ if __name__ == '__main__':
     messages = load_msgs_from_json()
     # now with timezone
 
-    logger.info(f"Warning-Bot starting at {now} ...")
-    #print (config))
-    data = get_last_data_from_api()
-    check_thresholds(data, config, messages)
+    while True:
+
+        data = get_last_data_from_api()
+        check_thresholds(data, config, messages)
+        sleep(60)
