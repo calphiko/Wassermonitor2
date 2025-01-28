@@ -47,8 +47,8 @@ The Project is currently under development, but I'm sure to deploy a full implem
 |                      | Full Text documentation | 🔴     |
 | Pi                   | Doc-Strings for Sphinx  | 🟢     |
 |                      | Full Text documentation | 🟡     |
-| Setup Guide - src    | full Text documentation | 🟡     |
-| Setup Guide - Docker | full Text documentation | 🟡     |
+| Setup Guide - src    | Full Text documentation | 🟡     |
+| Setup Guide - Docker | Full Text documentation | 🟡     |
 
 
 ### Distribution
@@ -56,8 +56,8 @@ The Project is currently under development, but I'm sure to deploy a full implem
 | Feature                                                                                                 | Status |
 |---------------------------------------------------------------------------------------------------------|--------|
 | If push to main-branch: Github Action: Automatically deploy documentation                               | 🟢     | 
-| If push to main-branch: Github Action: Automatically build .tar.gz packets for server and meas points   | 	🔴    |
-| If push to main-branch: Github Action: Automatically build docker containers for server and meas_points | 	🔴    |
+| If push to main-branch: Github Action: Automatically build .tar.gz packets for server and meas points   | 🟢     |
+| If push to main-branch: Github Action: Automatically build docker containers for server and meas_points | 🟢     |
 
 ## Full documentation
 
