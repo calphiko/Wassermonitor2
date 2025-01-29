@@ -333,6 +333,8 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
     };
 }
 
+
+
 /**
  * Updates a time chart with new data.
  *
@@ -429,8 +431,10 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 {
                     trigger: 'axis',
                     formatter: function(params) {
+                        let timestamp = params[0].data[0];
+                        let formattedDate = new Date(timestamp).toLocaleString();
                         let tooltipContent = '';
-                        tooltipContent += `Value: ${params[0].data[1]} cm<br>`;
+                        tooltipContent += `${formattedDate}<br>Value: ${params[0].data[1]} cm<br>`;
                         return tooltipContent;
                     }
                 }
