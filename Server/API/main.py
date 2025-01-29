@@ -66,6 +66,7 @@ from psk_auth import load_authorized_keys, verify_signature
 import base64
 import os
 import logging
+import pytz
 
 # Loggerconfig
 logger = logging.getLogger('wassermonitor warning bot')
@@ -365,6 +366,7 @@ def request_measurement_data(request_dict):
     )
     data_json = {
     }
+
     if not data.empty:
         for mp in data['mpName'].unique():
             d_mp = data[data['mpName']==mp]
@@ -431,9 +433,13 @@ def request_last_measurements():
     )
     data_json = {}
     #print (data)
+    local_tz = pytz.timezone(config['warning']['timezone'])
     for mp in data:
         data_json[mp] = {
-            "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(messages['dtformat'][config['API']['language']])}" for x in data[mp]],
+            "sensor_name":[
+                f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).astimezone(local_tz).strftime(messages['dtformat'][config['API']['language']])}"
+                for x in data[mp]
+            ],
             "dt":[data[mp][x]["dt"] for x in data[mp]],
             "value": [data[mp][x]["value"] for x in data[mp]],
             "color": [data[mp][x]["color"] for x in data[mp]],
