@@ -29,6 +29,6 @@
 	},
 	"dtformat": {
 		"en": "%m-%d-%Y at %H:%M",
-		"de": "%d.%m.%Y um %H:%M Uhr"
+		"de": "%d.%m.%Y um %H:%M"
 	}
 }
