@@ -199,6 +199,7 @@
     z-index:0;
     width: 100%;
     min-height: 400px;
+    aspect-ratio: 16/9;
   }
 
 </style>
