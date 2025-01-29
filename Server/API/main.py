@@ -375,7 +375,7 @@ def request_measurement_data(request_dict):
             if d_mp.empty:
                 continue
             data_json[mp] = []
-            for s in d_mp['sensorId'].unique():
+            for s in sorted(d_mp['sensorId'].unique()):
                 d_s = d_mp[d_mp['sensorId'] == s]
                 if d_s.empty or not 'value' in list(d_s.keys()):
                     continue
@@ -434,7 +434,7 @@ def request_last_measurements():
     data_json = {}
     #print (data)
     local_tz = pytz.timezone(config['warning']['timezone'])
-    for mp in data:
+    for mp in sorted(data.keys()):
         data_json[mp] = {
             "sensor_name":[
                 f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).astimezone(local_tz).strftime(messages['dtformat'][config['API']['language']])}"
