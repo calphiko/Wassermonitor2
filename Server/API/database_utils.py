@@ -806,35 +806,34 @@ def get_last_meas_data_from_sqlite_db(db_conf):
 
         result = get_last_meas_data_from_sqlite_db(db_conf)
     """
-
     if not db_conf['engine'] == 'sqlite':
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
     db_path_list = [db_conf['sqlite_path'] + x for x in get_all_sqlite_files(db_conf['sqlite_path'])]
-    print (db_path_list)
 
     sql = """
-        SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height
+        WITH latest_measurements AS (
+            SELECT sensor_id, MAX(dt) AS latest_dt
+            FROM measurement
+            GROUP BY sensor_id
+        )
+        SELECT 
+            m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, 
+            AVG(v.value), s.tank_height
         FROM meas_val v
         INNER JOIN measurement m ON v.measurement_id = m.id
         INNER JOIN sensor s ON m.sensor_id = s.id
         INNER JOIN meas_point mp ON s.meas_point_id = mp.id
-        WHERE m.id IN (
-            SELECT id
-            FROM measurement m_inner
-            WHERE m_inner.dt = (
-                SELECT MAX(m_inner2.dt)
-                FROM measurement m_inner2
-                WHERE m_inner2.sensor_id = m_inner.sensor_id
-            )
-        )
-        GROUP BY m.dt;  
+        INNER JOIN latest_measurements lm ON m.sensor_id = lm.sensor_id AND m.dt = lm.latest_dt
+        GROUP BY m.id, m.dt, mp.name, s.name;
     """
     output = {}
+    time_dep = datetime.now(tz=pytz.utc) - timedelta(minutes=15)
     for db_path in db_path_list:
         if os.path.exists(db_path):
             conn, cur = get_sqlite3_connection(db_path)
             cur.execute(sql)
             res = cur.fetchall()
+
             #print (res)
             for row in res:
                 if not row[2] in output:
@@ -847,7 +846,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
                 output[row[2]][row[3]]['max_val'] = row[4]
                 output[row[2]][row[3]]['tank_height'] = row[8]
                 output[row[2]][row[3]]['value'] = round(row[8] - row[7],1)
-                if datetime.fromisoformat(row[1]) < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
+                if datetime.fromisoformat(row[1]) < time_dep:
                     output[row[2]][row[3]]['color'] = 'deprecated'
                 else:
                     output[row[2]][row[3]]['color'] = assign_color(
@@ -894,6 +893,8 @@ def get_available_meas_points_from_sqlite_db(db_conf):
         measurement_points = get_available_meas_points_from_sqlite_db(db_conf)
         print(measurement_points)
     """
+
+
     if not db_conf['engine'] == 'sqlite':
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
     db_path_list = [db_conf['sqlite_path'] + x for x in get_all_sqlite_files(db_conf['sqlite_path'])]
@@ -906,6 +907,7 @@ def get_available_meas_points_from_sqlite_db(db_conf):
         conn, cur = get_sqlite3_connection(db_path)
         cur.execute(sql)
         res = cur.fetchall()
+
         for row in res:
             if not row[0] in output:
                 #output.append({
@@ -914,6 +916,7 @@ def get_available_meas_points_from_sqlite_db(db_conf):
                 #})
                 #o_str = f"{row[0]}".join([(f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}") for x in last_data[row[0]]])
                 output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'],last_data[row[0]][x]['dt'])}" for x in last_data[row[0]]]
+
 
     return output
 
