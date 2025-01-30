@@ -42,12 +42,42 @@ function reInitEchart(name, divName, charts, plotTheme, plotThemeDark) {
     plotBackGround = isDarkMode ? '#1F2937':'#FDFDEA'
     // MAYBE DELETABLE
     console.log("reinit charts with theme:", theme);
-    if (charts[name]) {
+
+    console.log(charts)
+
+    if (name in charts && charts[name]) {
         //console.log("reinit: ", name);
-        echarts.dispose(charts[name]);
+        charts[name].clear();
+    } else {
+        const c = echarts.init(divName,theme);
+        charts[name] = c
     }
-    const c = echarts.init(divName,theme);
-    return c
+
+
+
+    if (!window.echartsResizeListenerAdded) {
+        window.echartsResizeListenerAdded = true; // Markierung setzen
+        window.addEventListener("resize", () => {
+            console.log("Window resized – resizing all charts");
+            Object.values(charts).forEach(chart => {
+                if (chart) {
+                    chart.resize();
+                }
+            });
+        });
+
+        // Direkt nach der Initialisierung einmal `resize` triggern
+        setTimeout(() => {
+            console.log("Trigger initial resize");
+            Object.values(charts).forEach(chart => {
+                if (chart) {
+                    chart.resize();
+                }
+            });
+        }, 200);
+    }
+
+    return charts[name]
 }
 
 /**
@@ -136,7 +166,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
             axisLine: {
               show: false
             },
-            z: 10
+            z: 9
           },
           yAxis: {
             axisLine: {
@@ -168,7 +198,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
               },
 
               data: values,
-              barWidth: '90%',
+              barWidth: '95%',
             },
 
             {
@@ -182,7 +212,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
                 borderType: 'dashed',
               },
               data: thWarn,
-              barWidth: '90%',
+              barWidth: '95%',
               barGap: '-100%',
             },
             {
@@ -197,7 +227,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
               },
 
               data: thAlarm,
-              barWidth: '90%',
+              barWidth: '95%',
               barGap: '-100%',
             },
             ,
@@ -213,7 +243,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
               },
 
               data: maxVal,
-              barWidth: '90%',
+              barWidth: '95%',
               barGap: '-100%',
             },
 
@@ -229,7 +259,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
               },
 
               data: tankHeight,
-              barWidth: '90%',
+              barWidth: '95%',
               barGap: '-100%',
             },
 
@@ -311,7 +341,7 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
             series: seriesConfigs,
             dataZoom: dataZoomConfigs,
             tooltip: tooltipConfigs,
-            legend:{},
+            legend:{top:'4%'},
             toolbox: {
               show: true,
               orient: 'horizontal',

@@ -30,6 +30,9 @@
     let mpNameOptions;
     let DarkMode = false;
 
+    let hasUserModifiedUntil = false;
+    let hasUserModifiedFrom = false;
+
 
 
     function handleDarkModeChange(event) {
@@ -44,9 +47,13 @@
         now = new Date();
         twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 2));
 
-        dtFrom = formatDateForInput(twoWeeksAgo);
-        dtUntil = formatDateForInput(now);
+        if (!hasUserModifiedUntil) {
+            dtUntil = formatDateForInput(now);
+        }
 
+        if (!hasUserModifiedFrom) {
+            dtFrom = formatDateForInput(twoWeeksAgo);
+        }
         await loadCharts();
 
 
@@ -106,6 +113,18 @@
         }
     }
 
+    function handleFromChange () {
+        dtFrom = event.target.value
+        hasUserModifiedFrom = true;
+        loadCharts();
+    }
+
+    function handleUntilChange () {
+        dtUntil = event.target.value
+        hasUserModifiedUntil = true;
+        loadCharts();
+    }
+
     onDestroy(() => {
         stopAutoUpdate();
     });
@@ -124,40 +143,40 @@
 </header>
 
 <main>
-    <div style="width:100%;">
+    <div style="flex flex-row">
         <select bind:value={mpName} on:change={loadCharts}  class='bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5'>
             {#each mpNameOptions as option}
                <option value={option.value}>{option.label}</option>
             {/each}
         </select>
-        <div id='fillChart' class="chartDiv"></div>
+        <div id='fillChart' class="fillChartDiv"></div>
         <div class="flex flex-row gap-5 h-12 my-10">
           <!-- DateTime Picker: "From" -->
-          <div class="">
+          <div class="w-full sm:w-auto">
             <label for="from-picker" class="dark:text-white text-gray-600">From</label>
             <input
               id="from-picker"
               type="datetime-local"
               class="bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5"
               bind:value={dtFrom}
-              on:blur={loadCharts}
+              on:blur={handleFromChange}
             />
           </div>
 
           <!-- DateTime Picker: "Until" -->
-          <div class="">
+          <div class="w-full sm:w-auto">
             <label for="until-picker" class="dark:text-white text-gray-600">Until</label>
             <input
               id="until-picker"
               type="datetime-local"
               class = "bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5"
               bind:value={dtUntil}
-              on:blur={loadCharts}
+              on:blur={handleUntilChange}
             />
           </div>
         </div>
-        <div id='timeChart' class='chartDiv' >TimeChart</div>
-        <div id='derivChart' class='chartDiv' >DerivChart</div>
+        <div id='timeChart' class='timeChartDiv'>TimeChart</div>
+        <div id='derivChart' class='timeChartDiv'>DerivChart</div>
     </div>
 </main>
 
@@ -195,11 +214,30 @@
 
   }
 
-  .chartDiv {
+  .fillChartDiv {
     z-index:0;
     width: 100%;
-    min-height: 400px;
-    aspect-ratio: 16/9;
+
+    height: 500px;
+  }
+
+  .timeChartDiv {
+    z-index:0;
+    width: 100%;
+
+    height: 700px;
+  }
+
+  .flex {
+    display: flex;
+    flex-direction: row; /* Nebeneinander */
+    gap: 1rem; /* Abstand zwischen den Elementen */
+  }
+
+  @media (max-width: 500px) {
+    .flex {
+      flex-direction: column; /* Untereinander */
+    }
   }
 
 </style>
