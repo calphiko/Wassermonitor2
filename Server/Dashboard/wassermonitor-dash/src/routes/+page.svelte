@@ -137,7 +137,7 @@
 		    <h1 class="align-center">
 		        {heading}
 		    </h1>
-		    <button on:click={toggleAutoUpdate} class={autoUpdateEnabled ? " border rounded dark:border-gray-800 dark:text-red-400 text-red-700" : "border rounded dark:border-gray-400 text-gray-400"}>↻ <small>toggle auto refresh</small></button>
+		    <button on:click={toggleAutoUpdate} class={autoUpdateEnabled ? " border rounded dark:border-gray-800 dark:text-red-400 text-red-700" : "border rounded dark:border-gray-400 text-gray-400"}>↻ <small>update</small></button>
 		</div>
 	</nav>
 </header>
