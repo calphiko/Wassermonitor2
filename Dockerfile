@@ -12,10 +12,12 @@ RUN git clone --depth 1 --branch $BRANCH https://github.com/calphiko/Wassermonit
 FROM node:18-alpine AS dashboard-builder
 
 WORKDIR /Dashboard
+
 COPY --from=code-fetcher /repo/Wassermonitor2/Server/Dashboard/wassermonitor-dash/package.json ./
 #COPY Server/Dashboard/wassermonitor-dash/package-lock.json ./
 RUN npm install
 COPY --from=code-fetcher /repo/Wassermonitor2/Server/Dashboard/wassermonitor-dash ./
+COPY svelte.config.js ./
 RUN npm run build
 
 # Main Container: Python with API and dashboard
