@@ -2,7 +2,7 @@
 ARG BRANCH=main
 
 # Base Stage: Code Fetcher
-# FROM alpine:latest as code-fetcher
+FROM alpine:latest AS code-fetcher
 RUN apk add --no-cache git
 WORKDIR /repo
 ARG BRANCH
@@ -12,10 +12,10 @@ RUN git clone --depth 1 --branch $BRANCH https://github.com/calphiko/Wassermonit
 FROM node:18-alpine AS dashboard-builder
 
 WORKDIR /Dashboard
-COPY --from=code-fetcher /repo/Server/Dashboard/wassermonitor-dash/package.json ./
+COPY --from=code-fetcher /repo/Wassermonitor2/Server/Dashboard/wassermonitor-dash/package.json ./
 #COPY Server/Dashboard/wassermonitor-dash/package-lock.json ./
 RUN npm install
-COPY Server/Dashboard/wassermonitor-dash ./
+COPY --from=code-fetcher /repo/Wassermonitor2/Server/Dashboard/wassermonitor-dash ./
 RUN npm run build
 
 # Main Container: Python with API and dashboard
@@ -29,14 +29,14 @@ RUN apt update && apt -y install python3-pip && apt clean
 
 # INSTALL PYTHON REQUIREMENTS
 WORKDIR /app
-COPY --from=code-fetcher /repo/requirements.txt .
+COPY --from=code-fetcher /repo/Wassermonitor2/requirements.txt .
 RUN pip3 install -r requirements.txt
 
 # COPY API
-COPY --from=code-fetcher repo/Server/API ./API
+COPY --from=code-fetcher /repo/Wassermonitor2/Server/API ./API
 
 # Warningbot
-COPY --from=code-fetcher repo/Server/Warningbot ./Warningbot
+COPY --from=code-fetcher /repo/Wassermonitor2/Server/Warningbot ./Warningbot
 
 # COPY DASHBOARD
 COPY --from=dashboard-builder /Dashboard/build ./Dashboard
@@ -49,8 +49,8 @@ COPY Docker/nginx.conf /etc/nginx/nginx.conf
 EXPOSE 8012 80
 
 # Configfile
-COPY --from=code-fetcher repo/Server/config.cfg .
-COPY --from=code-fetcher repo/Server/messages.json .
+COPY --from=code-fetcher /repo/Wassermonitor2/Server/config.cfg .
+COPY --from=code-fetcher /repo/Wassermonitor2/Server/messages.json .
 
 RUN chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /etc/nginx
 RUN mkdir -p /app/run && chown appuser:appuser /app/run
