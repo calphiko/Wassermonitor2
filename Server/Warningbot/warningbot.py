@@ -72,14 +72,12 @@ import json
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import smtplib
-from http.client import HTTPException
 from time import sleep
 
 from requests import post
 import logging
 import pytz
-from urllib3 import HTTPConnectionPool
-from urllib3.exceptions import NewConnectionError
+
 
 # LOGGERCONFIG
 logger = logging.getLogger('wassermonitor warning bot')
@@ -101,7 +99,7 @@ def load_config_from_file():
     config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg"),
                        os.path.abspath("../../Server/config.cfg"), os.path.abspath("../../../Server/config.cfg")]
     for c in config_file_pos:
-        print(os.path.abspath(c))
+        #print(os.path.abspath(c))
         if os.path.exists(c):
             config_file = c
             break
@@ -125,7 +123,7 @@ def load_msgs_from_json():
     msg_json_pos = [os.path.abspath('../messages.json'), os.path.abspath("../Server/messages.json"),
                     os.path.abspath("../../Server/messages.json"), os.path.abspath("../../../Server/messages.json")]
     for c in msg_json_pos:
-        print(os.path.abspath(c))
+        #print(os.path.abspath(c))
         if os.path.exists(c):
             msg_json = c
             break
@@ -275,45 +273,12 @@ def check_thresholds(data, config, messages):
         }
         check_thresholds(sensor_data)
     """
-    print (config)
-    print (messages)
+    #print (config)
+    #print (messages)
     warn_inverval = int(config["warning"]["deprecated_interval"])
 
     for mp in data:
         for i in range(len(data[mp]['color'])):
-            if data[mp]['color'][i] == 'warning':
-                dealarm(
-                    mp,
-                    data[mp]['sensor_name'][i].split("\n")[0],
-                    config,
-                    messages
-                )
-                warn(
-                    mp,
-                    data[mp]['sensor_name'][i].split("\n")[0],
-                    datetime.fromisoformat(data[mp]['dt'][i]),
-                    data[mp]['value'][i],
-                    config,
-                    messages
-
-                )
-            elif data[mp]['color'][i] == 'alarm':
-                alarm(
-                    mp,
-                    data[mp]['sensor_name'][i].split("\n")[0],
-                    datetime.fromisoformat(data[mp]['dt'][i]),
-                    data[mp]['value'][i],
-                    config,
-                    messages
-                )
-            else:
-                dewarn(
-                    mp,
-                    data[mp]['sensor_name'][i].split("\n")[0],
-                    config,
-                    messages
-                )
-
             if datetime.fromisoformat(data[mp]['dt'][i]) < (now - timedelta(minutes=warn_inverval)):
                 deprecated_warning(
                     mp,
@@ -329,6 +294,42 @@ def check_thresholds(data, config, messages):
                     config,
                     messages
                 )
+
+                if data[mp]['color'][i] == 'warning':
+                    dealarm(
+                        mp,
+                        data[mp]['sensor_name'][i].split("\n")[0],
+                        config,
+                        messages
+                    )
+                    warn(
+                        mp,
+                        data[mp]['sensor_name'][i].split("\n")[0],
+                        datetime.fromisoformat(data[mp]['dt'][i]),
+                        data[mp]['value'][i],
+                        config,
+                        messages
+
+                    )
+                elif data[mp]['color'][i] == 'alarm' :
+                    alarm(
+                        mp,
+                        data[mp]['sensor_name'][i].split("\n")[0],
+                        datetime.fromisoformat(data[mp]['dt'][i]),
+                        data[mp]['value'][i],
+                        config,
+                        messages
+                    )
+                else:
+                    dewarn(
+                        mp,
+                        data[mp]['sensor_name'][i].split("\n")[0],
+                        config,
+                        messages
+                    )
+
+
+
 
 
 def message_signal(message, config, messages):
@@ -521,7 +522,7 @@ def load_telegram_creds_from_file():
 
     # Load tgram credentials from file
     if not os.path.exists(creds_path):
-        print(
+        logger.error(
             "No creds.json found. Please copy the creds.json.tmpl file to creds.json and add your telegram bot credentials.")
         return False
 
@@ -713,8 +714,13 @@ def dewarn(meas_point, sens_name, config, messages):
 
     filename = f"./{meas_point}-{sens_name}.warn"
     filename = os.path.abspath(filename)
-    if os.path.exists(filename):
-        dt = destroy_file(filename)
+    filename_alarm = f"./{meas_point}-{sens_name}.alarm"
+    filename_alarm = os.path.abspath(filename_alarm)
+    if os.path.exists(filename) or os.path.exists(filename_alarm):
+        if os.path.exists(filename):
+            dt = destroy_file(filename)
+        if os.path.exists(filename_alarm):
+            dt = destroy_file(filename_alarm)
         placeholders = {
             "sensor": sens_name,
             "meas_point": meas_point,
@@ -722,6 +728,7 @@ def dewarn(meas_point, sens_name, config, messages):
         text = format_message(messages['message_dewarn'][config['API']['language']], placeholders)
         logging.info("Users will be dewarned!")
         select_channels_and_warn(text, config, messages)
+
 
 
 def alarm(meas_point, sens_name, dt, value, config, messages):
