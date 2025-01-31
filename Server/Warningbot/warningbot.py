@@ -246,18 +246,28 @@ def get_last_data_from_api():
 
 def check_thresholds(data, config, messages):
     """
-    Evaluates sensor data against thresholds and triggers corresponding actions.
+    Evaluates sensor data against predefined thresholds and takes appropriate actions.
 
-    This function iterates over the provided sensor data and performs the following:
-    - Triggers warnings or alarms based on the sensor's color status (`warning` or `alarm`).
-    - Revokes warnings if conditions are resolved.
-    - Handles deprecated warnings if the sensor data is older than the configured interval.
+    This function processes sensor data and performs the following tasks:
+    - Identifies and handles outdated warnings based on a configured time interval.
+    - Revokes deprecated warnings when conditions improve.
+    - Triggers warnings or alarms based on the sensor's status (`warning` or `alarm`).
+    - Cancels warnings or alarms when conditions normalize.
 
-    :param data: The sensor data, structured as a dictionary with measurement points as keys.
-                 Each measurement point contains color statuses, sensor names, timestamps, and values.
-    :type data: dict
+    :param data: A dictionary containing sensor measurement points as keys.
+                 Each measurement point has a dictionary with the following keys:
+                 - "color" (list of str): Status indicators, e.g., ["warning", "ok"].
+                 - "sensor_name" (list of str): Names of the sensors.
+                 - "dt" (list of str): Timestamps in ISO format.
+                 - "value" (list of numeric): Sensor values.
+
+    :param config: A dictionary containing threshold settings and warning configurations.
+                   It must include:
+                   - "warning" -> "deprecated_interval": Time (in minutes) after which warnings become outdated.
+
+    :param messages: A list or structure for logging or tracking warning/alarm messages.
+
     :return: None
-    :rtype: None
 
     **Example**:
 
@@ -271,7 +281,11 @@ def check_thresholds(data, config, messages):
                 "value": [75, 1.2]
             }
         }
-        check_thresholds(sensor_data)
+        config = {
+            "warning": {"deprecated_interval": 30}
+        }
+        messages = []
+        check_thresholds(sensor_data, config, messages)
     """
     #print (config)
     #print (messages)
