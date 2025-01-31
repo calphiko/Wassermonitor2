@@ -43,8 +43,6 @@ function reInitEchart(name, divName, charts, plotTheme, plotThemeDark) {
     // MAYBE DELETABLE
     console.log("reinit charts with theme:", theme);
 
-    console.log(charts)
-
     if (name in charts && charts[name]) {
         //console.log("reinit: ", name);
         charts[name].clear();
