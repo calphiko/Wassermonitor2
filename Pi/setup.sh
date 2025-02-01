@@ -48,16 +48,16 @@ sudo apt update && sudo apt install -y  libopenblas-dev gnuplot
 # CREATE PYTHON3 VENV
 
 echo "\n\tCreating virtual environment and activate"
-sudo -u $SERVICE_USER -m venv $VENV_PATH
+sudo -u $SERVICE_USER python3 -m venv $VENV_PATH
 
 
 # Optional: Überprüfen, ob das venv erfolgreich aktiviert wurde
-if [ -z "$VIRTUAL_ENV" ]; then
-    echo "Error: Virtual environment could not be activated."
-    exit 1
-else
-    echo "Virtual environment activated: $VIRTUAL_ENV"
-fi
+#if [ -z "$VIRTUAL_ENV" ]; then
+#    echo "Error: Virtual environment could not be activated."
+#    exit 1
+#else
+#    echo "Virtual environment activated: $VIRTUAL_ENV"
+#fi
 
 echo "\n\t Installing python requirements"
 # INSTALL REQUIREMENTS.txt
@@ -75,7 +75,7 @@ echo ""
 echo "CREATE SYSTEMD DAEMON FOR DATASCRAWLER"
 
 SERVICE_NAME="wassermonitor_datascrawler"
-PYTHON_PROGRAMM="datascrawler.py"
+PYTHON_PROGRAMM="datacrawler.py"
 CURRENT_DIR=$(pwd)
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 
@@ -113,7 +113,7 @@ CRON_SCRIPT="datatransmitter.py"
 CRON_FILE="/var/spool/cron/crontabs/$SERVICE_USER"
 
 echo "CRON JOB THAT RUNS EVERY 5 MINUTES..."
-CRON_ENTRY="*/5 * * * * $CURRENT_DIR/.venv/bin/python3 $CURRENT_DIR/$PYTHON_SCRIPT"
+CRON_ENTRY="*/5 * * * * $CURRENT_DIR/.venv/bin/python3 $CURRENT_DIR/$CRON_SCRIPT"
 
 # Sicherstellen, dass die Crontab-Datei für den Benutzer existiert
 if [ ! -f "$CRON_FILE" ]; then
