@@ -4,20 +4,23 @@ import '../app.css';
 /** @type {{children: import('svelte').Snippet}} */
 let { children } = $props();</script>
 
+<div class="bg-yellow-50 dark:bg-gray-900 flex items-center justify-center " >
+    <div class="app bg-amber-100 border dark:border-0 dark:bg-gray-800 w-3/4 p-0 m-0">
 
-<div class="app bg-yellow-50 dark:bg-gray-800">
-	<Header></Header>
+        <Header></Header>
 
-	<main>
-		{@render children()}
-	</main>
+        <main>
+            {@render children()}
+        </main>
 
-	<footer>
-		<p class="text-center bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-20 my-5">
-			build with <a href="https://svelte.dev/docs/kit">svelte</a><br>
-			if you are interested in wassermonitor please visit my <a href="https://wassermonitor.de">blog</a>.
-	    </p>
-	</footer>
+        <footer>
+            <p class="text-center bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-20 my-5">
+                build with <a href="https://svelte.dev/docs/kit">svelte</a><br>
+                if you are interested in wassermonitor please visit my <a href="https://wassermonitor.de">blog</a>.
+            </p>
+        </footer>
+
+    </div>
 </div>
 
 
@@ -26,6 +29,8 @@ let { children } = $props();</script>
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
+		justify-content: center;
+
 	}
 
 	main {
@@ -56,4 +61,5 @@ let { children } = $props();</script>
 			padding: 12px 0;
 		}
 	}
+
 </style>

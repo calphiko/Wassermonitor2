@@ -1,5 +1,6 @@
 <script>
     import { onMount, onDestroy } from 'svelte';
+    import { Toggle } from 'flowbite-svelte';
     import { getAvailableMeasPointsFromApi } from './api';
     import { formatDateForInput, formatDateForISO, fetchChartConfig } from './utils';
     import { loadFillChart, loadTimeChart } from './charts';
@@ -90,6 +91,7 @@
 
     function toggleAutoUpdate() {
         autoUpdateEnabled = !autoUpdateEnabled;
+        console.log("Toggle autoUpdate", autoUpdateEnabled);
 
         if (autoUpdateEnabled) {
             startAutoUpdate(); // Timer starten
@@ -132,25 +134,27 @@
  </script>
 
 <header>
-    <nav class="fill-yellow-50  dark:fill-gray-600 text-gray-900 dark:text-gray-50 text-center">
-        <div class="bg-yellow-50 dark:bg-gray-600 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-b-lg m-0">
-		    <h1 class="align-center">
-		        {heading}
-		    </h1>
-		    <button on:click={toggleAutoUpdate} class={autoUpdateEnabled ? " border rounded dark:border-gray-800 dark:text-red-400 text-red-700" : "border rounded dark:border-gray-400 text-gray-400"}>↻ <small>update</small></button>
-		</div>
+    <nav class="fill-yellow-50  dark:fill-gray-600 text-gray-900 dark:text-gray-50 text-center ">
+        <div class="bg-blue-200 dark:bg-gray-600 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-b-lg m-0">
+            <h1 >
+                {heading}
+            </h1>
+        </div>
 	</nav>
 </header>
 
 <main>
-    <div style="flex flex-row">
+    <div style="flex flex-row" >
         <select bind:value={mpName} on:change={loadCharts}  class='bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5'>
             {#each mpNameOptions as option}
                <option value={option.value}>{option.label}</option>
             {/each}
         </select>
+
+        <Toggle class="items-center" on:click={toggleAutoUpdate} checked={autoUpdateEnabled} size="small" color="blue">auto update</Toggle>
+
         <div id='fillChart' class="fillChartDiv"></div>
-        <div class="flex flex-row gap-5 h-12 my-10">
+        <div class="flex flex-row ">
           <!-- DateTime Picker: "From" -->
           <div class="w-full sm:w-auto">
             <label for="from-picker" class="dark:text-white text-gray-600">From</label>
