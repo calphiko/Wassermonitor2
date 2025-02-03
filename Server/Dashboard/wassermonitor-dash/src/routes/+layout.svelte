@@ -4,8 +4,8 @@ import '../app.css';
 /** @type {{children: import('svelte').Snippet}} */
 let { children } = $props();</script>
 
-<div class="bg-yellow-50 dark:bg-gray-900 flex items-center justify-center " >
-    <div class="app bg-amber-100 border dark:border-0 dark:bg-gray-800 w-3/4 p-0 m-0">
+<div class="bg-sky-50 dark:bg-gray-900 flex items-center justify-center " >
+    <div class="app bg-sky-100 border dark:border-0 dark:bg-gray-800 w-3/4 p-0 m-0">
 
         <Header></Header>
 

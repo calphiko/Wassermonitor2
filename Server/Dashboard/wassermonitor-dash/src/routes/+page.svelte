@@ -135,7 +135,7 @@
 
 <header>
     <nav class="fill-yellow-50  dark:fill-gray-600 text-gray-900 dark:text-gray-50 text-center ">
-        <div class="bg-blue-200 dark:bg-gray-600 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-b-lg m-0">
+        <div class="bg-sky-300 dark:bg-gray-600 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-b-lg m-0">
             <h1 >
                 {heading}
             </h1>
