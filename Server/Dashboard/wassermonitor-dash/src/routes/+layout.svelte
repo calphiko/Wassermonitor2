@@ -4,12 +4,10 @@ import '../app.css';
 /** @type {{children: import('svelte').Snippet}} */
 let { children } = $props();</script>
 
-<div class="bg-sky-50 dark:bg-gray-900 flex items-center justify-center " >
-    <div class="app bg-sky-100 border dark:border-0 dark:bg-gray-800 w-3/4 p-0 m-0">
+<div class="bg-sky-50 dark:bg-gray-900 flex justify-center " >
+    <div class="app bg-sky-100 border dark:border-0 dark:bg-gray-800  sm:w-3/4 p-0 m-0">
 
-        <Header></Header>
-
-        <main>
+        <main class="" >
             {@render children()}
         </main>
 
@@ -28,21 +26,12 @@ let { children } = $props();</script>
 	.app {
 		display: flex;
 		flex-direction: column;
-		min-height: 100vh;
+		min-height: 100%;
 		justify-content: center;
 
 	}
 
-	main {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		padding: 1rem;
-		width: 100%;
-		max-width: 64rem;
-		margin: 0 auto;
-		box-sizing: border-box;
-	}
+
 
 	footer {
 		display: flex;
