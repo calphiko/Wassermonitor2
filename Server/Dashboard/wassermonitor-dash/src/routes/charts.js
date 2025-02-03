@@ -38,7 +38,7 @@ function reInitEchart(name, divName, charts, plotTheme, plotThemeDark) {
 
     const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     const theme = isDarkMode ? plotThemeDark : plotTheme;
-    firstLineColor = isDarkMode ? 'darkblue' : '#3F83F8';
+    firstLineColor = isDarkMode ? 'lightblue' : '#3F83F8';
     plotBackGround = isDarkMode ? 'transparent':'transparent'
     // MAYBE DELETABLE
     console.log("reinit charts with theme:", theme);
