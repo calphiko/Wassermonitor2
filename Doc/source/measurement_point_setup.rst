@@ -191,7 +191,7 @@ Wassermonitor will not work without this step!
 
     .. code-block:: console
 
-        */1 * * * * /path/to/datatransmitter.py
+        */5 * * * * /path/to/.venv/bin/python3 /path/to/datatransmitter.py
 
     to the file and save it. Allow the system to install a new crontab
 
