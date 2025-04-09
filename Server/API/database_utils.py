@@ -642,8 +642,8 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
                     res_sens['derivation_10'] = 0.0
 
                 try:
-                    inds = signal.find_peaks(res_sens['derivation'], height=10)[0]
-                    inds_neg = signal.find_peaks(0-res_sens['derivation'], height=10)[0]
+                    inds = signal.find_peaks(res_sens['derivation_10'], height=10)[0]
+                    inds_neg = signal.find_peaks(0-res_sens['derivation_10'], height=10)[0]
                     #print(inds)
                     res_sens['peaks_pos'] = np.nan
                     res_sens['peaks_neg'] = np.nan
