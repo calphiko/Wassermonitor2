@@ -69,7 +69,7 @@ import logging
 import pytz
 
 # Loggerconfig
-logger = logging.getLogger('wassermonitor warning bot')
+logger = logging.getLogger('wassermonitor API')
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh = logging.FileHandler(os.path.abspath("../log/API.log"))
