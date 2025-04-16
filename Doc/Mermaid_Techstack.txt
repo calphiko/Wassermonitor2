@@ -1,0 +1,44 @@
+graph TD
+   A[SvelteKit Frontend] -->|REST API| B[FastAPI Backend]
+  B --> C[Pandas DataFrames]
+  C --> D1[SQLite January]
+  C --> D2[SQLite February]
+  C --> D3[SQLite March]
+  C --> Dn[… more monthly files …]
+
+  E[Raspi-Daemon] --> |REST API| B
+  E --> |JSON| G1[Meas Buffer1]
+  E --> |JSON| G2[Meas Buffer2]
+  E --> |JSON| G3[Meas BufferN]
+  E --> |i2c| F[Sensors]
+
+  H[Warnbot] --> |REST API| B
+  H --> I[Email]
+  H --> J[Signal]
+  H --> K[Telegram]
+
+
+subgraph Server
+    B
+    C
+    subgraph Data Storage
+        D1
+        D2
+        D3
+        Dn
+    end
+    H
+    I
+    J
+    K
+end
+
+subgraph Measurement Point
+    E
+    F
+    subgraph Measurement Buffer
+        G1
+        G2
+        G3
+    end
+end

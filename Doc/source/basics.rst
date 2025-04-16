@@ -17,6 +17,12 @@ Project Floorplan
     More concrete example of the structure.
     A single server supports several distributed measurement points.
 
+Techstack
+---------
+
+.. figure:: pictures/Techstack.png
+
+    Techstack of Wassermonitor2
 
 Bla bla bla
 
