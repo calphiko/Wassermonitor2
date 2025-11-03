@@ -507,6 +507,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 yAxisIndex: index,
                 symbol: 'none',
                 silent:true,
+                sampling: 'lttb',
                 lineStyle:{
                     color:'grey',
                     width:1
@@ -520,6 +521,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 xAxisIndex: index,
                 yAxisIndex: index,
                 symbol: 'none',
+                sampling: 'lttb',
                 lineStyle:{
                     color:'orange',
                     width:3
@@ -534,6 +536,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 symbol: 'triangle',
                 symbolSize: 15,
                 symbolColor: 'red',
+                sampling: 'lttb',
                 //symbol: 'none',
 
               },
@@ -546,6 +549,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 symbol: 'triangle',
                 symbolSize: 15,
                 symbolColor: 'red',
+                sampling: 'lttb',
                 //symbol: 'none',
 
               },
