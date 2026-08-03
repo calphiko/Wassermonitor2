@@ -55,6 +55,7 @@ from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_406_NOT_ACCEPTABLE
 from pydantic import BaseModel, ValidationError
 import time
@@ -200,6 +201,7 @@ class request_json(BaseModel):
     """
     dt_begin: datetime
     dt_end: datetime
+    mp_name: str | None = None
 
 def validate_json(data: dict):
     """
@@ -361,7 +363,8 @@ def request_measurement_data(request_dict):
     data = dbu.get_meas_data_from_sqlite_db(
         config['database'],
         datetime.fromisoformat(request_dict['dt_begin']),
-        datetime.fromisoformat(request_dict['dt_end'])
+        datetime.fromisoformat(request_dict['dt_end']),
+        request_dict.get('mp_name')
     )
     data_json = {
     }
@@ -466,6 +469,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Compresses large JSON responses (e.g. time-series) for faster network transfer.
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
 @app.post("/insert/")
 async def receive_data(request: Request, token: str = Depends(verify_token)):

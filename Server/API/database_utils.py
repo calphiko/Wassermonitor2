@@ -21,6 +21,7 @@ Author:
 
 """
 import os.path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy
 import pandas as pd
@@ -32,6 +33,58 @@ import pandas as pd
 import pytz
 import numpy as np
 from scipy import signal
+
+try:
+    import polars as pl
+except ImportError:
+    pl = None
+
+
+def _read_month_rows(db_path, sql, sql_params):
+    """Read one monthly sqlite file and return raw rows."""
+    if not os.path.exists(db_path):
+        return []
+    conn, cur = get_sqlite3_connection(db_path, read_only=True)
+    try:
+        cur.execute(sql, sql_params)
+        return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def _process_sensor_frame(res_sens):
+    """Compute derivation and peak metadata for one sensor frame."""
+    res_sens = res_sens.copy().reset_index(drop=True)
+    try:
+        slope_val = pd.Series(np.gradient(res_sens.meas_val), name='slope')
+        slope_date = pd.to_datetime(res_sens.dt)
+        slope_date = slope_date.astype('int64') // 10**9 / 3600  # in hours
+        slope_date = pd.Series(np.gradient(slope_date), name='slope')
+        res_sens['derivation'] = -slope_val / slope_date
+        if len(res_sens['derivation']) > 100:
+            res_sens['derivation_10'] = signal.savgol_filter(res_sens['derivation'], 10, 3)
+        else:
+            res_sens['derivation_10'] = 0.0
+    except ValueError as e:
+        print(f"WARNING: Value Error: {e}")
+        res_sens['derivation'] = 0.0
+        res_sens['derivation_10'] = 0.0
+
+    try:
+        inds = signal.find_peaks(res_sens['derivation'], height=10)[0]
+        inds_neg = signal.find_peaks(0 - res_sens['derivation'], height=10)[0]
+        res_sens['peaks_pos'] = np.nan
+        res_sens['peaks_neg'] = np.nan
+        res_sens.loc[inds, 'peaks_pos'] = res_sens['derivation_10'].iloc[inds]
+        res_sens.loc[inds_neg, 'peaks_neg'] = res_sens['derivation_10'].iloc[inds_neg]
+    except ValueError as e:
+        print(f"Value Error:\t{e}")
+        res_sens['peaks_pos'] = np.nan
+        res_sens['peaks_neg'] = np.nan
+
+    res_sens['peaks_pos'] = res_sens['peaks_pos'].replace({np.nan: None})
+    res_sens['peaks_neg'] = res_sens['peaks_neg'].replace({np.nan: None})
+    return res_sens
 
 def get_mysql_connection(conf):
     """
@@ -532,7 +585,7 @@ def convert_nan_to_none (x):
 
 
 
-def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
+def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_name = None):
     """
     Retrieve measurement data from SQLite database within a specified date range.
 
@@ -612,56 +665,46 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
         INNER JOIN sensor s ON m.sensor_id = s.id 
         INNER JOIN meas_point mp ON s.meas_point_id = mp.id 
         WHERE m.dt > ? AND m.dt < ?
+        {mp_filter}
         GROUP BY m.dt
     """
 
-    # Alle Teilframes sammeln, erst am Ende einmalig concat → O(n) statt O(n²)
-    frames = []
+    use_polars = str(db_conf.get('use_polars', 'false')).strip().lower() in ('1', 'true', 'on', 'yes')
+    configured_workers = int(db_conf.get('read_workers', 4))
+    columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
+    month_paths = [f"{db_conf['sqlite_path']}/{m}.sqlite" for m in get_months_between(dt_begin, dt_end)]
+    mp_filter = ""
+    sql_params = [dt_begin, dt_end]
+    if mp_name:
+        mp_filter = " AND mp.name = ?"
+        sql_params.append(mp_name)
+    sql = sql.format(mp_filter=mp_filter)
 
-    for m in get_months_between(dt_begin, dt_end):
-        db_path = f"{db_conf['sqlite_path']}/{m}.sqlite"
-        if not os.path.exists(db_path):
-            continue
-        conn, cur = get_sqlite3_connection(db_path, read_only=True)
-        cur.execute(sql, [dt_begin, dt_end])
-        res = pd.DataFrame(cur.fetchall())
-        conn.close()
-        if res.empty:
-            continue
-        res.columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
-        for sens in res.sensorId.unique():
-            res_sens = res[res['sensorId'] == sens].copy().reset_index(drop=True)
-            try:
-                slope_val = pd.Series(np.gradient(res_sens.meas_val), name='slope')
-                slope_date = pd.to_datetime(res_sens.dt)
-                slope_date = slope_date.astype('int64') // 10**9 / 3600  # in hours
-                slope_date = pd.Series(np.gradient(slope_date), name='slope')
-                res_sens['derivation'] = -slope_val / slope_date
-                if len(res_sens['derivation']) > 100:
-                    res_sens['derivation_10'] = signal.savgol_filter(res_sens['derivation'], 10, 3)
-                else:
-                    res_sens['derivation_10'] = 0.0
-            except ValueError as e:
-                print(f"WARNING: Value Error: {e}")
-                res_sens['derivation'] = 0.0
-                res_sens['derivation_10'] = 0.0
+    # Parallel über Monatsdateien lesen (separate sqlite files -> gute Parallelisierbarkeit)
+    all_rows = []
+    max_workers = min(8, max(1, min(configured_workers, len(month_paths))))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_read_month_rows, db_path, sql, sql_params) for db_path in month_paths]
+        for future in as_completed(futures):
+            rows = future.result()
+            if rows:
+                all_rows.extend(rows)
 
-            try:
-                inds = signal.find_peaks(res_sens['derivation'], height=10)[0]
-                inds_neg = signal.find_peaks(0 - res_sens['derivation'], height=10)[0]
-                res_sens['peaks_pos'] = np.nan
-                res_sens['peaks_neg'] = np.nan
-                res_sens.loc[inds, 'peaks_pos'] = res_sens['derivation_10'].iloc[inds]
-                res_sens.loc[inds_neg, 'peaks_neg'] = res_sens['derivation_10'].iloc[inds_neg]
-            except ValueError as e:
-                print(f"Value Error:\t{e}")
-                res_sens['peaks_pos'] = np.nan
-                res_sens['peaks_neg'] = np.nan
+    if not all_rows:
+        return pd.DataFrame()
 
-            res_sens['peaks_pos'] = res_sens['peaks_pos'].replace({np.nan: None})
-            res_sens['peaks_neg'] = res_sens['peaks_neg'].replace({np.nan: None})
-            frames.append(res_sens)
+    if use_polars and pl is not None:
+        # Polars für schnelles Sortieren/Partitionieren, Rückgabe bleibt pandas-kompatibel
+        pl_mod = pl
+        base_pl = pl_mod.DataFrame(all_rows, schema=columns, orient='row')
+        base_pl = base_pl.sort(['sensorId', 'dt'])
+        sensor_frames = [p.to_pandas() for p in base_pl.partition_by('sensorId', maintain_order=True)]
+    else:
+        base_pd = pd.DataFrame(all_rows, columns=columns)
+        base_pd = base_pd.sort_values(by=['sensorId', 'dt'])
+        sensor_frames = [g for _, g in base_pd.groupby('sensorId', sort=False)]
 
+    frames = [_process_sensor_frame(sensor_frame) for sensor_frame in sensor_frames if not sensor_frame.empty]
     output = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     if 'max_val' in list(output.keys()) and 'meas_val' in list(output.keys()):
         output['value'] = round(output['tank_height'] - output['meas_val'], 1)

@@ -66,14 +66,17 @@ export async function loadTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
                 {
                     'dt_begin': formatDateForISO(dtFrom),
                     'dt_end': formatDateForISO(dtUntil),
+                    'mp_name': mpName,
                 }
             ),
         });
         if (!response.ok) {
             throw new Error("Invalid Network response!");
         }
-        var data_t = await response.json();
-        data_t = JSON.parse(data_t);
+        let data_t = await response.json();
+        if (typeof data_t === 'string') {
+            data_t = JSON.parse(data_t);
+        }
         //console.log('Data fetched:', JSON.stringify(data_f,null,2));
         const data_time = data_t[mpName];
 

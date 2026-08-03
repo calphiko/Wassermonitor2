@@ -46,7 +46,7 @@ function reInitEchart(name, divName, charts, plotTheme, plotThemeDark) {
         //console.log("reinit: ", name);
         echarts.dispose(charts[name]);
     }
-    const c = echarts.init(divName,theme, {height:600 });
+    const c = echarts.init(divName, theme, { height: 600, renderer: 'canvas', useDirtyRect: true });
     return c
 }
 
@@ -305,6 +305,9 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
             grid: gridConfigs,
             //backgroundColor:'#1F2937',
             backgroundColor:plotBackGround,
+            animation: false,
+            animationDuration: 0,
+            animationDurationUpdate: 0,
             title: titleConfigs,
             xAxis: xAxisConfigs,
             yAxis: yAxisConfigs,
@@ -425,6 +428,10 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
             });
         }
         if (bPrintLines == 'value') {
+            const valueSeries = chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value]);
+            const maxSeries = chart.values.map(item => [new Date(item.timestamp).getTime(), item.max_val]);
+            const warnSeries = chart.values.map(item => [new Date(item.timestamp).getTime(), item.warn]);
+            const alarmSeries = chart.values.map(item => [new Date(item.timestamp).getTime(), item.alarm]);
             tooltipConfigs.push(
                 {
                     trigger: 'axis',
@@ -440,10 +447,14 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 name: chart.name,
                 type: 'line',
                 smooth: true,
-                data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value]),
+                data: valueSeries,
                 xAxisIndex: index,
                 yAxisIndex: index,
                 symbol: 'none',
+                sampling: 'lttb',
+                progressive: 2000,
+                progressiveThreshold: 3000,
+                animation: false,
                 lineStyle:{
                     color:firstLineColor,
                     width:3
@@ -454,9 +465,13 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 name: 'Max',
                 type: 'line',
                 smooth: true,
-                data: chart.values.map(item => [new Date(item.timestamp).getTime(), item.max_val]),
+                data: maxSeries,
                 xAxisIndex: index,
                 yAxisIndex: index,
+                sampling: 'lttb',
+                progressive: 2000,
+                progressiveThreshold: 3000,
+                animation: false,
                 lineStyle:{
                     color:'lightblue',
                     type:'dashed',
@@ -469,9 +484,13 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 name: 'Warn',
                 type: 'line',
                 smooth: true,
-                data: chart.values.map(item => [new Date(item.timestamp).getTime(), item.warn]),
+                data: warnSeries,
                 xAxisIndex: index,
                 yAxisIndex: index,
+                sampling: 'lttb',
+                progressive: 2000,
+                progressiveThreshold: 3000,
+                animation: false,
                 lineStyle:{
                     color:'orange',
                     type:'dashed',
@@ -484,9 +503,13 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 name: 'Alarm',
                 type: 'line',
                 smooth: true,
-                data: chart.values.map(item => [new Date(item.timestamp).getTime(), item.alarm]),
+                data: alarmSeries,
                 xAxisIndex: index,
                 yAxisIndex: index,
+                sampling: 'lttb',
+                progressive: 2000,
+                progressiveThreshold: 3000,
+                animation: false,
                 lineStyle:{
                     color:'red',
                     type:'dashed',
@@ -497,12 +520,16 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
               },
             );
         } else {
+            const derivSeries = chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value]);
+            const deriv10Series = chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value_10]);
+            const peakPosSeries = chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.peaks_pos]);
+            const peakNegSeries = chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.peaks_neg]);
             seriesConfigs.push(
               {
                 name: 'Derivation [cm/h]',
                 type: 'line',
                 smooth: true,
-                data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value]),
+                data: derivSeries,
                 xAxisIndex: index,
                 yAxisIndex: index,
                 symbol: 'none',
@@ -517,7 +544,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 name: 'Avg of 10 of Derivation [cm/h]',
                 type: 'line',
                 smooth: true,
-                data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value_10]),
+                data: deriv10Series,
                 xAxisIndex: index,
                 yAxisIndex: index,
                 symbol: 'none',
@@ -530,7 +557,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
               {
                 name: 'Positive Peaks',
                 type: 'scatter',
-                data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.peaks_pos]),
+                data: peakPosSeries,
                 xAxisIndex: index,
                 yAxisIndex: index,
                 symbol: 'triangle',
@@ -543,7 +570,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
               {
                 name: 'Negative Peaks',
                 type: 'scatter',
-                data: chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.peaks_neg]),
+                data: peakNegSeries,
                 xAxisIndex: index,
                 yAxisIndex: index,
                 symbol: 'triangle',
@@ -601,6 +628,9 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
       grid: gridConfigs,
       //backgroundColor:'#1F2937',
       backgroundColor:plotBackGround,
+      animation: false,
+      animationDuration: 0,
+      animationDurationUpdate: 0,
       title: titleConfigs,
       xAxis: xAxisConfigs,
       yAxis: yAxisConfigs,
