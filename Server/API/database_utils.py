@@ -61,7 +61,7 @@ def get_mysql_connection(conf):
     return conn, cur
 
 
-def get_sqlite3_connection(db_file):
+def get_sqlite3_connection(db_file, read_only=False):
     """
     Establishes a connection to an SQLite3 database, creates the database if it doesn't exist,
     and returns the connection and cursor objects.
@@ -69,19 +69,20 @@ def get_sqlite3_connection(db_file):
     :param db_file: The file path to the SQLite3 database file.
     :type db_file: str
 
+    :param read_only: If True, skips table creation (faster for read-only access).
+    :type read_only: bool
+
     :returns: A tuple containing:
         - `conn`: The SQLite3 connection object.
         - `cur`: The SQLite3 cursor object.
     :rtype: tuple
-
-    **Example usage**::
-
-        db_file = 'example.db'
-        conn, cur = get_sqlite3_connection(db_file)
     """
     conn = sqlite3.connect(db_file)
     cur = conn.cursor()
-    create_sqlite_database(conn, cur)
+    cur.execute("PRAGMA journal_mode=WAL;")
+    cur.execute("PRAGMA cache_size=-64000;")  # 64 MB Cache
+    if not read_only:
+        create_sqlite_database(conn, cur)
     return conn, cur
 
 def create_sqlite_database(conn, cur):
@@ -145,6 +146,11 @@ def create_sqlite_database(conn, cur):
             comment TEXT
         );
     """)
+
+    # Performance-Indizes
+    template.append("CREATE INDEX IF NOT EXISTS idx_measurement_dt ON measurement(dt);")
+    template.append("CREATE INDEX IF NOT EXISTS idx_measurement_sensor_id ON measurement(sensor_id);")
+    template.append("CREATE INDEX IF NOT EXISTS idx_meas_val_measurement_id ON meas_val(measurement_id);")
 
     template.append("""
         CREATE TABLE IF NOT EXISTS messages (
@@ -609,57 +615,54 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None):
         GROUP BY m.dt
     """
 
-    output = pd.DataFrame()
+    # Alle Teilframes sammeln, erst am Ende einmalig concat → O(n) statt O(n²)
+    frames = []
 
     for m in get_months_between(dt_begin, dt_end):
         db_path = f"{db_conf['sqlite_path']}/{m}.sqlite"
-        if os.path.exists(db_path):
-            conn, cur = get_sqlite3_connection(db_path)
-            cur.execute(sql,[dt_begin, dt_end])
-            res = pd.DataFrame(cur.fetchall())
-            if res.empty:
-                continue
-            res.columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
-            #res['value']
-            for sens in res.sensorId.unique():
-                res_sens = res[res['sensorId'] == sens].copy().reset_index(drop=True)
-                try:
-                    slope_val = pd.Series(np.gradient(res_sens.meas_val), name='slope')
-                    #print (slope_val)
-
-                    slope_date = pd.to_datetime(res_sens.dt)
-                    slope_date = slope_date.astype('int64') // 10**9 / 3600 # in hours
-                    slope_date = pd.Series(np.gradient(slope_date), name='slope')
-                    #slope_date = slope_date.apply(datetime_to_hours)
-                    res_sens['derivation'] = -slope_val / slope_date
-                    if len (res_sens['derivation']) > 100:
-                        res_sens['derivation_10'] = signal.savgol_filter(res_sens['derivation'], 10, 3)
-                    else:
-                        res_sens['derivation_10'] = 0.0
-                except ValueError as e:
-                    print (f"WARNING: Value Error: {e}")
-                    res_sens['derivation'] = 0.0
-                    res_sens['derivation_10'] = 0.0
-
-                try:
-                    inds = signal.find_peaks(res_sens['derivation'], height=10)[0]
-                    inds_neg = signal.find_peaks(0-res_sens['derivation'], height=10)[0]
-                    #print(inds)
-                    res_sens['peaks_pos'] = np.nan
-                    res_sens['peaks_neg'] = np.nan
-                    res_sens.loc[inds, 'peaks_pos'] = res_sens['derivation_10'].iloc[inds]
-                    res_sens.loc[inds_neg, 'peaks_neg'] = res_sens['derivation_10'].iloc[inds_neg]
-                except ValueError as e:
-                    print(f"Value Error:\t{e}")
-                    res_sens['peaks_pos'] = np.nan
-                    res_sens['peaks_neg'] = np.nan
-
-                res_sens['peaks_pos'] = res_sens['peaks_pos'].replace({np.nan: None})
-                res_sens['peaks_neg'] = res_sens['peaks_neg'].replace({np.nan: None})
-                output = pd.concat([output, res_sens], ignore_index=True)
-            conn.close()
-        else:
+        if not os.path.exists(db_path):
             continue
+        conn, cur = get_sqlite3_connection(db_path, read_only=True)
+        cur.execute(sql, [dt_begin, dt_end])
+        res = pd.DataFrame(cur.fetchall())
+        conn.close()
+        if res.empty:
+            continue
+        res.columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
+        for sens in res.sensorId.unique():
+            res_sens = res[res['sensorId'] == sens].copy().reset_index(drop=True)
+            try:
+                slope_val = pd.Series(np.gradient(res_sens.meas_val), name='slope')
+                slope_date = pd.to_datetime(res_sens.dt)
+                slope_date = slope_date.astype('int64') // 10**9 / 3600  # in hours
+                slope_date = pd.Series(np.gradient(slope_date), name='slope')
+                res_sens['derivation'] = -slope_val / slope_date
+                if len(res_sens['derivation']) > 100:
+                    res_sens['derivation_10'] = signal.savgol_filter(res_sens['derivation'], 10, 3)
+                else:
+                    res_sens['derivation_10'] = 0.0
+            except ValueError as e:
+                print(f"WARNING: Value Error: {e}")
+                res_sens['derivation'] = 0.0
+                res_sens['derivation_10'] = 0.0
+
+            try:
+                inds = signal.find_peaks(res_sens['derivation'], height=10)[0]
+                inds_neg = signal.find_peaks(0 - res_sens['derivation'], height=10)[0]
+                res_sens['peaks_pos'] = np.nan
+                res_sens['peaks_neg'] = np.nan
+                res_sens.loc[inds, 'peaks_pos'] = res_sens['derivation_10'].iloc[inds]
+                res_sens.loc[inds_neg, 'peaks_neg'] = res_sens['derivation_10'].iloc[inds_neg]
+            except ValueError as e:
+                print(f"Value Error:\t{e}")
+                res_sens['peaks_pos'] = np.nan
+                res_sens['peaks_neg'] = np.nan
+
+            res_sens['peaks_pos'] = res_sens['peaks_pos'].replace({np.nan: None})
+            res_sens['peaks_neg'] = res_sens['peaks_neg'].replace({np.nan: None})
+            frames.append(res_sens)
+
+    output = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     if 'max_val' in list(output.keys()) and 'meas_val' in list(output.keys()):
         output['value'] = round(output['tank_height'] - output['meas_val'], 1)
     #output['peaks_pos'] = output['peaks_pos'].apply(lambda x: None if np.isnan(x) else x)
@@ -809,8 +812,9 @@ def get_last_meas_data_from_sqlite_db(db_conf):
 
     if not db_conf['engine'] == 'sqlite':
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
-    db_path_list = [db_conf['sqlite_path'] + x for x in get_all_sqlite_files(db_conf['sqlite_path'])]
-    print (db_path_list)
+    # Neueste Dateien zuerst – letzter Messwert liegt meist in der aktuellsten Datei
+    db_path_list = [db_conf['sqlite_path'] + x for x in reversed(get_all_sqlite_files(db_conf['sqlite_path']))]
+    print(db_path_list)
 
     sql = """
         SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height
@@ -818,24 +822,20 @@ def get_last_meas_data_from_sqlite_db(db_conf):
         INNER JOIN measurement m ON v.measurement_id = m.id
         INNER JOIN sensor s ON m.sensor_id = s.id
         INNER JOIN meas_point mp ON s.meas_point_id = mp.id
-        WHERE m.id IN (
-            SELECT id
-            FROM measurement m_inner
-            WHERE m_inner.dt = (
-                SELECT MAX(m_inner2.dt)
-                FROM measurement m_inner2
-                WHERE m_inner2.sensor_id = m_inner.sensor_id
-            )
-        )
-        GROUP BY m.dt;  
+        INNER JOIN (
+            SELECT sensor_id, MAX(dt) AS max_dt
+            FROM measurement
+            GROUP BY sensor_id
+        ) latest ON m.sensor_id = latest.sensor_id AND m.dt = latest.max_dt
+        GROUP BY m.sensor_id;
     """
     output = {}
     for db_path in db_path_list:
         if os.path.exists(db_path):
-            conn, cur = get_sqlite3_connection(db_path)
+            conn, cur = get_sqlite3_connection(db_path, read_only=True)
             cur.execute(sql)
             res = cur.fetchall()
-            #print (res)
+            conn.close()
             for row in res:
                 if not row[2] in output:
                     output[row[2]] = {}
@@ -896,24 +896,16 @@ def get_available_meas_points_from_sqlite_db(db_conf):
     """
     if not db_conf['engine'] == 'sqlite':
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
-    db_path_list = [db_conf['sqlite_path'] + x for x in get_all_sqlite_files(db_conf['sqlite_path'])]
 
-    sql = "SELECT DISTINCT(name) FROM meas_point;"
+    # last_data enthält bereits alle Messpunkte – kein zweiter Datei-Scan nötig
     last_data = get_last_meas_data_from_sqlite_db(db_conf)
 
     output = {}
-    for db_path in db_path_list:
-        conn, cur = get_sqlite3_connection(db_path)
-        cur.execute(sql)
-        res = cur.fetchall()
-        for row in res:
-            if not row[0] in output:
-                #output.append({
-                #    "name":row[0],
-                #    "status": [{'sensor':x, 'status':assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])} for x in last_data[row[0]]]
-                #})
-                #o_str = f"{row[0]}".join([(f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'])}") for x in last_data[row[0]]])
-                output[row[0]] = [f" {assign_sign(last_data[row[0]][x]['value'],last_data[row[0]][x]['warn'],last_data[row[0]][x]['alarm'],last_data[row[0]][x]['dt'])}" for x in last_data[row[0]]]
-
+    for mp_name in last_data:
+        if mp_name not in output:
+            output[mp_name] = [
+                f" {assign_sign(last_data[mp_name][x]['value'], last_data[mp_name][x]['warn'], last_data[mp_name][x]['alarm'], last_data[mp_name][x]['dt'])}"
+                for x in last_data[mp_name]
+            ]
     return output
 
