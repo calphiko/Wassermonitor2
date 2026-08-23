@@ -923,7 +923,6 @@ def get_last_meas_data_from_sqlite_db(db_conf):
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
     # Neueste Dateien zuerst – letzter Messwert liegt meist in der aktuellsten Datei
     db_path_list = [db_conf['sqlite_path'] + x for x in reversed(get_all_sqlite_files(db_conf['sqlite_path']))]
-    print(db_path_list)
 
     sql = """
         SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height
@@ -946,21 +945,32 @@ def get_last_meas_data_from_sqlite_db(db_conf):
             res = cur.fetchall()
             conn.close()
             for row in res:
-                if not row[2] in output:
-                    output[row[2]] = {}
-                output[row[2]][row[3]] = {}
+                mp_name = row[2]
+                sensor_name = row[3]
+                row_dt = datetime.fromisoformat(str(row[1]))
 
-                output[row[2]][row[3]]['dt'] = row[1]
-                output[row[2]][row[3]]['warn'] = row[5]
-                output[row[2]][row[3]]['alarm'] = row[6]
-                output[row[2]][row[3]]['max_val'] = row[4]
-                output[row[2]][row[3]]['tank_height'] = row[8]
-                output[row[2]][row[3]]['value'] = round(row[8] - row[7],1)
-                if datetime.fromisoformat(row[1]) < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
-                    output[row[2]][row[3]]['color'] = 'deprecated'
+                if mp_name not in output:
+                    output[mp_name] = {}
+
+                # Keep the newest timestamp per meas-point/sensor across all monthly files.
+                if sensor_name in output[mp_name]:
+                    existing_dt = datetime.fromisoformat(output[mp_name][sensor_name]['dt'])
+                    if row_dt <= existing_dt:
+                        continue
+
+                output[mp_name][sensor_name] = {}
+
+                output[mp_name][sensor_name]['dt'] = row_dt.isoformat()
+                output[mp_name][sensor_name]['warn'] = row[5]
+                output[mp_name][sensor_name]['alarm'] = row[6]
+                output[mp_name][sensor_name]['max_val'] = row[4]
+                output[mp_name][sensor_name]['tank_height'] = row[8]
+                output[mp_name][sensor_name]['value'] = round(row[8] - row[7],1)
+                if row_dt < datetime.now(tz=pytz.utc) - timedelta(minutes=15):
+                    output[mp_name][sensor_name]['color'] = 'deprecated'
                 else:
-                    output[row[2]][row[3]]['color'] = assign_color(
-                        output[row[2]][row[3]]['value'],
+                    output[mp_name][sensor_name]['color'] = assign_color(
+                        output[mp_name][sensor_name]['value'],
                         row[5],
                         row[6]
                     )
