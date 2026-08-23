@@ -1,4 +1,5 @@
 import {formatDateForISO} from './utils';
+import { processRawTimeSeries } from './timeProcessor';
 
 
 /**
@@ -33,7 +34,8 @@ export async function getAvailableMeasPointsFromApi(apiUrl) {
         });
         return output
     } catch (error) {
-        console.error('Error while fetching time data from API:',error);
+        console.error('Error while fetching measurement points from API:',error);
+        return null;
     }
 }
 
@@ -77,12 +79,14 @@ export async function loadTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
         if (typeof data_t === 'string') {
             data_t = JSON.parse(data_t);
         }
-        //console.log('Data fetched:', JSON.stringify(data_f,null,2));
-        const data_time = data_t[mpName];
-
-        return data_time
+        const data_time = await processRawTimeSeries(data_t, mpName);
+        if (Array.isArray(data_time) && data_time.length === 0) {
+            return null;
+        }
+        return data_time;
     } catch (error) {
         console.error('Error while fetching time data from API:',error);
+        return null;
     }
 }
 
@@ -121,6 +125,7 @@ export async function loadFillDataFromAPI (apiUrl, mpName) {
             return data_fill
         } catch (error) {
             console.error('Error while fetching data from API:',error);
+            return null;
         }
 
     }

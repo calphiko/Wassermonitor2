@@ -1,0 +1,15 @@
+{
+  "name": "time_processor",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "time_processor_bg.wasm",
+    "time_processor.js",
+    "time_processor.d.ts"
+  ],
+  "main": "time_processor.js",
+  "types": "time_processor.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

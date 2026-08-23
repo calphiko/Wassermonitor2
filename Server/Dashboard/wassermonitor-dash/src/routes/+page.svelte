@@ -4,8 +4,8 @@
     import { formatDateForInput, formatDateForISO, fetchChartConfig } from './utils';
     import { loadFillChart, loadTimeChart } from './charts';
 
-    const cConfigUrl = 'http://localhost:5173/chartConfig.json';
-    const apiUrl = 'http://localhost:8012/'
+    const cConfigUrl = '/chartConfig.json';
+    const apiUrlFallback = 'http://localhost:8012/';
 
     const now = new Date();
     const twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 14));
@@ -24,14 +24,27 @@
     let isLoading = true;
 
     let selectedMpName = '';
-    let mpNameOptions;
+    let mpNameOptions = [];
     let DarkMode = false;
+    let infoMessage = '';
 
 
 
     function handleDarkModeChange(event) {
         DarkMode = event.matches; // Dark Mode Status aktualisieren
         loadCharts();              // Charts neu laden
+    }
+
+    function resolveApiUrl(configApiUrl) {
+        try {
+            const base = new URL(configApiUrl || apiUrlFallback);
+            if (base.hostname === '127.0.0.1' || base.hostname === 'localhost') {
+                base.hostname = window.location.hostname;
+            }
+            return base.toString();
+        } catch {
+            return apiUrlFallback;
+        }
     }
 
     onMount(async () => {
@@ -49,8 +62,19 @@
 
     async function loadCharts() {
         const chartConfig = await fetchChartConfig(cConfigUrl);
+        if (!chartConfig) {
+            heading = 'Wassermonitor2';
+            infoMessage = 'Konfiguration konnte nicht geladen werden.';
+            return;
+        }
         heading = chartConfig.title;
-        mpNameOptions = await getAvailableMeasPointsFromApi(apiUrl);
+        const apiUrl = resolveApiUrl(chartConfig.APIUrl);
+        mpNameOptions = await getAvailableMeasPointsFromApi(apiUrl) || [];
+        if (mpNameOptions.length === 0) {
+            infoMessage = `API nicht erreichbar (${apiUrl}). Bitte API-Server starten.`;
+            return;
+        }
+        infoMessage = '';
         if (!mpName) {
             mpName = mpNameOptions[0].value;
         };
@@ -76,6 +100,9 @@
 
 <main>
 
+    {#if infoMessage}
+        <p class="text-red-600 dark:text-red-400 font-semibold my-3">{infoMessage}</p>
+    {/if}
 
     <h1  id='html_title' class="text-3xl font-bold text-gray-800 dark:text-white h-12"></h1>
     <select bind:value={mpName} on:change={loadCharts}  class='bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-10 my-5'>
@@ -152,4 +179,3 @@
 
   }
 </style>
-

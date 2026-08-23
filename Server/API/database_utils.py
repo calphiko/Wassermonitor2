@@ -584,6 +584,72 @@ def convert_nan_to_none (x):
     return x
 
 
+def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_name=None):
+    """
+    Retrieve raw measurement rows from SQLite files within a date range.
+
+    This function reads monthly SQLite files in parallel and returns raw, sorted rows
+    without deriving additional metrics (no slope/derivation/peaks processing).
+    """
+    if not db_conf['engine'] == 'sqlite':
+        raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
+
+    if dt_end is None:
+        dt_end = datetime.now(timezone.utc).replace(tzinfo=pytz.utc)
+
+    if dt_begin is None:
+        dt_begin = dt_end - timedelta(days=60)
+
+    if not isinstance(dt_begin, datetime) and not isinstance(dt_end, datetime):
+        raise ValueError("Invalid input: dt_begin and dt_end have to be type of datetime!")
+
+    if dt_begin > dt_end:
+        raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
+
+    sql = """
+        SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), s.tank_height
+        FROM meas_val v
+        INNER JOIN measurement m ON v.measurement_id = m.id
+        INNER JOIN sensor s ON m.sensor_id = s.id
+        INNER JOIN meas_point mp ON s.meas_point_id = mp.id
+        WHERE m.dt > ? AND m.dt < ?
+        {mp_filter}
+        GROUP BY m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, s.tank_height
+    """
+    configured_workers = int(db_conf.get('read_workers', 4))
+    columns = ['mid', 'dt', 'mp_name', 'sensor_name', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
+    month_paths = [f"{db_conf['sqlite_path']}/{m}.sqlite" for m in get_months_between(dt_begin, dt_end)]
+    mp_filter = ""
+    sql_params = [dt_begin, dt_end]
+    if mp_name:
+        mp_filter = " AND mp.name = ?"
+        sql_params.append(mp_name)
+    sql = sql.format(mp_filter=mp_filter)
+
+    all_rows = []
+    max_workers = min(8, max(1, min(configured_workers, len(month_paths))))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_read_month_rows, db_path, sql, sql_params) for db_path in month_paths]
+        for future in as_completed(futures):
+            rows = future.result()
+            if rows:
+                all_rows.extend(rows)
+
+    if not all_rows:
+        return []
+
+    records = []
+    for row in all_rows:
+        record = dict(zip(columns, row))
+        if isinstance(record['dt'], datetime):
+            record['dt'] = record['dt'].isoformat()
+        else:
+            record['dt'] = str(record['dt'])
+        records.append(record)
+
+    records.sort(key=lambda x: (x['mp_name'], x['sensor_name'], x['dt']))
+    return records
+
 
 def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_name = None):
     """
@@ -951,4 +1017,3 @@ def get_available_meas_points_from_sqlite_db(db_conf):
                 for x in last_data[mp_name]
             ]
     return output
-

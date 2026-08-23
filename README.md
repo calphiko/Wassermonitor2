@@ -131,6 +131,13 @@ cd Server/Dashboard/wassermonitor-dash
 npm install
 ```
 
+Build the Rust/WASM time-series processor (required after Rust code changes):
+
+```bash
+cd Server/Dashboard/wassermonitor-dash
+npm run wasm:build
+```
+
 **Development mode** (with hot-reload):
 
 ```bash
@@ -184,7 +191,6 @@ python datatransmitter.py
 If you want to use the water monitor for a public presentation on the Internet, please ensure that the data is sufficiently anonymised. If, for example, the water monitor is used to monitor a fire-fighting water reservoir, it is probably quite safe to make the data publicly accessible.
 When it comes to water supply, it can be very questionable to make the data publicly accessible on the internet. For example, if only one household is supplied, the data can provide real-time information about whether someone is at home or not. It is less questionable if the monitored system supplies many households, as a certain degree of anonymisation is then achieved. 
 You should therefore consider very carefully whether the data is sufficiently anonymised before making it publicly accessible. Otherwise, it may be advisable to only make the data visible within a VPN.
-
 
 
 

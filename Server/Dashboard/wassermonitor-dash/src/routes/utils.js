@@ -90,5 +90,6 @@ export async function fetchChartConfig(url) {
         //console.log('Color Gradients:',colorGradients);
     } catch(error) {
         console.error('Error while fetching colors!',error);
+        return null;
     }
 }

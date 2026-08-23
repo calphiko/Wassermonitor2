@@ -18,7 +18,8 @@ The module handles authentication via signature verification and processes senso
 **API Endpoints**:
 
     - `POST /insert/`: Inserts sensor data into the database after verifying the signature.
-    - `POST /get/`: Retrieves sensor data within a specified time range.
+    - `POST /get/`: Retrieves raw sensor rows within a specified time range.
+    - `POST /get_processed/`: Retrieves legacy processed time-series data (derivation/peaks).
     - `POST /get_latest/`: Retrieves the most recent sensor measurements.
     - `POST /get_available_meas_points`: Fetches available measurement points from the database.
 
@@ -32,7 +33,8 @@ The module handles authentication via signature verification and processes senso
     - `validate_json(data: dict)`: Validates sensor data against the `SensorData` model. Raises HTTPException if validation fails.
     - `validate_request_json(data: dict)`: Validates the time range data against the `request_json` model. Raises HTTPException if validation fails.
     - `insert_to_db(measurement)`: Inserts valid measurement data into the database.
-    - `request_measurement_data(request_dict)`: Fetches and returns measurement data from the database for a given time range.
+    - `request_measurement_data(request_dict)`: Fetches and returns raw measurement data for a given time range.
+    - `request_measurement_data_processed(request_dict)`: Returns the legacy processed time-series response.
     - `request_last_measurements()`: Retrieves the most recent measurements from the database.
     - `request_measurement_points()`: Returns a list of available measurement points in the database.
     - `verify_signature(public_key, data, signature)`: Verifies the authenticity of the signature using the public key.
@@ -201,7 +203,7 @@ class request_json(BaseModel):
     """
     dt_begin: datetime
     dt_end: datetime
-    mp_name: str | None = None
+    mp_name: str = None
 
 def validate_json(data: dict):
     """
@@ -290,6 +292,40 @@ def validate_request_json(data):
             detail="Invalid JSON Structure",
         )
 
+
+async def parse_request_json(request: Request):
+    """
+    Parse JSON request body and return a dictionary.
+
+    Raises HTTP 406 if the body is missing, malformed, or not a JSON object.
+    """
+    try:
+        raw_body = await request.body()
+        if not raw_body:
+            raise ValueError("Empty body")
+        payload = json.loads(raw_body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError, TypeError):
+        raise HTTPException(
+            status_code=HTTP_406_NOT_ACCEPTABLE,
+            detail="Invalid JSON Body",
+        )
+
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            raise HTTPException(
+                status_code=HTTP_406_NOT_ACCEPTABLE,
+                detail="Invalid JSON Body",
+            )
+
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=HTTP_406_NOT_ACCEPTABLE,
+            detail="Invalid JSON Body",
+        )
+    return payload
+
 def insert_to_db(measurement):
     """
     Inserts measurement data into the database.
@@ -332,12 +368,11 @@ def insert_to_db(measurement):
 
 def request_measurement_data(request_dict):
     """
-    Requests measurement data from the database and formats it into a JSON response.
+    Requests raw measurement data from the database and formats it into a JSON response.
 
-    This function retrieves measurement data from a database based on the provided
-    `dt_begin` and `dt_end` dates in the `request_dict`. It then processes and formats
-    the data into a nested JSON structure, grouping it by measurement point and sensor.
-    The resulting data includes timestamps, values, sensor details, and derivations.
+    This function retrieves raw measurement rows from SQLite files based on the
+    provided `dt_begin` and `dt_end` values in `request_dict`, groups them by
+    measurement point and sensor, and returns only database-near fields.
 
     **Args**:
 
@@ -347,7 +382,7 @@ def request_measurement_data(request_dict):
 
     **Returns**:
 
-        - `JSONResponse`: A JSON response containing the processed measurement data, structured by measurement point and sensor.
+        - `JSONResponse`: A JSON response containing raw measurement rows, grouped by measurement point and sensor.
 
     **Example**::
 
@@ -360,17 +395,51 @@ def request_measurement_data(request_dict):
 
     """
 
+    data = dbu.get_meas_raw_data_from_sqlite_db(
+        config['database'],
+        datetime.fromisoformat(request_dict['dt_begin']),
+        datetime.fromisoformat(request_dict['dt_end']),
+        request_dict.get('mp_name')
+    )
+    data_json = {}
+    sensor_lookup = {}
+    for row in data:
+        mp_name = row['mp_name']
+        sensor_name = row['sensor_name']
+        if mp_name not in data_json:
+            data_json[mp_name] = []
+            sensor_lookup[mp_name] = {}
+        if sensor_name not in sensor_lookup[mp_name]:
+            sensor_entry = {'sensorID': sensor_name, 'rows': []}
+            data_json[mp_name].append(sensor_entry)
+            sensor_lookup[mp_name][sensor_name] = sensor_entry
+        sensor_lookup[mp_name][sensor_name]['rows'].append(
+            {
+                'timestamp': row['dt'],
+                'meas_val': row['meas_val'],
+                'tank_height': row['tank_height'],
+                'max_val': row['max_val'],
+                'warn': row['warn'],
+                'alarm': row['alarm'],
+            }
+        )
+    return JSONResponse(content=data_json)
+
+
+def request_measurement_data_processed(request_dict):
+    """
+    Legacy processed response for clients that still expect derivations from the API.
+    """
     data = dbu.get_meas_data_from_sqlite_db(
         config['database'],
         datetime.fromisoformat(request_dict['dt_begin']),
         datetime.fromisoformat(request_dict['dt_end']),
         request_dict.get('mp_name')
     )
-    data_json = {
-    }
+    data_json = {}
     if not data.empty:
         for mp in data['mpName'].unique():
-            d_mp = data[data['mpName']==mp]
+            d_mp = data[data['mpName'] == mp]
             max_d = max(d_mp['derivation_10'])
             min_d = min(d_mp['derivation_10'])
             if d_mp.empty:
@@ -389,11 +458,12 @@ def request_measurement_data(request_dict):
                                 'timestamp': d_s['dt'].iloc[x],
                                 'value': d_s['value'].iloc[x],
                                 'tank_height': d_s['tank_height'].iloc[x],
-                                'max_val':d_s['max_val'].iloc[x],
-                                'warn':d_s['warn'].iloc[x],
-                                'alarm':d_s['alarm'].iloc[x],
+                                'max_val': d_s['max_val'].iloc[x],
+                                'warn': d_s['warn'].iloc[x],
+                                'alarm': d_s['alarm'].iloc[x],
                             }
-                        for x in range(len(d_s))],
+                            for x in range(len(d_s))
+                        ],
                         'deriv': [
                             {
                                 'timestamp': d_s['dt'].iloc[x],
@@ -402,16 +472,14 @@ def request_measurement_data(request_dict):
                                 'peaks_pos': d_s['peaks_pos'].iloc[x],
                                 'peaks_neg': d_s['peaks_neg'].iloc[x],
                             }
-                        for x in range(len(d_s))],
-
-                        'y_max':max(d_s['max_val'].to_list())+10,
-                        'deriv_y_max': round(max_d,0) + 10,
-                        'deriv_y_min': round(min_d,0) - 10,
+                            for x in range(len(d_s))
+                        ],
+                        'y_max': max(d_s['max_val'].to_list()) + 10,
+                        'deriv_y_max': round(max_d, 0) + 10,
+                        'deriv_y_min': round(min_d, 0) - 10,
                     }
                 )
-        return JSONResponse(content=json.dumps(data_json, indent=4))
-    else:
-        return JSONResponse(content=json.dumps({}, indent=4))
+    return JSONResponse(content=data_json)
 
 def request_last_measurements():
     """
@@ -465,6 +533,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"^https?://([a-zA-Z0-9.-]+)(:\d+)?$",
     allow_credentials = True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -474,9 +543,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
 @app.post("/insert/")
 async def receive_data(request: Request, token: str = Depends(verify_token)):
-
-    json_obj = await request.json()
-    json_dict = json.loads(json_obj)
+    json_dict = await parse_request_json(request)
     data = json_dict["data"]
     signature = base64.b64decode(json_dict["signature"])
     client_id = json_dict["client_id"]
@@ -494,15 +561,22 @@ async def receive_data(request: Request, token: str = Depends(verify_token)):
 
 @app.post("/get/")
 async def post_data(request: Request):
-    json_obj = await request.json()
+    json_obj = await parse_request_json(request)
     if validate_request_json(json_obj):
         return request_measurement_data(json_obj)
+
+@app.post("/get_processed/")
+async def post_data_processed(request: Request):
+    json_obj = await parse_request_json(request)
+    if validate_request_json(json_obj):
+        return request_measurement_data_processed(json_obj)
 
 @app.post("/get_latest/")
 async def post_last_data():
     return request_last_measurements()
 
 @app.post("/get_available_meas_points")
+@app.post("/get_available_meas_points/")
 async def post_meas_points():
     return request_measurement_points()
 
