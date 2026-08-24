@@ -27,6 +27,31 @@ function formatLocalDateTime(value) {
     return `${date.getFullYear()}-${padDateValue(date.getMonth() + 1)}-${padDateValue(date.getDate())} ${padDateValue(date.getHours())}:${padDateValue(date.getMinutes())}`;
 }
 
+function formatLocalizedFillDateTime(timestamp, templateLabel) {
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    const template = String(templateLabel ?? '');
+
+    if (template.includes(' um ') && template.endsWith(' Uhr')) {
+        return `${padDateValue(date.getDate())}.${padDateValue(date.getMonth() + 1)}.${date.getFullYear()} um ${padDateValue(date.getHours())}:${padDateValue(date.getMinutes())} Uhr`;
+    }
+
+    if (template.includes(' at ')) {
+        return `${padDateValue(date.getMonth() + 1)}-${padDateValue(date.getDate())}-${date.getFullYear()} at ${padDateValue(date.getHours())}:${padDateValue(date.getMinutes())}`;
+    }
+
+    return formatLocalDateTime(date);
+}
+
+function formatFillChartLabel(sensorName, timestamp) {
+    const baseSensorName = String(sensorName ?? '').split('\n')[0];
+    const timestampLabel = String(sensorName ?? '').split('\n')[1];
+    if (!timestamp) {
+        return baseSensorName;
+    }
+
+    return `${baseSensorName}\n${formatLocalizedFillDateTime(timestamp, timestampLabel)}`;
+}
+
 function formatPeakTooltip(params) {
     const data = Array.isArray(params?.data) ? params.data : [];
     if (data.length < 2 || typeof data[1] !== 'number' || !Number.isFinite(data[1])) {
@@ -126,6 +151,8 @@ export async function loadFillChart(chartDiv, charts, chartConfig, mpName) {
  */
 export async function updateFillChart(chart, chartData, cConfig, mpName) {
     const sensorIDs = chartData.sensor_name;
+    const sensorTimestamps = Array.isArray(chartData.dt) ? chartData.dt : [];
+    const sensorLabels = sensorIDs.map((sensorName, index) => formatFillChartLabel(sensorName, sensorTimestamps[index]));
     const values = chartData.value;
     const colors = chartData.color;
     //console.log(colors)
@@ -146,7 +173,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
           },*/
           backgroundColor:plotBackGround,
           xAxis: {
-            data: sensorIDs,
+            data: sensorLabels,
             axisLabel: {
               inside: true,
               color: '#fff'
