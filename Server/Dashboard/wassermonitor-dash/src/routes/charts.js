@@ -18,6 +18,15 @@ import { loadFillDataFromAPI, loadTimeDataFromAPI } from './api';
 let firstLineColor;
 let plotBackGround;
 
+function padDateValue(value) {
+    return String(value).padStart(2, '0');
+}
+
+function formatLocalDateTime(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    return `${date.getFullYear()}-${padDateValue(date.getMonth() + 1)}-${padDateValue(date.getDate())} ${padDateValue(date.getHours())}:${padDateValue(date.getMinutes())}`;
+}
+
 
 
 /**
@@ -40,13 +49,12 @@ function reInitEchart(name, divName, charts, plotTheme, plotThemeDark) {
     const theme = isDarkMode ? plotThemeDark : plotTheme;
     firstLineColor = isDarkMode ? 'lightblue' : '#3F83F8';
     plotBackGround = isDarkMode ? '#1F2937':'#FDFDEA'
-    // MAYBE DELETABLE
-    console.log("reinit charts with theme:", theme);
     if (charts[name]) {
         //console.log("reinit: ", name);
         echarts.dispose(charts[name]);
     }
     const c = echarts.init(divName, theme, { height: 600, renderer: 'canvas', useDirtyRect: true });
+    charts[name] = c;
     return c
 }
 
@@ -86,6 +94,10 @@ function getLinearGradient(colorString, cConfig) {
 export async function loadFillChart(chartDiv, charts, chartConfig, mpName) {
     const chartData = await loadFillDataFromAPI(chartConfig['APIUrl'], mpName);
     const chartObj = reInitEchart('fillChart', chartDiv, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]);
+    if (!chartData) {
+        chartObj.clear();
+        return;
+    }
     //console.log("chartData:", chartData);
     updateFillChart(chartObj, chartData, chartConfig, mpName);
 }
@@ -245,7 +257,7 @@ export async function updateFillChart(chart, chartData, cConfig, mpName) {
  *
  * @async
  * @function loadTimeChart
- * @param {Array<HTMLElement>} chartDivs - An array of DOM elements for the charts.
+ * @param {Array<{name: string, divName: HTMLElement}>} chartDivs - The chart mount descriptors.
  * @param {Object} charts - A dictionary of existing chart instances.
  * @param {Object} chartConfig - The configuration object for the chart.
  * @param {string} dtFrom - Start date for the data range.
@@ -408,7 +420,15 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
             type: 'time',
             boundaryGap: false,
             axisLine: { onZero: false },
-            axisLabel: { formatter: '{yyyy}-{MM}-{dd} {HH}:{mm}', rotate: 45 },
+            axisLabel: {
+                formatter: (value) => formatLocalDateTime(value),
+                rotate: 45
+            },
+            axisPointer: {
+                label: {
+                    formatter: ({ value }) => formatLocalDateTime(value)
+                }
+            },
             gridIndex: index,
         });
         if (bPrintLines == 'value') {
@@ -437,6 +457,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                     trigger: 'axis',
                     formatter: function(params) {
                         let tooltipContent = '';
+                        tooltipContent += `${formatLocalDateTime(params[0].data[0])}<br>`;
                         tooltipContent += `Value: ${params[0].data[1]} cm<br>`;
                         return tooltipContent;
                     }
@@ -587,6 +608,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                     trigger: 'axis',
                     formatter: function(params) {
                         let tooltipContent = '';
+                        tooltipContent += `${formatLocalDateTime(params[0].data[0])}<br>`;
                         tooltipContent += `Derivation: <br>${params[0].data[1]} cm/h<br>`;
                         return tooltipContent;
                     }
