@@ -535,6 +535,7 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 symbol: 'none',
                 silent:true,
                 sampling: 'lttb',
+                show: false,
                 lineStyle:{
                     color:'grey',
                     width:1
