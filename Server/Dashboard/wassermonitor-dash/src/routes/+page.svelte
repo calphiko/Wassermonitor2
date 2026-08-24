@@ -10,6 +10,7 @@
 
     const now = new Date();
     const twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 14));
+    const beginOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 
     /**
      * @typedef {{ value: string, label: string }} MeasurementPointOption
@@ -17,7 +18,7 @@
      * @typedef {{ name: string, divName: HTMLElement }} ChartMount
      */
 
-    let dtFrom = formatDateForInput(twoWeeksAgo);
+    let dtFrom = formatDateForInput(beginOfDay);
     let dtUntil = formatDateForInput(now);
 
     let charts = {};
