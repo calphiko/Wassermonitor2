@@ -51,19 +51,29 @@
     }
 
     /**
+     * @returns {ChartMount}
+     */
+    function getFillChartMount() {
+        const fillChart = document.getElementById('fillChart');
+        if (!(fillChart instanceof HTMLElement)) {
+            throw new Error('Fill chart container not found.');
+        }
+
+        return { name: 'fillChart', divName: fillChart };
+    }
+
+    /**
      * @returns {ChartMount[]}
      */
-    function getChartMounts() {
-        const fillChart = document.getElementById('fillChart');
+    function getTimeChartMounts() {
         const timeChart = document.getElementById('timeChart');
         const derivChart = document.getElementById('derivChart');
 
-        if (!(fillChart instanceof HTMLElement) || !(timeChart instanceof HTMLElement) || !(derivChart instanceof HTMLElement)) {
-            throw new Error('Chart container not found.');
+        if (!(timeChart instanceof HTMLElement) || !(derivChart instanceof HTMLElement)) {
+            throw new Error('Time chart container not found.');
         }
 
         return [
-            { name: 'fillChart', divName: fillChart },
             { name: 'timeChart', divName: timeChart },
             { name: 'derivChart', divName: derivChart }
         ];
@@ -121,8 +131,8 @@
 
         fillChartLoading = true;
         try {
-            const chartMounts = getChartMounts();
-            await loadFillChart(chartMounts[0].divName, charts, chartConfig, mpName);
+            const fillChartMount = getFillChartMount();
+            await loadFillChart(fillChartMount.divName, charts, chartConfig, mpName);
         } finally {
             fillChartLoading = false;
         }
@@ -135,19 +145,11 @@
 
         timeChartsLoading = true;
         try {
-            const chartMounts = getChartMounts();
-            await loadTimeChart(chartMounts, charts, chartConfig, dtFrom, dtUntil, mpName);
+            const timeChartMounts = getTimeChartMounts();
+            await loadTimeChart(timeChartMounts, charts, chartConfig, dtFrom, dtUntil, mpName);
         } finally {
             timeChartsLoading = false;
         }
-    }
-
-    async function refreshAllCharts() {
-        if (!chartConfig || !mpName) {
-            return;
-        }
-
-        await Promise.all([loadFillChartSection(), loadTimeChartsSection()]);
     }
 
     async function initializeDashboard() {
@@ -171,17 +173,24 @@
 
         fillChartLoading = false;
         timeChartsLoading = false;
-        await refreshAllCharts();
+        await loadFillChartSection();
+        await loadTimeChartsSection();
         startFillAutoRefresh();
     }
 
     async function handleMeasurementPointChange() {
-        await refreshAllCharts();
+        stopFillAutoRefresh();
+        await loadFillChartSection();
+        await loadTimeChartsSection();
+        startFillAutoRefresh();
     }
 
     /** @param {MediaQueryListEvent} _event */
     async function handleDarkModeChange(_event) {
-        await refreshAllCharts();
+        stopFillAutoRefresh();
+        await loadFillChartSection();
+        await loadTimeChartsSection();
+        startFillAutoRefresh();
     }
 
     onMount(() => {

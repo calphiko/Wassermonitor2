@@ -27,6 +27,15 @@ function formatLocalDateTime(value) {
     return `${date.getFullYear()}-${padDateValue(date.getMonth() + 1)}-${padDateValue(date.getDate())} ${padDateValue(date.getHours())}:${padDateValue(date.getMinutes())}`;
 }
 
+function formatPeakTooltip(params) {
+    const data = Array.isArray(params?.data) ? params.data : [];
+    if (data.length < 2 || typeof data[1] !== 'number' || !Number.isFinite(data[1])) {
+        return '';
+    }
+
+    return `${formatLocalDateTime(data[0])}<br>${params.seriesName}: ${data[1]} cm/h`;
+}
+
 
 
 /**
@@ -270,10 +279,16 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
     //console.log ('chartConfig: ', mpName );
     const loadedApiTimeData = await loadTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
     //console.log ('time data: ', loadedApiTimeData );
+    const timeChartMount = chartDivs.find((chartDiv) => chartDiv.name === 'timeChart');
+    const derivChartMount = chartDivs.find((chartDiv) => chartDiv.name === 'derivChart');
+
+    if (!timeChartMount || !derivChartMount) {
+        throw new Error('Time chart mounts are incomplete.');
+    }
 
     const chartInstances  =  {
-        'timeChart': reInitEchart('timeChart', chartDivs[1].divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
-        'derivChart': reInitEchart('derivChart', chartDivs[2].divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
+        'timeChart': reInitEchart('timeChart', timeChartMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
+        'derivChart': reInitEchart('derivChart', derivChartMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
     };
     if (loadedApiTimeData) {
         await updateTimeChart(chartInstances['timeChart'], loadedApiTimeData, 'values', 'value');
@@ -586,7 +601,9 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 symbolSize: 15,
                 symbolColor: 'red',
                 sampling: 'lttb',
-                //symbol: 'none',
+                tooltip: {
+                    formatter: (params) => formatPeakTooltip(params)
+                }
 
               },
               {
@@ -599,7 +616,9 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 symbolSize: 15,
                 symbolColor: 'red',
                 sampling: 'lttb',
-                //symbol: 'none',
+                tooltip: {
+                    formatter: (params) => formatPeakTooltip(params)
+                }
 
               },
             );
@@ -607,10 +626,22 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                 {
                     trigger: 'axis',
                     formatter: function(params) {
-                        let tooltipContent = '';
-                        tooltipContent += `${formatLocalDateTime(params[0].data[0])}<br>`;
-                        tooltipContent += `Derivation: <br>${params[0].data[1]} cm/h<br>`;
-                        return tooltipContent;
+                        const tooltipParams = Array.isArray(params) ? params : [params];
+                        const pointWithTimestamp = tooltipParams.find((param) => Array.isArray(param?.data) && param.data.length > 1);
+                        if (!pointWithTimestamp) {
+                            return '';
+                        }
+
+                        const lines = [formatLocalDateTime(pointWithTimestamp.data[0])];
+                        tooltipParams.forEach((param) => {
+                            const data = Array.isArray(param?.data) ? param.data : [];
+                            const value = data[1];
+                            if (typeof value === 'number' && Number.isFinite(value)) {
+                                lines.push(`${param.seriesName}: ${value} cm/h`);
+                            }
+                        });
+
+                        return lines.join('<br>');
                     }
                 }
             );
