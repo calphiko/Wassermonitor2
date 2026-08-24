@@ -95,17 +95,17 @@ fn rolling_avg_10(values: &[f64]) -> Vec<f64> {
 }
 
 fn local_peaks(deriv: &[f64], deriv_10: &[f64]) -> (Vec<Option<f64>>, Vec<Option<f64>>) {
-    let n = deriv.len();
+    let n = deriv_10.len();
     let mut pos = vec![None; n];
     let mut neg = vec![None; n];
     if n < 3 {
         return (pos, neg);
     }
     for i in 1..(n - 1) {
-        if deriv[i] > 10.0 && deriv[i] > deriv[i - 1] && deriv[i] > deriv[i + 1] {
+        if deriv_10[i] > 10.0 && deriv_10[i] > deriv_10[i - 1] && deriv_10[i] > deriv_10[i + 1] {
             pos[i] = Some(deriv_10[i]);
         }
-        if deriv[i] < -10.0 && deriv[i] < deriv[i - 1] && deriv[i] < deriv[i + 1] {
+        if deriv_10[i] < -10.0 && deriv_10[i] < deriv_10[i - 1] && deriv_10[i] < deriv_10[i + 1] {
             neg[i] = Some(deriv_10[i]);
         }
     }
