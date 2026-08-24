@@ -110,7 +110,11 @@ with open(msg_json,'r', encoding='utf-8') as f:
     messages = json.load(f)
 
 PORT = int(config['API']['port'])
-logger.info (f"API-Port:{PORT}")
+logger.info(f"API-Port:{PORT}")
+
+# Ensure performance indices exist on all SQLite files (idempotent migration).
+if config['database'].get('engine') == 'sqlite':
+    dbu.ensure_indices_on_existing_files(config['database'])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 

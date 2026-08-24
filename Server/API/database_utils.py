@@ -40,11 +40,27 @@ except ImportError:
     pl = None
 
 
+def _get_ro_connection(db_file):
+    """
+    Open an SQLite file in read-only URI mode with performance PRAGMAs.
+
+    Uses ``mode=ro`` so SQLite never acquires a write lock or touches the WAL.
+    ``temp_store=MEMORY`` and ``mmap_size`` accelerate sequential scans significantly.
+    """
+    uri = f"file:{db_file}?mode=ro"
+    conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+    cur = conn.cursor()
+    cur.execute("PRAGMA cache_size=-32000;")    # 32 MB page cache
+    cur.execute("PRAGMA temp_store=MEMORY;")    # sort/hash in RAM
+    cur.execute("PRAGMA mmap_size=536870912;")  # 512 MB memory-mapped I/O
+    return conn, cur
+
+
 def _read_month_rows(db_path, sql, sql_params):
     """Read one monthly sqlite file and return raw rows."""
     if not os.path.exists(db_path):
         return []
-    conn, cur = get_sqlite3_connection(db_path, read_only=True)
+    conn, cur = _get_ro_connection(db_path)
     try:
         cur.execute(sql, sql_params)
         return cur.fetchall()
@@ -133,7 +149,10 @@ def get_sqlite3_connection(db_file, read_only=False):
     conn = sqlite3.connect(db_file)
     cur = conn.cursor()
     cur.execute("PRAGMA journal_mode=WAL;")
-    cur.execute("PRAGMA cache_size=-64000;")  # 64 MB Cache
+    cur.execute("PRAGMA cache_size=-64000;")    # 64 MB page cache
+    cur.execute("PRAGMA temp_store=MEMORY;")    # sort/hash in RAM
+    cur.execute("PRAGMA mmap_size=536870912;")  # 512 MB mmap
+    cur.execute("PRAGMA synchronous=NORMAL;")   # faster writes, still crash-safe
     if not read_only:
         create_sqlite_database(conn, cur)
     return conn, cur
@@ -204,6 +223,8 @@ def create_sqlite_database(conn, cur):
     template.append("CREATE INDEX IF NOT EXISTS idx_measurement_dt ON measurement(dt);")
     template.append("CREATE INDEX IF NOT EXISTS idx_measurement_sensor_id ON measurement(sensor_id);")
     template.append("CREATE INDEX IF NOT EXISTS idx_meas_val_measurement_id ON meas_val(measurement_id);")
+    # Composite index: speeds up MAX(dt) per sensor in get_latest and date+sensor range queries
+    template.append("CREATE INDEX IF NOT EXISTS idx_measurement_sensor_dt ON measurement(sensor_id, dt);")
 
     template.append("""
         CREATE TABLE IF NOT EXISTS messages (
@@ -230,6 +251,37 @@ def create_sqlite_database(conn, cur):
     except Error as e:
         print(f"Database_creation: SQL Error: {e}\n {line}")
 
+
+
+def ensure_indices_on_existing_files(db_conf):
+    """
+    Add missing performance indices to all existing monthly SQLite files.
+
+    Call this once after upgrading to add the new ``idx_measurement_sensor_dt``
+    composite index to files that were created before it was added to the schema.
+    The operation is idempotent – ``CREATE INDEX IF NOT EXISTS`` is a no-op when
+    the index already exists.
+    """
+    if db_conf.get('engine') != 'sqlite':
+        return
+    sqlite_path = db_conf['sqlite_path']
+    indices = [
+        "CREATE INDEX IF NOT EXISTS idx_measurement_dt ON measurement(dt);",
+        "CREATE INDEX IF NOT EXISTS idx_measurement_sensor_id ON measurement(sensor_id);",
+        "CREATE INDEX IF NOT EXISTS idx_meas_val_measurement_id ON meas_val(measurement_id);",
+        "CREATE INDEX IF NOT EXISTS idx_measurement_sensor_dt ON measurement(sensor_id, dt);",
+    ]
+    for fname in get_all_sqlite_files(sqlite_path):
+        db_path = os.path.join(sqlite_path, fname)
+        try:
+            conn = sqlite3.connect(db_path)
+            cur = conn.cursor()
+            for stmt in indices:
+                cur.execute(stmt)
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"ensure_indices: skipped {db_path}: {e}")
 
 
 def insert_and_get_id(db_conf, dt, sql, sql_args):
@@ -614,11 +666,11 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
         INNER JOIN meas_point mp ON s.meas_point_id = mp.id
         WHERE m.dt > ? AND m.dt < ?
         {mp_filter}
-        GROUP BY m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, s.tank_height
+        GROUP BY m.id
     """
     configured_workers = int(db_conf.get('read_workers', 4))
     columns = ['mid', 'dt', 'mp_name', 'sensor_name', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
-    month_paths = [f"{db_conf['sqlite_path']}/{m}.sqlite" for m in get_months_between(dt_begin, dt_end)]
+    month_paths = [os.path.join(db_conf['sqlite_path'], f"{m}.sqlite") for m in get_months_between(dt_begin, dt_end)]
     mp_filter = ""
     sql_params = [dt_begin, dt_end]
     if mp_name:
@@ -638,14 +690,11 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
     if not all_rows:
         return []
 
-    records = []
-    for row in all_rows:
-        record = dict(zip(columns, row))
-        if isinstance(record['dt'], datetime):
-            record['dt'] = record['dt'].isoformat()
-        else:
-            record['dt'] = str(record['dt'])
-        records.append(record)
+    # Build records without row-by-row dict: zip columns once, convert dt in bulk
+    records = [dict(zip(columns, row)) for row in all_rows]
+    for r in records:
+        dt_val = r['dt']
+        r['dt'] = dt_val.isoformat() if isinstance(dt_val, datetime) else str(dt_val)
 
     records.sort(key=lambda x: (x['mp_name'], x['sensor_name'], x['dt']))
     return records
@@ -732,13 +781,13 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_nam
         INNER JOIN meas_point mp ON s.meas_point_id = mp.id 
         WHERE m.dt > ? AND m.dt < ?
         {mp_filter}
-        GROUP BY m.dt
+        GROUP BY m.id
     """
 
     use_polars = str(db_conf.get('use_polars', 'false')).strip().lower() in ('1', 'true', 'on', 'yes')
     configured_workers = int(db_conf.get('read_workers', 4))
     columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
-    month_paths = [f"{db_conf['sqlite_path']}/{m}.sqlite" for m in get_months_between(dt_begin, dt_end)]
+    month_paths = [os.path.join(db_conf['sqlite_path'], f"{m}.sqlite") for m in get_months_between(dt_begin, dt_end)]
     mp_filter = ""
     sql_params = [dt_begin, dt_end]
     if mp_name:
@@ -922,7 +971,7 @@ def get_last_meas_data_from_sqlite_db(db_conf):
     if not db_conf['engine'] == 'sqlite':
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
     # Neueste Dateien zuerst – letzter Messwert liegt meist in der aktuellsten Datei
-    db_path_list = [db_conf['sqlite_path'] + x for x in reversed(get_all_sqlite_files(db_conf['sqlite_path']))]
+    db_path_list = [os.path.join(db_conf['sqlite_path'], x) for x in reversed(get_all_sqlite_files(db_conf['sqlite_path']))]
 
     sql = """
         SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height
