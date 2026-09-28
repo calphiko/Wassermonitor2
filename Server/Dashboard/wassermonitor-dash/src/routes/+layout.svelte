@@ -1,11 +1,18 @@
-<script>import Header from './Header.svelte';
+<script>
+import { onMount } from 'svelte';
+import Header from './Header.svelte';
 import '../app.css';
 
 /** @type {{children: import('svelte').Snippet}} */
-let { children } = $props();</script>
+let { children } = $props();
 
+onMount(() => {
+	document.documentElement.classList.add('dark');
+	document.documentElement.setAttribute('data-theme', 'wintry');
+});
+</script>
 
-<div class="app bg-yellow-50 dark:bg-gray-800">
+<div class="app theme-wintry" data-theme="wintry">
 	<Header></Header>
 
 	<main>
@@ -13,9 +20,8 @@ let { children } = $props();</script>
 	</main>
 
 	<footer>
-		<p class="text-center bg-yellow-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 h-20 my-5">
-			build with <a href="https://svelte.dev/docs/kit">svelte</a><br>
-			if you are interested in wassermonitor please visit my <a href="https://wassermonitor.de">blog</a>.
+		<p class="text-center bg-surface-900/80 text-surface-100 text-sm rounded-xl block p-3 my-5 shadow-lg shadow-slate-950/40">
+			 <a target="_blank" href="https://pakleds-patentoffice.de">Pakleds Patentoffice</a>
 	    </p>
 	</footer>
 </div>
