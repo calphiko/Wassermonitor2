@@ -102,6 +102,22 @@ def _process_sensor_frame(res_sens):
     res_sens['peaks_neg'] = res_sens['peaks_neg'].replace({np.nan: None})
     return res_sens
 
+
+def _extract_received_dt_from_comment(comment):
+    """Extract ISO receive timestamp from measurement comment text."""
+    if not isinstance(comment, str):
+        return None
+
+    marker = 'received at '
+    if marker not in comment:
+        return None
+
+    received_dt = comment.split(marker, 1)[1].strip()
+    try:
+        return datetime.fromisoformat(received_dt).isoformat()
+    except ValueError:
+        return None
+
 def get_mysql_connection(conf):
     """
     Establishes a connection to a MySQL database and returns the connection and cursor objects.
@@ -774,7 +790,7 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_nam
     if dt_begin > dt_end:
         raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
     sql = """
-        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height
+        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height, m.comment
         FROM meas_val v 
         INNER JOIN measurement m ON v.measurement_id=m.id 
         INNER JOIN sensor s ON m.sensor_id = s.id 
@@ -786,7 +802,7 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_nam
 
     use_polars = str(db_conf.get('use_polars', 'false')).strip().lower() in ('1', 'true', 'on', 'yes')
     configured_workers = int(db_conf.get('read_workers', 4))
-    columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
+    columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height', 'comment']
     month_paths = [os.path.join(db_conf['sqlite_path'], f"{m}.sqlite") for m in get_months_between(dt_begin, dt_end)]
     mp_filter = ""
     sql_params = [dt_begin, dt_end]
@@ -823,6 +839,8 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_nam
     output = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     if 'max_val' in list(output.keys()) and 'meas_val' in list(output.keys()):
         output['value'] = round(output['tank_height'] - output['meas_val'], 1)
+    if 'comment' in list(output.keys()):
+        output['received_dt'] = output['comment'].apply(_extract_received_dt_from_comment)
     #output['peaks_pos'] = output['peaks_pos'].apply(lambda x: None if np.isnan(x) else x)
     #output['peaks_neg'] = output['peaks_neg'].apply(lambda x: None if np.isnan(x) else x)
     #print(output['peaks_pos'].to_list())

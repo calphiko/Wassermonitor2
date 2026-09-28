@@ -465,6 +465,7 @@ def request_measurement_data_processed(request_dict):
                                 'max_val': d_s['max_val'].iloc[x],
                                 'warn': d_s['warn'].iloc[x],
                                 'alarm': d_s['alarm'].iloc[x],
+                                'received_timestamp': d_s['received_dt'].iloc[x] if 'received_dt' in d_s else None,
                             }
                             for x in range(len(d_s))
                         ],

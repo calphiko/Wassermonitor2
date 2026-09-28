@@ -1,5 +1,4 @@
-import {formatDateForISO} from './utils';
-import { processRawTimeSeries } from './timeProcessor';
+import { formatDateForISO } from './utils';
 
 
 /**
@@ -59,7 +58,7 @@ export async function getAvailableMeasPointsFromApi(apiUrl) {
 
 export async function loadTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
     try {
-        const response = await fetch(apiUrl.concat('get/'), {
+        const response = await fetch(apiUrl.concat('get_processed/'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -79,13 +78,53 @@ export async function loadTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
         if (typeof data_t === 'string') {
             data_t = JSON.parse(data_t);
         }
-        const data_time = await processRawTimeSeries(data_t, mpName);
-        if (Array.isArray(data_time) && data_time.length === 0) {
+        const rawMpData = data_t?.[mpName] ?? [];
+        if (!Array.isArray(rawMpData) || rawMpData.length === 0) {
             return null;
         }
-        return data_time;
+        return rawMpData;
     } catch (error) {
         console.error('Error while fetching time data from API:',error);
+        return null;
+    }
+}
+
+/**
+ * Fetches raw time-series rows from the API within a specified date range.
+ *
+ * @async
+ * @function loadRawTimeDataFromAPI
+ * @param {string} apiUrl - The base API URL.
+ * @param {string} dtFrom - Start datetime string.
+ * @param {string} dtUntil - End datetime string.
+ * @param {string} mpName - Measurement point name.
+ * @returns {Promise<Record<string, Array<Object>>|null>}
+ */
+export async function loadRawTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
+    try {
+        const response = await fetch(apiUrl.concat('get/'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(
+                {
+                    'dt_begin': formatDateForISO(dtFrom),
+                    'dt_end': formatDateForISO(dtUntil),
+                    'mp_name': mpName,
+                }
+            ),
+        });
+        if (!response.ok) {
+            throw new Error("Invalid Network response!");
+        }
+        let data = await response.json();
+        if (typeof data === 'string') {
+            data = JSON.parse(data);
+        }
+        return data;
+    } catch (error) {
+        console.error('Error while fetching raw time data from API:', error);
         return null;
     }
 }
