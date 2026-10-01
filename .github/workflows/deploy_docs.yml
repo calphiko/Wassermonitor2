@@ -86,5 +86,6 @@ jobs:
           echo "privileges set"
           ssh-keyscan -p $SERVER_PORT -H $SERVER_HOST >> ~/.ssh/known_hosts
           echo "added to keychain"
+          echo "upload to $SERVER_HOST with user $SERVER_USER: $DEPLOY_PATH"
           scp -P $SERVER_PORT -r Doc/_build/html/* $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH
           echo "data copied"
