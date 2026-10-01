@@ -313,124 +313,12 @@ fn build_evaluation_with_deriv(values: &[ValuePoint], _deriv: &[f64]) -> Evaluat
     let mut raw_cycles: Vec<RawCycle> = Vec::new();
     let mut daily_counts: BTreeMap<String, (usize, usize)> = BTreeMap::new();
 
-    // 1 = fill, -1 = drain, 0 = neutral
-    let mut states = vec![0i8; slope_signal.len()];
-    let mut prev_state = 0i8;
-    for (idx, slope) in slope_signal.iter().enumerate() {
-        let abs_slope = slope.abs();
-        let next_state = if *slope >= threshold_hi {
-            1
-        } else if *slope <= -threshold_hi {
-            -1
-        } else if prev_state == 1 && *slope >= threshold_lo {
-            1
-        } else if prev_state == -1 && *slope <= -threshold_lo {
-            -1
-        } else if abs_slope <= near_zero_threshold {
-            0
-        } else {
-            0
-        };
-        states[idx] = next_state;
-        prev_state = next_state;
-    }
-
-    // Remove very short signed runs (noise bursts) without pushing transitions later.
-    let min_run_points = 5usize;
-    let mut run_start = 0usize;
-    while run_start < states.len() {
-        let run_state = states[run_start];
-        let mut run_end = run_start + 1;
-        while run_end < states.len() && states[run_end] == run_state {
-            run_end += 1;
-        }
-        if run_state != 0 && (run_end - run_start) < min_run_points {
-            let left_state = if run_start > 0 { states[run_start - 1] } else { 0 };
-            let right_state = if run_end < states.len() { states[run_end] } else { 0 };
-            let replacement = if left_state == right_state { left_state } else { 0 };
-            for idx in run_start..run_end {
-                states[idx] = replacement;
-            }
-        }
-        run_start = run_end;
-    }
-
-    // Bridge only tiny neutral gaps between same-signed runs; do not extend the cycle start
-    // beyond the true state transition. This preserves onset timing, unlike recursive smoothing.
-    let max_neutral_gap = 3usize;
-    let mut idx = 1usize;
-    while idx + 1 < states.len() {
-        if states[idx] != 0 {
-            idx += 1;
-            continue;
-        }
-        let gap_start = idx;
-        while idx < states.len() && states[idx] == 0 {
-            idx += 1;
-        }
-        let gap_end = idx;
-        if gap_end - gap_start <= max_neutral_gap
-            && gap_start > 0
-            && gap_end < states.len()
-            && states[gap_start - 1] != 0
-            && states[gap_start - 1] == states[gap_end]
-        {
-            for fill_idx in gap_start..gap_end {
-                states[fill_idx] = states[gap_start - 1];
-            }
-        }
-    }
-
-    // Recompute the sign-state sequence using hysteresis with separate thresholds.
-    // The system must cross the high threshold to enter a cycle and stay above the lower threshold,
-    // but very small slopes are explicitly treated as neutral to avoid overnight false positives.
-    let mut hysteresis = vec![0i8; states.len()];
-    let mut prev_hysteresis = 0i8;
-    for (idx, slope) in slope_signal.iter().enumerate() {
-        let abs_slope = slope.abs();
-        let next_state = if *slope >= threshold_hi {
-            1
-        } else if *slope <= -threshold_hi {
-            -1
-        } else if prev_hysteresis == 1 && *slope >= threshold_lo {
-            1
-        } else if prev_hysteresis == -1 && *slope <= -threshold_lo {
-            -1
-        } else if abs_slope <= near_zero_threshold {
-            0
-        } else {
-            0
-        };
-        hysteresis[idx] = next_state;
-        prev_hysteresis = next_state;
-    }
-
-    // Drop any short sign runs that remain after hysteresis filtering.
-    let mut run_start_h = 0usize;
-    while run_start_h < hysteresis.len() {
-        let run_state = hysteresis[run_start_h];
-        let mut run_end_h = run_start_h + 1;
-        while run_end_h < hysteresis.len() && hysteresis[run_end_h] == run_state {
-            run_end_h += 1;
-        }
-        if run_state != 0 && (run_end_h - run_start_h) < min_run_points {
-            let left_state = if run_start_h > 0 { hysteresis[run_start_h - 1] } else { 0 };
-            let right_state = if run_end_h < hysteresis.len() { hysteresis[run_end_h] } else { 0 };
-            let replacement = if left_state == right_state { left_state } else { 0 };
-            for idx in run_start_h..run_end_h {
-                hysteresis[idx] = replacement;
-            }
-        }
-        run_start_h = run_end_h;
-    }
-    let states = hysteresis;
-
     let finalize_cycle = |cycle_type: CycleType, start_idx: usize, end_idx: usize, raw_cycles: &mut Vec<RawCycle>, daily_counts: &mut BTreeMap<String, (usize, usize)>| {
         if end_idx <= start_idx || end_idx >= values.len() || end_idx >= slope_signal.len() {
             return;
         }
         let point_count = end_idx - start_idx + 1;
-        if point_count < min_run_points {
+        if point_count < 5usize {
             return;
         }
 
@@ -457,7 +345,6 @@ fn build_evaluation_with_deriv(values: &[ValuePoint], _deriv: &[f64]) -> Evaluat
             return;
         }
 
-        let level_delta = values[end_idx].value - values[start_idx].value;
         let cycle_rate_cm_per_h = if duration_min > 0.0 {
             (level_delta.abs() / duration_min) * 60.0
         } else {
@@ -486,35 +373,95 @@ fn build_evaluation_with_deriv(values: &[ValuePoint], _deriv: &[f64]) -> Evaluat
         }
     };
 
-    let mut current_type: Option<CycleType> = None;
-    let mut cycle_start_idx: usize = 0;
-    for (index, state) in states.iter().enumerate() {
-        let mapped = match *state {
-            1 => Some(CycleType::Fill),
-            -1 => Some(CycleType::Drain),
-            _ => None,
+    // Fill cycles are the primary detection target. Drain phases are defined as the
+    // complementary regions that are not identified as fills.
+    let mut fill_mask = vec![false; slope_signal.len()];
+    let mut prev_fill = false;
+    for (idx, slope) in slope_signal.iter().enumerate() {
+        let abs_slope = slope.abs();
+        let is_fill = if *slope >= threshold_hi {
+            true
+        } else if prev_fill && *slope >= threshold_lo {
+            true
+        } else if abs_slope <= near_zero_threshold {
+            false
+        } else {
+            false
         };
-        match (current_type, mapped) {
-            (None, Some(next_type)) => {
-                current_type = Some(next_type);
-                cycle_start_idx = index;
+        fill_mask[idx] = is_fill;
+        prev_fill = is_fill;
+    }
+
+    let max_neutral_gap = 3usize;
+    let mut run_start = 0usize;
+    while run_start < fill_mask.len() {
+        let in_fill = fill_mask[run_start];
+        let mut run_end = run_start + 1;
+        while run_end < fill_mask.len() && fill_mask[run_end] == in_fill {
+            run_end += 1;
+        }
+        if in_fill && (run_end - run_start) < 5usize {
+            let left_fill = if run_start > 0 { fill_mask[run_start - 1] } else { false };
+            let right_fill = if run_end < fill_mask.len() { fill_mask[run_end] } else { false };
+            let replacement = left_fill || right_fill;
+            for idx in run_start..run_end {
+                fill_mask[idx] = replacement;
             }
-            (Some(active_type), Some(next_type)) if active_type != next_type => {
-                finalize_cycle(active_type, cycle_start_idx, index.saturating_sub(1), &mut raw_cycles, &mut daily_counts);
-                current_type = Some(next_type);
-                cycle_start_idx = index;
+        }
+        run_start = run_end;
+    }
+
+    let mut idx = 1usize;
+    while idx + 1 < fill_mask.len() {
+        if fill_mask[idx] {
+            idx += 1;
+            continue;
+        }
+        let gap_start = idx;
+        while idx < fill_mask.len() && !fill_mask[idx] {
+            idx += 1;
+        }
+        let gap_end = idx;
+        if gap_end - gap_start <= max_neutral_gap && gap_start > 0 && gap_end < fill_mask.len() && fill_mask[gap_start - 1] && fill_mask[gap_end] {
+            for fill_idx in gap_start..gap_end {
+                fill_mask[fill_idx] = true;
             }
-            (Some(active_type), None) => {
-                finalize_cycle(active_type, cycle_start_idx, index.saturating_sub(1), &mut raw_cycles, &mut daily_counts);
-                current_type = None;
-            }
-            _ => {}
         }
     }
-    if !slope_signal.is_empty() {
-        if let Some(active_type) = current_type {
-            finalize_cycle(active_type, cycle_start_idx, slope_signal.len() - 1, &mut raw_cycles, &mut daily_counts);
+
+    let mut ranges = Vec::new();
+    let mut current_fill = false;
+    let mut cycle_start_idx = 0usize;
+    for (index, is_fill) in fill_mask.iter().enumerate() {
+        if *is_fill && !current_fill {
+            current_fill = true;
+            cycle_start_idx = index;
+        } else if !*is_fill && current_fill {
+            ranges.push((CycleType::Fill, cycle_start_idx, index.saturating_sub(1)));
+            current_fill = false;
         }
+    }
+    if current_fill {
+        ranges.push((CycleType::Fill, cycle_start_idx, fill_mask.len().saturating_sub(1)));
+    }
+
+    let mut current_drain = false;
+    let mut drain_start_idx = 0usize;
+    for (index, is_fill) in fill_mask.iter().enumerate() {
+        if !*is_fill && !current_drain {
+            current_drain = true;
+            drain_start_idx = index;
+        } else if *is_fill && current_drain {
+            ranges.push((CycleType::Drain, drain_start_idx, index.saturating_sub(1)));
+            current_drain = false;
+        }
+    }
+    if current_drain {
+        ranges.push((CycleType::Drain, drain_start_idx, fill_mask.len().saturating_sub(1)));
+    }
+
+    for (cycle_type, start_idx, end_idx) in ranges {
+        finalize_cycle(cycle_type, start_idx, end_idx, &mut raw_cycles, &mut daily_counts);
     }
 
     let fill_means: Vec<f64> = raw_cycles

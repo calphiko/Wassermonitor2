@@ -41,7 +41,26 @@ export function formatDateForInput(date) {
  * @returns {string} - An ISO 8601 formatted date string.
  */
 export function formatDateForISO(dateString) {
-    return new Date(dateString).toISOString().replace("Z","+00:00"); // ISO-Format sicherstellen
+     if (!dateString) {
+         return '';
+     }
+
+     const parsed = new Date(dateString);
+     if (Number.isNaN(parsed.getTime())) {
+         return dateString;
+     }
+
+     const offsetMinutes = parsed.getTimezoneOffset();
+     const sign = offsetMinutes <= 0 ? '+' : '-';
+     const absoluteOffset = Math.abs(offsetMinutes);
+     const offsetHours = String(Math.floor(absoluteOffset / 60)).padStart(2, '0');
+     const offsetMinutesRemainder = String(absoluteOffset % 60).padStart(2, '0');
+
+     const localWallTime = new Date(parsed.getTime() - offsetMinutes * 60_000)
+         .toISOString()
+         .slice(0, 19);
+
+     return `${localWallTime}${sign}${offsetHours}:${offsetMinutesRemainder}`;
  }
 
 /**

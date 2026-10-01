@@ -25,8 +25,10 @@ export async function getAvailableMeasPointsFromApi(apiUrl) {
         if (!response.ok) {
             throw new Error("Invalid Network response!");
         }
-        var mPs = await response.json();
-        mPs = JSON.parse(mPs);
+        let mPs = await response.json();
+        if (typeof mPs === 'string') {
+            mPs = JSON.parse(mPs);
+        }
         //console.log('Available Meas Points fetched:', JSON.stringify(mPs,null,2));
         const output = Object.entries(mPs).map(([key, values]) => {
             return {'value':key, 'label':`${key} ${values.join(" ")}`};
@@ -129,6 +131,33 @@ export async function loadRawTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
     }
 }
 
+export async function loadMeasurementStdDevFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
+    try {
+        const response = await fetch(apiUrl.concat('get_stddev/'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'dt_begin': formatDateForISO(dtFrom),
+                'dt_end': formatDateForISO(dtUntil),
+                'mp_name': mpName,
+            }),
+        });
+        if (!response.ok) {
+            throw new Error("Invalid Network response!");
+        }
+        let data = await response.json();
+        if (typeof data === 'string') {
+            data = JSON.parse(data);
+        }
+        return data;
+    } catch (error) {
+        console.error('Error while fetching measurement stddev data from API:', error);
+        return null;
+    }
+}
+
 
 /**
  * Fetches the latest fill data from the API.
@@ -155,8 +184,10 @@ export async function loadFillDataFromAPI (apiUrl, mpName) {
             if (!response.ok) {
                 throw new Error("Invalid Network response!");
             }
-            var data_f = await response.json();
-            data_f = JSON.parse(data_f);
+            let data_f = await response.json();
+            if (typeof data_f === 'string') {
+                data_f = JSON.parse(data_f);
+            }
             //console.log('Data fetched:', JSON.stringify(data_f,null,2));
             const mpNameOptions = Object.keys(data_f);
             const mPN = mpName || mpNameOptions[0];

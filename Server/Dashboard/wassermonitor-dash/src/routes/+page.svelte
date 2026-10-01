@@ -69,7 +69,7 @@
     function getFillChartMount() {
         const fillChart = document.getElementById('fillChart');
         if (!(fillChart instanceof HTMLElement)) {
-            throw new Error('Fill chart container not found.');
+            return null;
         }
 
         return { name: 'fillChart', divName: fillChart };
@@ -98,14 +98,16 @@
     function getEvaluationChartMounts() {
         const cycleDeviationChart = document.getElementById('cycleDeviationChart');
         const dailyCycleCountChart = document.getElementById('dailyCycleCountChart');
+        const stdDevChart = document.getElementById('stdDevChart');
         const intervalHistChart = document.getElementById('intervalHistChart');
-        if (!(cycleDeviationChart instanceof HTMLElement) || !(dailyCycleCountChart instanceof HTMLElement) || !(intervalHistChart instanceof HTMLElement)) {
+        if (!(cycleDeviationChart instanceof HTMLElement) || !(dailyCycleCountChart instanceof HTMLElement) || !(stdDevChart instanceof HTMLElement) || !(intervalHistChart instanceof HTMLElement)) {
             throw new Error('Evaluation chart container not found.');
         }
 
         return [
             { name: 'cycleDeviationChart', divName: cycleDeviationChart },
             { name: 'dailyCycleCountChart', divName: dailyCycleCountChart },
+            { name: 'stdDevChart', divName: stdDevChart },
             { name: 'intervalHistChart', divName: intervalHistChart }
         ];
     }
@@ -119,6 +121,9 @@
 
     function startFillAutoRefresh() {
         stopFillAutoRefresh();
+        if (activeTab !== 'current') {
+            return;
+        }
         fillRefreshTimer = window.setInterval(() => {
             void loadFillChartSection();
         }, fillRefreshIntervalMs);
@@ -156,13 +161,16 @@
     }
 
     async function loadFillChartSection() {
-        if (!chartConfig || !mpName || fillChartLoading) {
+        if (!chartConfig || !mpName || fillChartLoading || activeTab !== 'current') {
             return;
         }
 
         fillChartLoading = true;
         try {
             const fillChartMount = getFillChartMount();
+            if (!fillChartMount) {
+                return;
+            }
             await loadFillChart(fillChartMount.divName, charts, chartConfig, mpName);
         } finally {
             fillChartLoading = false;
@@ -247,7 +255,9 @@
     async function handleDarkModeChange(_event) {
         stopFillAutoRefresh();
         await tick();
-        await loadFillChartSection();
+        if (activeTab === 'current') {
+            await loadFillChartSection();
+        }
         if (activeTab === 'history') {
             await loadTimeChartsSection();
         } else if (activeTab === 'evaluation') {
@@ -346,7 +356,7 @@
         <div id="history-panel" role="tabpanel" aria-label="Verlauf">
             <div class="controls-row my-10">
               <div class="control-field">
-                <label for="from-picker" class="dark:text-white text-gray-600">From</label>
+                <label for="from-picker" class="dark:text-white text-gray-600">Von</label>
                 <input
                   id="from-picker"
                   type="datetime-local"
@@ -356,7 +366,7 @@
               </div>
 
               <div class="control-field">
-                <label for="until-picker" class="dark:text-white text-gray-600">Until</label>
+                <label for="until-picker" class="dark:text-white text-gray-600">Bis</label>
                 <input
                   id="until-picker"
                   type="datetime-local"
@@ -395,7 +405,7 @@
         <div id="eval-panel" role="tabpanel" aria-label="Auswertung">
             <div class="controls-row my-10">
               <div class="control-field">
-                <label for="from-picker" class="dark:text-white text-gray-600">From</label>
+                <label for="from-picker" class="dark:text-white text-gray-600">Von</label>
                 <input
                   id="from-picker"
                   type="datetime-local"
@@ -405,7 +415,7 @@
               </div>
 
               <div class="control-field">
-                <label for="until-picker" class="dark:text-white text-gray-600">Until</label>
+                <label for="until-picker" class="dark:text-white text-gray-600">Bis</label>
                 <input
                   id="until-picker"
                   type="datetime-local"
@@ -460,6 +470,14 @@
                   </div>
                {/if}
                <div id='dailyCycleCountChart' class='chartDiv'></div>
+            </div>
+            <div class="chart-container">
+               {#if timeChartsLoading}
+                  <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
+                      <div class="spinner"></div>
+                  </div>
+               {/if}
+               <div id='stdDevChart' class='chartDiv'></div>
             </div>
             <div class="chart-container">
                {#if timeChartsLoading}

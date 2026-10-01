@@ -13,11 +13,22 @@
  */
 
 import * as echarts from 'echarts';
-import { loadFillDataFromAPI, loadRawTimeDataFromAPI, loadTimeDataFromAPI } from './api';
+import { loadFillDataFromAPI, loadMeasurementStdDevFromAPI, loadRawTimeDataFromAPI, loadTimeDataFromAPI } from './api';
 import { processRawTimeSeries } from './timeProcessor';
 
 let firstLineColor;
 let plotBackGround;
+
+const SENSOR_COLOR_PALETTE = ['#f59e0b', '#f97316', '#fb7185', '#facc15', '#a78bfa', '#38bdf8', '#34d399', '#60a5fa'];
+
+function getSensorColor(sensorName) {
+    const value = String(sensorName ?? '').trim();
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+        hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+    }
+    return SENSOR_COLOR_PALETTE[hash % SENSOR_COLOR_PALETTE.length];
+}
 
 function padDateValue(value) {
     return String(value).padStart(2, '0');
@@ -431,28 +442,33 @@ export async function loadTimeChart(chartDivs, charts, chartConfig, dtFrom, dtUn
 export async function loadEvaluationCharts(chartDivs, charts, chartConfig, dtFrom, dtUntil, mpName, aggregation = 'day') {
    const cycleDeviationMount = chartDivs.find((chartDiv) => chartDiv.name === 'cycleDeviationChart');
    const dailyCycleCountMount = chartDivs.find((chartDiv) => chartDiv.name === 'dailyCycleCountChart');
+   const stdDevMount = chartDivs.find((chartDiv) => chartDiv.name === 'stdDevChart');
    const intervalHistMount = chartDivs.find((chartDiv) => chartDiv.name === 'intervalHistChart');
-   if (!cycleDeviationMount || !dailyCycleCountMount || !intervalHistMount) {
+   if (!cycleDeviationMount || !dailyCycleCountMount || !stdDevMount || !intervalHistMount) {
        throw new Error('Evaluation chart mounts are incomplete.');
    }
 
    const chartInstances = {
        cycleDeviationChart: reInitEchart('cycleDeviationChart', cycleDeviationMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
        dailyCycleCountChart: reInitEchart('dailyCycleCountChart', dailyCycleCountMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
+       stdDevChart: reInitEchart('stdDevChart', stdDevMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
        intervalHistChart: reInitEchart('intervalHistChart', intervalHistMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
    };
 
    const rawData = await loadRawTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
+   const stdDevData = await loadMeasurementStdDevFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
    const processed = await processRawTimeSeries(rawData, mpName);
    if (!Array.isArray(processed) || processed.length === 0) {
        chartInstances.cycleDeviationChart.clear();
        chartInstances.dailyCycleCountChart.clear();
+       chartInstances.stdDevChart.clear();
        chartInstances.intervalHistChart.clear();
        return;
    }
 
    await updateCycleDeviationChart(chartInstances.cycleDeviationChart, processed);
    await updateDailyCycleCountChart(chartInstances.dailyCycleCountChart, processed, aggregation);
+   await updateStdDevChart(chartInstances.stdDevChart, stdDevData, mpName, aggregation);
    await updateIntervalHistogramChart(chartInstances.intervalHistChart, processed);
 }
 
@@ -570,9 +586,10 @@ async function updateCycleDeviationChart(chartObj, processedData) {
             });
 
         titleConfigs.push({
-            text: `${chart.sensorID} | Ø Befüllen: ${fillMean} cm/h | Ø Ablauf: ${drainMean} cm/h`,
-            left: `${92.0 / countOfSubplots / 2 + index * (100.0 / countOfSubplots)}%`,
+            text: `${chart.sensorID} | Ø ↑: ${fillMean} cm/h | Ø ↓: ${drainMean} cm/h`,
+            left: `${(index + 0.5) * (100.0 / countOfSubplots)}%`,
             top: '7%',
+            textAlign: 'center',
             textStyle: {
                 fontSize: 14,
                 fontWeight: 'bold',
@@ -865,7 +882,8 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
             return 0;
         });
 
-        series.push({
+        const sensorColor = getSensorColor(chart.sensorID || 'Sensor');
+    series.push({
             name: `${chart.sensorID} Median`,
             type: 'line',
             xAxisIndex: 0,
@@ -874,9 +892,9 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
-            lineStyle: { color: '#67e8f9', width: 2.5 },
-            itemStyle: { color: '#67e8f9' },
-            areaStyle: { color: 'rgba(103, 232, 249, 0.12)' },
+            lineStyle: { color: sensorColor, width: 2.5 },
+            itemStyle: { color: sensorColor },
+            areaStyle: { color: `${sensorColor}22` },
             tooltip: {
                 formatter: (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(2)} cm/h`
             }
@@ -914,8 +932,8 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
             yAxisIndex: 1,
             barWidth: '32%',
             itemStyle: {
-                color: 'rgba(34, 211, 238, 0.18)',
-                borderColor: '#22d3ee',
+                color: `${sensorColor}33`,
+                borderColor: sensorColor,
                 borderWidth: 1
             },
             tooltip: {
@@ -991,6 +1009,130 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
     chartObj.setOption(chartOptions, { notMerge: true, replaceMerge: ['series'] });
 }
 
+async function updateStdDevChart(chartObj, stdDevData, mpName, aggregation = 'day') {
+    const bucketKey = (timestamp, mode) => {
+        const date = new Date(timestamp);
+        if (mode === 'week') {
+            const start = new Date(date);
+            const day = start.getDay();
+            const diff = (day + 6) % 7;
+            start.setDate(start.getDate() - diff);
+            start.setHours(0, 0, 0, 0);
+            return start.toISOString().slice(0, 10);
+        }
+        if (mode === 'month') {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+        return date.toISOString().slice(0, 10);
+    };
+
+    const labelForBucket = (bucket, mode) => {
+        if (!bucket) {
+            return '—';
+        }
+        if (mode === 'month' || mode === 'week') {
+            return bucket.slice(5);
+        }
+        return bucket.slice(5);
+    };
+
+    const sensorGroups = stdDevData && typeof stdDevData === 'object' ? (stdDevData[mpName] || []) : [];
+    if (!Array.isArray(sensorGroups) || sensorGroups.length === 0) {
+        chartObj.clear();
+        return;
+    }
+
+    const categories = Array.from(new Set(sensorGroups.flatMap((sensor) => Array.isArray(sensor.rows) ? sensor.rows.map((row) => bucketKey(row.timestamp, aggregation)).filter(Boolean) : []))).sort();
+    const series = sensorGroups.map((sensor) => {
+        const byBucket = new Map();
+        for (const row of Array.isArray(sensor.rows) ? sensor.rows : []) {
+            const timestamp = row?.timestamp;
+            if (!timestamp) {
+                continue;
+            }
+            const bucket = bucketKey(timestamp, aggregation);
+            if (!byBucket.has(bucket)) {
+                byBucket.set(bucket, []);
+            }
+            const stdValue = Number(row?.meas_val_std ?? 0);
+            if (Number.isFinite(stdValue)) {
+                byBucket.get(bucket).push(stdValue);
+            }
+        }
+
+        const data = categories.map((bucket) => {
+            const values = byBucket.get(bucket) || [];
+            if (!values.length) {
+                return null;
+            }
+            const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+            return Number(mean.toFixed(3));
+        });
+
+        const sensorName = sensor.sensorID || 'Sensor';
+        return {
+            name: sensorName,
+            type: 'bar',
+            data,
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            barWidth: '32%',
+            itemStyle: {
+                color: `${getSensorColor(sensorName)}33`,
+                borderWidth: 1,
+                borderColor: getSensorColor(sensorName)
+            },
+            tooltip: {
+                formatter: (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(3)} cm`
+            }
+        };
+    });
+    const chartTitle = aggregation === 'week'
+        ? 'Standardabweichung pro Woche'
+        : aggregation === 'month'
+            ? 'Standardabweichung pro Monat'
+            : 'Standardabweichung pro Tag';
+
+    const chartOptions = createSharedChartChrome({
+        title: {
+            text: chartTitle,
+            left: 'center',
+            top: '2%',
+            textStyle: { color: '#e2e8f0' }
+        },
+        grid: {
+            left: '6%',
+            right: '4%',
+            bottom: '16%',
+            top: '16%'
+        },
+        xAxis: {
+            type: 'category',
+            data: categories.map((bucket) => labelForBucket(bucket, aggregation)),
+            axisLabel: { color: '#cbd5e1', rotate: 30 },
+            axisLine: { lineStyle: { color: '#94a3b8' } }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Std. [cm]',
+            axisLabel: { color: '#cbd5e1' },
+            axisLine: { lineStyle: { color: '#94a3b8' } },
+            splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' }
+        },
+        legend: {
+            top: '8%',
+            textStyle: { color: '#e2e8f0' }
+        },
+        series
+    });
+
+    chartObj.setOption(chartOptions, { notMerge: true, replaceMerge: ['series'] });
+}
+
 async function updateIntervalHistogramChart(chartObj, processedData) {
     const categories = ['0-5', '5-10', '10-15', '15-30', '30-60', '>60'];
     const series = processedData.map((chart) => {
@@ -1003,7 +1145,12 @@ async function updateIntervalHistogramChart(chartObj, processedData) {
             name: chart.sensorID,
             type: 'bar',
             barGap: 0.12,
-            data: mapped
+            data: mapped,
+            itemStyle: {
+                color: `${getSensorColor(chart.sensorID || 'Sensor')}33`,
+                borderWidth: 1,
+                borderColor: getSensorColor(chart.sensorID || 'Sensor')
+            }
         };
     });
 
@@ -1172,7 +1319,8 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
             });
         }
         if (bPrintLines == 'value') {
-            const valueSeries = chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value]);
+            const smoothedValueSeries = chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value_savgol ?? item.value]);
+            const rawValueSeries = chart[dDict].map(item => [new Date(item.timestamp).getTime(), item.value_raw ?? item.value]);
             const maxSeries = chart.values.map(item => [new Date(item.timestamp).getTime(), item.max_val]);
             const warnSeries = chart.values.map(item => [new Date(item.timestamp).getTime(), item.warn]);
             const alarmSeries = chart.values.map(item => [new Date(item.timestamp).getTime(), item.alarm]);
@@ -1189,10 +1337,10 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
             );
             seriesConfigs.push(
               {
-                name: chart.name,
+                name: 'Geglättet',
                 type: 'line',
                 smooth: true,
-                data: valueSeries,
+                data: smoothedValueSeries,
                 xAxisIndex: index,
                 yAxisIndex: index,
                 symbol: 'none',
@@ -1204,6 +1352,32 @@ export async function updateTimeChart(chartObj, loadedApiTimeData, dDict, bPrint
                     color:firstLineColor,
                     width:3
                 },
+                showSymbol: false,
+              },
+              {
+                name: 'Rohdaten',
+                type: 'line',
+                smooth: false,
+                data: rawValueSeries,
+                xAxisIndex: index,
+                yAxisIndex: index,
+                symbol: 'none',
+                sampling: 'lttb',
+                progressive: 2000,
+                progressiveThreshold: 3000,
+                animation: false,
+                lineStyle:{
+                    color:'rgba(148, 163, 184, 0.8)',
+                    width:1
+                },
+                showSymbol: false,
+                emphasis: { focus: 'series' },
+                tooltip: {
+                    formatter: function(params) {
+                        const value = Array.isArray(params?.data) ? params.data[1] : params?.value;
+                        return `${formatLocalDateTime(params.data[0])}<br>Rohdaten: ${value} cm`;
+                    }
+                }
               },
 
               {
