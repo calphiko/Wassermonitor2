@@ -19,7 +19,31 @@ import { processRawTimeSeries } from './timeProcessor';
 let firstLineColor;
 let plotBackGround;
 
+const evaluationDataCache = new Map();
+
 const SENSOR_COLOR_PALETTE = ['#f59e0b', '#f97316', '#fb7185', '#facc15', '#a78bfa', '#38bdf8', '#34d399', '#60a5fa'];
+
+function buildEvaluationDataCacheKey(apiUrl, dtFrom, dtUntil, mpName) {
+    return `${apiUrl}|${dtFrom}|${dtUntil}|${mpName}`;
+}
+
+async function loadEvaluationDataSet(chartConfig, dtFrom, dtUntil, mpName) {
+    const cacheKey = buildEvaluationDataCacheKey(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
+    const cachedEntry = evaluationDataCache.get(cacheKey);
+    if (cachedEntry) {
+        return cachedEntry;
+    }
+
+    const rawData = await loadRawTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
+    const stdDevData = await loadMeasurementStdDevFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
+    const processed = rawData && typeof rawData === 'object'
+        ? await processRawTimeSeries(rawData, mpName)
+        : [];
+
+    const dataset = { rawData, stdDevData, processed };
+    evaluationDataCache.set(cacheKey, dataset);
+    return dataset;
+}
 
 function getSensorColor(sensorName) {
     const value = String(sensorName ?? '').trim();
@@ -455,9 +479,7 @@ export async function loadEvaluationCharts(chartDivs, charts, chartConfig, dtFro
        intervalHistChart: reInitEchart('intervalHistChart', intervalHistMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
    };
 
-   const rawData = await loadRawTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
-   const stdDevData = await loadMeasurementStdDevFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
-   const processed = await processRawTimeSeries(rawData, mpName);
+   const { stdDevData, processed } = await loadEvaluationDataSet(chartConfig, dtFrom, dtUntil, mpName);
    if (!Array.isArray(processed) || processed.length === 0) {
        chartInstances.cycleDeviationChart.clear();
        chartInstances.dailyCycleCountChart.clear();
