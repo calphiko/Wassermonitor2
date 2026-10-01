@@ -61,6 +61,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_406_NOT_ACCEPTABLE
 from pydantic import BaseModel, ValidationError
 import time
+import math
 import database_utils as dbu
 import configparser
 import json
@@ -420,7 +421,10 @@ def request_measurement_data(request_dict):
         sensor_lookup[mp_name][sensor_name]['rows'].append(
             {
                 'timestamp': row['dt'],
-                'meas_val': row['meas_val'],
+                'meas_val_raw': row.get('meas_val_raw', row['meas_val']),
+                'meas_val_std': row.get('meas_val_std', 0.0),
+                'meas_val': row.get('meas_val_savgol', row['meas_val']),
+                'meas_val_savgol': row.get('meas_val_savgol'),
                 'tank_height': row['tank_height'],
                 'max_val': row['max_val'],
                 'warn': row['warn'],
@@ -428,6 +432,18 @@ def request_measurement_data(request_dict):
             }
         )
     return JSONResponse(content=data_json)
+
+
+def _json_safe_numeric(value):
+    """Convert non-finite floats to JSON-safe values."""
+    if value is None:
+        return None
+    try:
+        if isinstance(value, (float, int)) and (math.isnan(float(value)) or math.isinf(float(value))):
+            return None
+    except (TypeError, ValueError):
+        pass
+    return value
 
 
 def request_measurement_data_processed(request_dict):
@@ -460,11 +476,14 @@ def request_measurement_data_processed(request_dict):
                         'values': [
                             {
                                 'timestamp': d_s['dt'].iloc[x],
-                                'value': d_s['value'].iloc[x],
-                                'tank_height': d_s['tank_height'].iloc[x],
-                                'max_val': d_s['max_val'].iloc[x],
-                                'warn': d_s['warn'].iloc[x],
-                                'alarm': d_s['alarm'].iloc[x],
+                                'value_raw': _json_safe_numeric(d_s['value_raw'].iloc[x] if 'value_raw' in d_s else (d_s['tank_height'].iloc[x] - d_s['meas_val_raw'].iloc[x] if 'meas_val_raw' in d_s else d_s['value'].iloc[x])),
+                                'value': _json_safe_numeric(d_s['value'].iloc[x] if 'value' in d_s else (d_s['tank_height'].iloc[x] - d_s['meas_val_savgol'].iloc[x] if 'meas_val_savgol' in d_s else d_s['value_raw'].iloc[x])),
+                                'value_savgol': _json_safe_numeric(d_s['value_savgol'].iloc[x] if 'value_savgol' in d_s else (d_s['value'].iloc[x] if 'value' in d_s else None)),
+                                'meas_val_std': _json_safe_numeric(d_s['meas_val_std'].iloc[x] if 'meas_val_std' in d_s else None),
+                                'tank_height': _json_safe_numeric(d_s['tank_height'].iloc[x]),
+                                'max_val': _json_safe_numeric(d_s['max_val'].iloc[x]),
+                                'warn': _json_safe_numeric(d_s['warn'].iloc[x]),
+                                'alarm': _json_safe_numeric(d_s['alarm'].iloc[x]),
                                 'received_timestamp': d_s['received_dt'].iloc[x] if 'received_dt' in d_s else None,
                             }
                             for x in range(len(d_s))
@@ -472,19 +491,61 @@ def request_measurement_data_processed(request_dict):
                         'deriv': [
                             {
                                 'timestamp': d_s['dt'].iloc[x],
-                                'value': d_s['derivation'].iloc[x],
-                                'value_10': d_s['derivation_10'].iloc[x],
+                                'value': _json_safe_numeric(d_s['derivation'].iloc[x]),
+                                'value_10': _json_safe_numeric(d_s['derivation_10'].iloc[x]),
                                 'peaks_pos': d_s['peaks_pos'].iloc[x],
                                 'peaks_neg': d_s['peaks_neg'].iloc[x],
                             }
                             for x in range(len(d_s))
                         ],
-                        'y_max': max(d_s['max_val'].to_list()) + 10,
-                        'deriv_y_max': round(max_d, 0) + 10,
-                        'deriv_y_min': round(min_d, 0) - 10,
+                        'y_max': _json_safe_numeric(max(d_s['max_val'].to_list()) + 10),
+                        'deriv_y_max': _json_safe_numeric(round(max_d, 0) + 10),
+                        'deriv_y_min': _json_safe_numeric(round(min_d, 0) - 10),
                     }
                 )
     return JSONResponse(content=data_json)
+
+
+def request_measurement_stddev(request_dict):
+    """Fetch all rows for the requested period and compute stddev per measurement."""
+    data = dbu.get_measurement_stddev_from_sqlite_db(
+        config['database'],
+        datetime.fromisoformat(request_dict['dt_begin']),
+        datetime.fromisoformat(request_dict['dt_end']),
+        request_dict.get('mp_name')
+    )
+    data_json = {}
+    if data.empty:
+        return JSONResponse(content=data_json)
+
+    for mp in data['mpName'].unique():
+        d_mp = data[data['mpName'] == mp]
+        data_json[mp] = []
+        for s in d_mp['sensorId'].unique():
+            d_s = d_mp[d_mp['sensorId'] == s].sort_values('dt').reset_index(drop=True)
+            data_json[mp].append(
+                {
+                    'sensorID': s,
+                    'rows': [
+                        {
+                            'measurement_id': int(row['mid']),
+                            'timestamp': row['dt'],
+                            'meas_val': _json_safe_numeric(row['meas_val']),
+                            'meas_val_std': _json_safe_numeric(row['meas_val_std']),
+                            'sample_count': int(row['sample_count']) if row['sample_count'] is not None else 0,
+                            'max_meas_val': _json_safe_numeric(row['max_meas_val']),
+                            'min_meas_val': _json_safe_numeric(row['min_meas_val']),
+                            'tank_height': _json_safe_numeric(row['tank_height']),
+                            'max_val': _json_safe_numeric(row['max_val']),
+                            'warn': _json_safe_numeric(row['warn']),
+                            'alarm': _json_safe_numeric(row['alarm']),
+                        }
+                        for _, row in d_s.iterrows()
+                    ],
+                }
+            )
+    return JSONResponse(content=data_json)
+
 
 def request_last_measurements():
     """
@@ -506,11 +567,13 @@ def request_last_measurements():
         config['database']
     )
     data_json = {}
-    #print (data)
     for mp in data:
         data_json[mp] = {
-            "sensor_name":[f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(messages['dtformat'][config['API']['language']])}" for x in data[mp]],
-            "dt":[data[mp][x]["dt"] for x in data[mp]],
+            "sensor_name": [
+                f"{x}\n{datetime.fromisoformat(data[mp][x]['dt']).strftime(messages['dtformat'][config['API']['language']])}"
+                for x in data[mp]
+            ],
+            "dt": [data[mp][x]["dt"] for x in data[mp]],
             "value": [data[mp][x]["value"] for x in data[mp]],
             "color": [data[mp][x]["color"] for x in data[mp]],
             "warn": [data[mp][x]["warn"] for x in data[mp]],
@@ -519,13 +582,14 @@ def request_last_measurements():
             "tank_height": [data[mp][x]["tank_height"] for x in data[mp]],
         }
 
-    return JSONResponse(content=json.dumps(data_json, indent=4))
+    return JSONResponse(content=data_json)
+
 
 def request_measurement_points():
     data = dbu.get_available_meas_points_from_sqlite_db(
         config['database']
     )
-    return JSONResponse(content=json.dumps(data, indent=4))
+    return JSONResponse(content=data)
 
 
 origins = [
@@ -575,6 +639,13 @@ async def post_data_processed(request: Request):
     json_obj = await parse_request_json(request)
     if validate_request_json(json_obj):
         return request_measurement_data_processed(json_obj)
+
+@app.post("/get_stddev/")
+@app.post("/get_stddev")
+async def post_stddev(request: Request):
+    json_obj = await parse_request_json(request)
+    if validate_request_json(json_obj):
+        return request_measurement_stddev(json_obj)
 
 @app.post("/get_latest/")
 async def post_last_data():

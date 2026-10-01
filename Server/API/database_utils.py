@@ -68,9 +68,30 @@ def _read_month_rows(db_path, sql, sql_params):
         conn.close()
 
 
+def _savgol_smooth(values, window_size=30, polyorder=3):
+    """Return a Savitzky-Golay smoothed copy of a numerical series."""
+    values = np.asarray(values, dtype=float)
+    if values.size == 0:
+        return values
+
+    window = min(int(window_size), values.size)
+    if window % 2 == 0:
+        window -= 1
+    if window < 5 or window >= values.size:
+        return values.astype(float)
+
+    try:
+        return signal.savgol_filter(values, window, polyorder)
+    except ValueError:
+        return values.astype(float)
+
+
 def _process_sensor_frame(res_sens):
     """Compute derivation and peak metadata for one sensor frame."""
     res_sens = res_sens.copy().reset_index(drop=True)
+    res_sens['meas_val_raw'] = res_sens['meas_val'].astype(float)
+    res_sens['meas_val_savgol'] = _savgol_smooth(res_sens['meas_val_raw'])
+    res_sens['meas_val'] = res_sens['meas_val_savgol']
     try:
         slope_val = pd.Series(np.gradient(res_sens.meas_val), name='slope')
         slope_date = pd.to_datetime(res_sens.dt)
@@ -100,6 +121,10 @@ def _process_sensor_frame(res_sens):
 
     res_sens['peaks_pos'] = res_sens['peaks_pos'].replace({np.nan: None})
     res_sens['peaks_neg'] = res_sens['peaks_neg'].replace({np.nan: None})
+    if 'tank_height' in res_sens.columns:
+        res_sens['value_raw'] = (res_sens['tank_height'] - res_sens['meas_val_raw']).round(1)
+        res_sens['value_savgol'] = (res_sens['tank_height'] - res_sens['meas_val_savgol']).round(1)
+        res_sens['value'] = res_sens['value_savgol']
     return res_sens
 
 
@@ -657,7 +682,9 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
     Retrieve raw measurement rows from SQLite files within a date range.
 
     This function reads monthly SQLite files in parallel and returns raw, sorted rows
-    without deriving additional metrics (no slope/derivation/peaks processing).
+    without deriving additional metrics (no slope/derivation/peaks processing). Each
+    sensor record additionally contains a ``meas_val_savgol`` field with a Savitzky-
+    Golay smoothed reading.
     """
     if not db_conf['engine'] == 'sqlite':
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
@@ -713,7 +740,103 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
         r['dt'] = dt_val.isoformat() if isinstance(dt_val, datetime) else str(dt_val)
 
     records.sort(key=lambda x: (x['mp_name'], x['sensor_name'], x['dt']))
+    sensor_series = {}
+    for record in records:
+        sensor_series.setdefault((record['mp_name'], record['sensor_name']), []).append(record)
+
+    for series in sensor_series.values():
+        values = np.asarray([float(row['meas_val']) for row in series], dtype=float)
+        smoothed = _savgol_smooth(values)
+        for row, smooth_value in zip(series, smoothed):
+            row['meas_val_raw'] = float(row['meas_val'])
+            row['meas_val_savgol'] = float(smooth_value)
+            row['meas_val'] = float(smooth_value)
+
     return records
+
+
+def get_measurement_stddev_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_name=None):
+    """Return per-measurement standard deviations over a time range.
+
+    The result is grouped by measurement id so each row represents one measurement
+    and contains the average raw value plus the standard deviation of all individual
+    values that belong to that measurement. This endpoint is intentionally separate
+    from the processed time series because the stddev is calculated across the raw
+    measurement samples, not over the derived/ smoothed signal.
+    """
+    if not db_conf['engine'] == 'sqlite':
+        raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
+
+    if dt_end is None:
+        dt_end = datetime.now(timezone.utc).replace(tzinfo=pytz.utc)
+    if dt_begin is None:
+        dt_begin = dt_end - timedelta(days=60)
+    if not isinstance(dt_begin, datetime) and not isinstance(dt_end, datetime):
+        raise ValueError("Invalid input: dt_begin and dt_end have to be type of datetime!")
+    if dt_begin > dt_end:
+        raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
+
+    sql = """
+        SELECT
+            m.id AS mid,
+            m.dt,
+            mp.name AS mpName,
+            s.name AS sensorId,
+            s.max_val,
+            s.warn,
+            s.alarm,
+            v.value AS raw_value,
+            s.tank_height,
+            m.comment
+        FROM meas_val v
+        INNER JOIN measurement m ON v.measurement_id = m.id
+        INNER JOIN sensor s ON m.sensor_id = s.id
+        INNER JOIN meas_point mp ON s.meas_point_id = mp.id
+        WHERE m.dt > ? AND m.dt < ?
+        {mp_filter}
+    """
+
+    month_paths = [os.path.join(db_conf['sqlite_path'], f"{m}.sqlite") for m in get_months_between(dt_begin, dt_end)]
+    mp_filter = ""
+    sql_params = [dt_begin, dt_end]
+    if mp_name:
+        mp_filter = " AND mp.name = ?"
+        sql_params.append(mp_name)
+    sql = sql.format(mp_filter=mp_filter)
+
+    all_rows = []
+    max_workers = min(8, max(1, min(int(db_conf.get('read_workers', 4)), len(month_paths))))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_read_month_rows, db_path, sql, sql_params) for db_path in month_paths]
+        for future in as_completed(futures):
+            rows = future.result()
+            if rows:
+                all_rows.extend(rows)
+
+    if not all_rows:
+        return pd.DataFrame()
+
+    columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'raw_value', 'tank_height', 'comment']
+    output = pd.DataFrame(all_rows, columns=columns)
+    if output.empty:
+        return output
+
+    output['raw_value'] = pd.to_numeric(output['raw_value'], errors='coerce')
+
+    grouped = (
+        output.groupby(['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'tank_height'], dropna=False, as_index=False)
+        .agg(
+            meas_val=('raw_value', 'mean'),
+            meas_val_std=('raw_value', lambda s: float(s.std(ddof=0)) if len(s) > 1 else 0.0),
+            sample_count=('raw_value', 'size'),
+            max_meas_val=('raw_value', 'max'),
+            min_meas_val=('raw_value', 'min'),
+        )
+        .reset_index(drop=True)
+    )
+
+    grouped = grouped.sort_values(by=['sensorId', 'dt']).reset_index(drop=True)
+    return grouped
 
 
 def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_name = None):
@@ -744,6 +867,7 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_nam
         - `warn`: Warning threshold
         - `alarm`: Alarm threshold
         - `meas_val`: Measured value
+        - `meas_val_savgol`: Savitzky-Golay smoothed measurement value
         - `slope`: Gradient of measured values over time
         - `derivation`: Derived metric calculated as `-slope / slope_date`
         - `value`: Difference between `tank_height` and `meas_val`, rounded to 1 decimal place
@@ -790,11 +914,23 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_nam
     if dt_begin > dt_end:
         raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
     sql = """
-        SELECT m.id,m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), tank_height, m.comment
-        FROM meas_val v 
-        INNER JOIN measurement m ON v.measurement_id=m.id 
-        INNER JOIN sensor s ON m.sensor_id = s.id 
-        INNER JOIN meas_point mp ON s.meas_point_id = mp.id 
+        SELECT
+            m.id,
+            m.dt,
+            mp.name,
+            s.name,
+            s.max_val,
+            s.warn,
+            s.alarm,
+            AVG(v.value) AS meas_val,
+            MAX(v.value) AS max_meas_val,
+            MIN(v.value) AS min_meas_val,
+            tank_height,
+            m.comment
+        FROM meas_val v
+        INNER JOIN measurement m ON v.measurement_id = m.id
+        INNER JOIN sensor s ON m.sensor_id = s.id
+        INNER JOIN meas_point mp ON s.meas_point_id = mp.id
         WHERE m.dt > ? AND m.dt < ?
         {mp_filter}
         GROUP BY m.id
@@ -802,7 +938,7 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_nam
 
     use_polars = str(db_conf.get('use_polars', 'false')).strip().lower() in ('1', 'true', 'on', 'yes')
     configured_workers = int(db_conf.get('read_workers', 4))
-    columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height', 'comment']
+    columns = ['mid', 'dt', 'mpName', 'sensorId', 'max_val', 'warn', 'alarm', 'meas_val', 'max_meas_val', 'min_meas_val', 'tank_height', 'comment']
     month_paths = [os.path.join(db_conf['sqlite_path'], f"{m}.sqlite") for m in get_months_between(dt_begin, dt_end)]
     mp_filter = ""
     sql_params = [dt_begin, dt_end]
@@ -837,7 +973,11 @@ def get_meas_data_from_sqlite_db(db_conf, dt_begin = None, dt_end = None, mp_nam
 
     frames = [_process_sensor_frame(sensor_frame) for sensor_frame in sensor_frames if not sensor_frame.empty]
     output = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-    if 'max_val' in list(output.keys()) and 'meas_val' in list(output.keys()):
+    if 'max_val' in list(output.keys()) and 'meas_val_raw' in list(output.keys()):
+        output['value_raw'] = round(output['tank_height'] - output['meas_val_raw'], 1)
+    if 'tank_height' in list(output.keys()) and 'meas_val_savgol' in list(output.keys()):
+        output['value'] = round(output['tank_height'] - output['meas_val_savgol'], 1)
+    elif 'max_val' in list(output.keys()) and 'meas_val' in list(output.keys()):
         output['value'] = round(output['tank_height'] - output['meas_val'], 1)
     if 'comment' in list(output.keys()):
         output['received_dt'] = output['comment'].apply(_extract_received_dt_from_comment)
