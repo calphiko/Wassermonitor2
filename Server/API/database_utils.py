@@ -733,7 +733,6 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
     if not all_rows:
         return []
 
-    # Build records without row-by-row dict: zip columns once, convert dt in bulk
     records = [dict(zip(columns, row)) for row in all_rows]
     for r in records:
         dt_val = r['dt']
@@ -750,7 +749,9 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
         for row, smooth_value in zip(series, smoothed):
             row['meas_val_raw'] = float(row['meas_val'])
             row['meas_val_savgol'] = float(smooth_value)
-            row['meas_val'] = float(smooth_value)
+            # Keep the raw sensor value in ``meas_val`` for true raw-data responses.
+            # The smoothed series remains available as ``meas_val_savgol`` for legacy callers.
+            row['meas_val'] = float(row['meas_val'])
 
     return records
 

@@ -418,13 +418,15 @@ def request_measurement_data(request_dict):
             sensor_entry = {'sensorID': sensor_name, 'rows': []}
             data_json[mp_name].append(sensor_entry)
             sensor_lookup[mp_name][sensor_name] = sensor_entry
+        raw_value = row.get('meas_val_raw', row.get('meas_val'))
+        smooth_value = row.get('meas_val_savgol', raw_value)
         sensor_lookup[mp_name][sensor_name]['rows'].append(
             {
                 'timestamp': row['dt'],
-                'meas_val_raw': row.get('meas_val_raw', row['meas_val']),
+                'meas_val_raw': raw_value,
                 'meas_val_std': row.get('meas_val_std', 0.0),
-                'meas_val': row.get('meas_val_savgol', row['meas_val']),
-                'meas_val_savgol': row.get('meas_val_savgol'),
+                'meas_val': raw_value,
+                'meas_val_savgol': smooth_value,
                 'tank_height': row['tank_height'],
                 'max_val': row['max_val'],
                 'warn': row['warn'],
