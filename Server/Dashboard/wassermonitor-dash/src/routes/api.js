@@ -1,4 +1,5 @@
 import { formatDateForISO } from './utils';
+import { processRawTimeSeries } from './timeProcessor';
 
 
 /**
@@ -60,33 +61,18 @@ export async function getAvailableMeasPointsFromApi(apiUrl) {
 
 export async function loadTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
     try {
-        const response = await fetch(apiUrl.concat('get_processed/'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify (
-                {
-                    'dt_begin': formatDateForISO(dtFrom),
-                    'dt_end': formatDateForISO(dtUntil),
-                    'mp_name': mpName,
-                }
-            ),
-        });
-        if (!response.ok) {
-            throw new Error("Invalid Network response!");
-        }
-        let data_t = await response.json();
-        if (typeof data_t === 'string') {
-            data_t = JSON.parse(data_t);
-        }
-        const rawMpData = data_t?.[mpName] ?? [];
-        if (!Array.isArray(rawMpData) || rawMpData.length === 0) {
+        const rawData = await loadRawTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName);
+        if (!rawData || typeof rawData !== 'object') {
             return null;
         }
-        return rawMpData;
+
+        const processed = await processRawTimeSeries(rawData, mpName);
+        if (!Array.isArray(processed) || processed.length === 0) {
+            return null;
+        }
+        return processed;
     } catch (error) {
-        console.error('Error while fetching time data from API:',error);
+        console.error('Error while fetching and processing time data in the browser:', error);
         return null;
     }
 }
@@ -103,6 +89,10 @@ export async function loadTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
  * @returns {Promise<Record<string, Array<Object>>|null>}
  */
 export async function loadRawTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
+    const startedAt = performance.now();
+    const requestMeta = { apiUrl, dtFrom, dtUntil, mpName };
+    console.log('[API] loadRawTimeDataFromAPI start', requestMeta);
+
     try {
         const response = await fetch(apiUrl.concat('get/'), {
             method: 'POST',
@@ -124,14 +114,21 @@ export async function loadRawTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
         if (typeof data === 'string') {
             data = JSON.parse(data);
         }
+        const elapsedMs = Math.round(performance.now() - startedAt);
+        console.log('[API] loadRawTimeDataFromAPI ready in', elapsedMs, 'ms', { rows: Array.isArray(data?.[mpName]) ? data[mpName].reduce((sum, sensor) => sum + (Array.isArray(sensor?.rows) ? sensor.rows.length : 0), 0) : 'n/a' });
         return data;
     } catch (error) {
-        console.error('Error while fetching raw time data from API:', error);
+        const elapsedMs = Math.round(performance.now() - startedAt);
+        console.error('[API] loadRawTimeDataFromAPI failed after', elapsedMs, 'ms', error);
         return null;
     }
 }
 
 export async function loadMeasurementStdDevFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
+    const startedAt = performance.now();
+    const requestMeta = { apiUrl, dtFrom, dtUntil, mpName };
+    console.log('[API] loadMeasurementStdDevFromAPI start', requestMeta);
+
     try {
         const response = await fetch(apiUrl.concat('get_stddev/'), {
             method: 'POST',
@@ -151,9 +148,12 @@ export async function loadMeasurementStdDevFromAPI(apiUrl, dtFrom, dtUntil, mpNa
         if (typeof data === 'string') {
             data = JSON.parse(data);
         }
+        const elapsedMs = Math.round(performance.now() - startedAt);
+        console.log('[API] loadMeasurementStdDevFromAPI ready in', elapsedMs, 'ms', { rows: Array.isArray(data?.[mpName]) ? data[mpName].reduce((sum, sensor) => sum + (Array.isArray(sensor?.rows) ? sensor.rows.length : 0), 0) : 'n/a' });
         return data;
     } catch (error) {
-        console.error('Error while fetching measurement stddev data from API:', error);
+        const elapsedMs = Math.round(performance.now() - startedAt);
+        console.error('[API] loadMeasurementStdDevFromAPI failed after', elapsedMs, 'ms', error);
         return null;
     }
 }

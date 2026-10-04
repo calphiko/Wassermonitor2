@@ -14,6 +14,8 @@ struct RawSensor {
 struct RawPoint {
     timestamp: String,
     meas_val: f64,
+    #[serde(default)]
+    meas_val_savgol: Option<f64>,
     tank_height: f64,
     max_val: f64,
     warn: f64,
@@ -36,6 +38,8 @@ struct ProcessedSensor {
 struct ValuePoint {
     timestamp: String,
     value: f64,
+    value_raw: f64,
+    value_savgol: f64,
     tank_height: f64,
     max_val: f64,
     warn: f64,
@@ -561,6 +565,18 @@ fn build_evaluation_with_deriv(values: &[ValuePoint], _deriv: &[f64]) -> Evaluat
     }
 }
 
+fn smooth_level_signal(values: &[f64]) -> Vec<f64> {
+    if values.is_empty() {
+        return Vec::new();
+    }
+    if values.len() < 5 {
+        return values.to_vec();
+    }
+
+    let window = if values.len() < 25 { 5 } else if values.len() < 61 { 9 } else { 11 };
+    centered_moving_average(values, window)
+}
+
 fn rolling_avg_10(values: &[f64]) -> Vec<f64> {
     if values.len() <= 100 {
         return vec![0.0; values.len()];
@@ -609,14 +625,24 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
             continue;
         }
 
-        let meas_vals: Vec<f64> = sensor.rows.iter().map(|r| r.meas_val).collect();
+        let raw_meas_vals: Vec<f64> = sensor.rows.iter().map(|r| r.meas_val).collect();
+        let smoothed_meas_vals: Vec<f64> = sensor
+            .rows
+            .iter()
+            .map(|r| r.meas_val_savgol.unwrap_or(r.meas_val))
+            .collect();
+        let level_signal = if smoothed_meas_vals.iter().zip(raw_meas_vals.iter()).all(|(smooth, raw)| (smooth - raw).abs() < 1e-9) {
+            smooth_level_signal(&raw_meas_vals)
+        } else {
+            smoothed_meas_vals
+        };
         let times_h: Vec<f64> = sensor
             .rows
             .iter()
             .enumerate()
             .map(|(i, r)| parse_hours(&r.timestamp).unwrap_or(i as f64))
             .collect();
-        let slope_val = gradient(&meas_vals);
+        let slope_val = gradient(&level_signal);
         let slope_time = gradient(&times_h);
         let deriv: Vec<f64> = slope_val
             .iter()
@@ -629,13 +655,20 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
         let values: Vec<ValuePoint> = sensor
             .rows
             .iter()
-            .map(|r| ValuePoint {
-                timestamp: r.timestamp.clone(),
-                value: round_1(r.tank_height - r.meas_val),
-                tank_height: r.tank_height,
-                max_val: r.max_val,
-                warn: r.warn,
-                alarm: r.alarm,
+            .enumerate()
+            .map(|(i, r)| {
+                let raw_level = r.tank_height - r.meas_val;
+                let smooth_level = r.tank_height - level_signal[i];
+                ValuePoint {
+                    timestamp: r.timestamp.clone(),
+                    value: round_1(smooth_level),
+                    value_raw: round_1(raw_level),
+                    value_savgol: round_1(smooth_level),
+                    tank_height: r.tank_height,
+                    max_val: r.max_val,
+                    warn: r.warn,
+                    alarm: r.alarm,
+                }
             })
             .collect();
 
