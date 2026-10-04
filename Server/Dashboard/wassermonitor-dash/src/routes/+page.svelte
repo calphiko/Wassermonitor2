@@ -41,6 +41,9 @@
     let infoMessage = '';
     let fillChartLoading = true;
     let timeChartsLoading = true;
+    let stdDevChartLoading = false;
+    let historyHasData = true;
+    let evaluationHasData = true;
     let apiUrl = apiUrlFallback;
     /** @type {ChartConfig | null} */
     let chartConfig = null;
@@ -182,28 +185,80 @@
             return;
         }
 
+        historyHasData = true;
         timeChartsLoading = true;
         try {
             await tick();
             const timeChartMounts = getTimeChartMounts();
-            await loadTimeChart(timeChartMounts, charts, chartConfig, dtFrom, dtUntil, mpName);
+            historyHasData = await loadTimeChart(timeChartMounts, charts, chartConfig, dtFrom, dtUntil, mpName);
         } finally {
             timeChartsLoading = false;
         }
     }
 
-    async function loadEvaluationChartsSection() {
+    function getAutoAggregationForRange() {
+        const start = new Date(dtFrom);
+        const end = new Date(dtUntil);
+        if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end < start) {
+            return 'day';
+        }
+        const rangeDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+        if (rangeDays < 14) {
+            return 'day';
+        }
+        if (rangeDays < 60) {
+            return 'week';
+        }
+        return 'month';
+    }
+
+    /**
+     * @param {string} message
+     */
+    async function loadEvaluationChartsSection(aggregationOverride = null, forceReload = false) {
         if (!chartConfig || !mpName || timeChartsLoading || activeTab !== 'evaluation') {
             return;
         }
 
+        evaluationHasData = true;
         timeChartsLoading = true;
+        stdDevChartLoading = false;
         try {
             await tick();
             const evalChartMounts = getEvaluationChartMounts();
-            await loadEvaluationCharts(evalChartMounts, charts, chartConfig, dtFrom, dtUntil, mpName, cycleAggregation);
+            const requestedAggregation = aggregationOverride || 'auto';
+            if (requestedAggregation === 'auto') {
+                cycleAggregation = getAutoAggregationForRange();
+            }
+            const resolvedAggregation = await loadEvaluationCharts(
+                evalChartMounts,
+                charts,
+                chartConfig,
+                dtFrom,
+                dtUntil,
+                mpName,
+                requestedAggregation,
+                forceReload,
+                (isLoading) => {
+                    timeChartsLoading = isLoading;
+                },
+                (isLoading) => {
+                    stdDevChartLoading = isLoading;
+                }
+            );
+            if (resolvedAggregation === false) {
+                evaluationHasData = false;
+            }
+            if (
+                requestedAggregation === 'auto' &&
+                (resolvedAggregation === 'day' || resolvedAggregation === 'week' || resolvedAggregation === 'month')
+            ) {
+                cycleAggregation = resolvedAggregation;
+            }
         } finally {
-            timeChartsLoading = false;
+            if (!stdDevChartLoading) {
+                timeChartsLoading = false;
+            }
         }
     }
 
@@ -245,8 +300,6 @@
             await loadFillChartSection();
         } else if (activeTab === 'history') {
             await loadTimeChartsSection();
-        } else {
-            await loadEvaluationChartsSection();
         }
         startFillAutoRefresh();
     }
@@ -260,12 +313,13 @@
         }
         if (activeTab === 'history') {
             await loadTimeChartsSection();
-        } else if (activeTab === 'evaluation') {
-            await loadEvaluationChartsSection();
         }
         startFillAutoRefresh();
     }
 
+    /**
+     * @param {string} nextTab
+     */
     async function handleTabChange(nextTab) {
         activeTab = nextTab;
         await tick();
@@ -280,7 +334,10 @@
             return;
         }
 
-        await loadEvaluationChartsSection();
+        if (nextTab === 'evaluation') {
+            cycleAggregation = getAutoAggregationForRange();
+            await loadEvaluationChartsSection(null, false);
+        }
     }
 
     onMount(() => {
@@ -384,22 +441,26 @@
                 aktualisieren
               </button>
             </div>
-            <div class="chart-container">
-                {#if timeChartsLoading}
-                    <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
-                        <div class="spinner"></div>
-                    </div>
-                {/if}
-                <div id='timeChart' class='chartDiv'></div>
-            </div>
-            <div class="chart-container">
-                {#if timeChartsLoading}
-                    <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
-                        <div class="spinner"></div>
-                    </div>
-                {/if}
-                <div id='derivChart' class='chartDiv'></div>
-            </div>
+            {#if !timeChartsLoading && !historyHasData}
+                <div class="empty-data-message">Keine Daten verfügbar.</div>
+            {:else}
+                <div class="chart-container">
+                    {#if timeChartsLoading}
+                        <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
+                            <div class="spinner"></div>
+                        </div>
+                    {/if}
+                    <div id='timeChart' class='chartDiv'></div>
+                </div>
+                <div class="chart-container">
+                    {#if timeChartsLoading}
+                        <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
+                            <div class="spinner"></div>
+                        </div>
+                    {/if}
+                    <div id='derivChart' class='chartDiv'></div>
+                </div>
+            {/if}
         </div>
     {:else if activeTab === 'evaluation'}
         <div id="eval-panel" role="tabpanel" aria-label="Auswertung">
@@ -413,7 +474,7 @@
                   bind:value={dtFrom}
                 />
               </div>
-
+ 
               <div class="control-field">
                 <label for="until-picker" class="dark:text-white text-gray-600">Bis</label>
                 <input
@@ -423,70 +484,64 @@
                   bind:value={dtUntil}
                 />
               </div>
-
+ 
               <button
                 type="button"
                 class="refresh-button bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-700 text-slate-950 font-semibold py-2 px-4 rounded-xl h-10 shadow-md shadow-cyan-950/30"
-                on:click={loadEvaluationChartsSection}
-                disabled={timeChartsLoading || !mpName}
+                on:click={() => void loadEvaluationChartsSection(null, true)}
+                disabled={timeChartsLoading || stdDevChartLoading || !mpName}
               >
                 aktualisieren
               </button>
             </div>
-            <div class="chart-container">
-               {#if timeChartsLoading}
-                   <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
-                       <div class="spinner"></div>
+            {#if !timeChartsLoading && !evaluationHasData}
+                <div class="empty-data-message">Keine Daten verfügbar.</div>
+            {:else}
+                <div class="chart-container">
+                   <div class="chart-header-row">
+                       <h3 class="chart-section-title">Zyklenerkennung</h3>
                    </div>
-               {/if}
-               <div class="chart-header-row">
-                   <h3 class="chart-section-title">Steigung der Zyklen</h3>
-               </div>
-               <div id='cycleDeviationChart' class='chartDiv'></div>
-            </div>
-
-            <div class="aggregation-toolbar">
-               <div class="aggregation-toggle-group" role="group" aria-label="Aggregation">
-                 {#each cycleAggregationOptions as option}
-                   <button
-                     type="button"
-                     class:active={cycleAggregation === option.value}
-                     class="aggregation-button"
-                     on:click={() => {
-                       cycleAggregation = option.value;
-                       void loadEvaluationChartsSection();
-                     }}
-                   >
-                     {option.label}
-                   </button>
-                 {/each}
-               </div>
-            </div>
-
-            <div class="chart-container">
-               {#if timeChartsLoading}
-                  <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
-                      <div class="spinner"></div>
-                  </div>
-               {/if}
-               <div id='dailyCycleCountChart' class='chartDiv'></div>
-            </div>
-            <div class="chart-container">
-               {#if timeChartsLoading}
-                  <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
-                      <div class="spinner"></div>
-                  </div>
-               {/if}
-               <div id='stdDevChart' class='chartDiv'></div>
-            </div>
-            <div class="chart-container">
-               {#if timeChartsLoading}
-                  <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
-                      <div class="spinner"></div>
-                  </div>
-               {/if}
-               <div id='intervalHistChart' class='chartDiv'></div>
-            </div>
+                   {#if timeChartsLoading}
+                       <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
+                           <div class="spinner"></div>
+                       </div>
+                   {/if}
+                   <div id='cycleDeviationChart' class='chartDiv'></div>
+                </div>
+ 
+                <div class="aggregation-toolbar">
+                   <div class="aggregation-toggle-group" role="group" aria-label="Aggregation">
+                     {#each cycleAggregationOptions as option}
+                       <button
+                         type="button"
+                         class:active={cycleAggregation === option.value}
+                         class="aggregation-button"
+                         on:click={() => {
+                           cycleAggregation = option.value;
+                           void loadEvaluationChartsSection(option.value, false);
+                         }}
+                       >
+                         {option.label}
+                       </button>
+                     {/each}
+                   </div>
+                </div>
+ 
+                <div class="chart-container">
+                   <div id='dailyCycleCountChart' class='chartDiv'></div>
+                </div>
+                <div class="chart-container">
+                   {#if stdDevChartLoading}
+                       <div class="chart-loading-overlay" aria-busy="true" aria-live="polite">
+                           <div class="spinner"></div>
+                       </div>
+                   {/if}
+                   <div id='stdDevChart' class='chartDiv'></div>
+                </div>
+                <div class="chart-container">
+                   <div id='intervalHistChart' class='chartDiv'></div>
+                </div>
+            {/if}
         </div>
     {/if}
 </main>
@@ -495,6 +550,21 @@
     main {
         text-align: center;
         overflow-x: hidden;
+    }
+
+    .empty-data-message {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 5rem;
+        margin: 1rem 0;
+        padding: 1rem 1.25rem;
+        border: 1px dashed rgba(148, 163, 184, 0.4);
+        border-radius: 0.75rem;
+        background: rgba(15, 23, 42, 0.35);
+        color: #cbd5e1;
+        font-weight: 600;
+        text-align: center;
     }
 
     .chart-header-row {
@@ -806,5 +876,6 @@
       transform: rotate(360deg);
     }
   }
+
 
 </style>
