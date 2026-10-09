@@ -476,9 +476,10 @@ export async function loadEvaluationCharts(
 
    const cycleDeviationMount = chartDivs.find((chartDiv) => chartDiv.name === 'cycleDeviationChart');
    const dailyCycleCountMount = chartDivs.find((chartDiv) => chartDiv.name === 'dailyCycleCountChart');
+   const dailyDrainCycleCountMount = chartDivs.find((chartDiv) => chartDiv.name === 'dailyDrainCycleCountChart');
    const stdDevMount = chartDivs.find((chartDiv) => chartDiv.name === 'stdDevChart');
    const intervalHistMount = chartDivs.find((chartDiv) => chartDiv.name === 'intervalHistChart');
-   if (!cycleDeviationMount || !dailyCycleCountMount || !stdDevMount || !intervalHistMount) {
+   if (!cycleDeviationMount || !dailyCycleCountMount || !dailyDrainCycleCountMount || !stdDevMount || !intervalHistMount) {
        if (typeof onPrimaryLoadingState === 'function') {
            onPrimaryLoadingState(false);
        }
@@ -491,6 +492,7 @@ export async function loadEvaluationCharts(
    const chartInstances = {
        cycleDeviationChart: reInitEchart('cycleDeviationChart', cycleDeviationMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
        dailyCycleCountChart: reInitEchart('dailyCycleCountChart', dailyCycleCountMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
+       dailyDrainCycleCountChart: reInitEchart('dailyDrainCycleCountChart', dailyDrainCycleCountMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
        stdDevChart: reInitEchart('stdDevChart', stdDevMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
        intervalHistChart: reInitEchart('intervalHistChart', intervalHistMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
    };
@@ -553,6 +555,7 @@ export async function loadEvaluationCharts(
    if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) {
        chartInstances.cycleDeviationChart.clear();
        chartInstances.dailyCycleCountChart.clear();
+       chartInstances.dailyDrainCycleCountChart.clear();
        chartInstances.stdDevChart.clear();
        chartInstances.intervalHistChart.clear();
        return 'day';
@@ -593,6 +596,7 @@ export async function loadEvaluationCharts(
        }
        chartInstances.cycleDeviationChart.clear();
        chartInstances.dailyCycleCountChart.clear();
+       chartInstances.dailyDrainCycleCountChart.clear();
        chartInstances.stdDevChart.clear();
        chartInstances.intervalHistChart.clear();
        return false;
@@ -664,7 +668,8 @@ export async function loadEvaluationCharts(
        }
 
        await updateCycleDeviationChart(chartInstances.cycleDeviationChart, partialProcessed);
-       await updateDailyCycleCountChart(chartInstances.dailyCycleCountChart, partialProcessed, effectiveAggregation);
+       await updateDailyCycleCountChart(chartInstances.dailyCycleCountChart, partialProcessed, effectiveAggregation, 'fill');
+       await updateDailyCycleCountChart(chartInstances.dailyDrainCycleCountChart, partialProcessed, effectiveAggregation, 'drain');
        await updateIntervalHistogramChart(chartInstances.intervalHistChart, partialProcessed);
 
        if (!renderedFirstBucket && typeof onPrimaryLoadingState === 'function') {
@@ -684,6 +689,7 @@ export async function loadEvaluationCharts(
        }
        chartInstances.cycleDeviationChart.clear();
        chartInstances.dailyCycleCountChart.clear();
+       chartInstances.dailyDrainCycleCountChart.clear();
        chartInstances.stdDevChart.clear();
        chartInstances.intervalHistChart.clear();
        return false;
@@ -991,8 +997,13 @@ async function updateCycleDeviationChart(chartObj, processedData) {
     });
 }
 
-async function updateDailyCycleCountChart(chartObj, processedData, aggregation = 'day') {
-    const emptyBucket = () => ({ day: null, week: null, month: null, values: [], fill_count: 0 });
+async function updateDailyCycleCountChart(chartObj, processedData, aggregation = 'day', cycleType = 'fill') {
+    const countField = cycleType === 'drain' ? 'drain_count' : 'fill_count';
+    const cycleTypeLabel = cycleType === 'drain' ? 'Drain-Zyklen' : 'Befüllungen';
+    const chartTitlePrefix = cycleType === 'drain'
+        ? 'Steigung der Drain-Zyklen und Anzahl pro'
+        : 'Steigung der Zyklen und Befüllungen pro';
+
     const bucketKey = (timestamp, mode) => {
         const date = new Date(timestamp);
         if (mode === 'week') {
@@ -1013,20 +1024,52 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
         if (!bucket) {
             return '—';
         }
+        const parseBucketDateUtc = (dateString) => {
+            const date = new Date(`${dateString}T00:00:00Z`);
+            return Number.isFinite(date.getTime()) ? date : null;
+        };
+        const formatDayLabel = (date) => {
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const year = date.getUTCFullYear();
+            return `${day}.${month}.${year}`;
+        };
+        const getIsoWeekAndYear = (date) => {
+            const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+            const day = utcDate.getUTCDay() || 7;
+            utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+            const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+            const week = Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+            return { week, year: utcDate.getUTCFullYear() };
+        };
+
         if (mode === 'month') {
-            return bucket.slice(5);
+            const [year, month] = bucket.split('-').map(Number);
+            if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+                return bucket;
+            }
+            return `${String(month).padStart(2, '0')}-${year}`;
         }
         if (mode === 'week') {
-            return bucket.slice(5);
+            const date = parseBucketDateUtc(bucket);
+            if (!date) {
+                return bucket;
+            }
+            const { week, year } = getIsoWeekAndYear(date);
+            return `${week}-${year}`;
         }
-        return bucket.slice(5);
+        const date = parseBucketDateUtc(bucket);
+        if (!date) {
+            return bucket;
+        }
+        return formatDayLabel(date);
     };
 
     const categoriesSet = new Set();
     processedData.forEach((chart) => {
         const cycles = Array.isArray(chart?.evaluation?.cycle_deviation?.cycles) ? chart.evaluation.cycle_deviation.cycles : [];
         cycles.forEach((entry) => {
-            if (entry?.timestamp) {
+            if (entry?.timestamp && entry?.cycle_type === cycleType) {
                 categoriesSet.add(bucketKey(entry.timestamp, aggregation));
             }
         });
@@ -1055,7 +1098,9 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
     const series = [];
     const useBoxplotForSlope = categories.length < 15;
     processedData.forEach((chart) => {
-        const cycles = Array.isArray(chart?.evaluation?.cycle_deviation?.cycles) ? chart.evaluation.cycle_deviation.cycles : [];
+        const cycles = Array.isArray(chart?.evaluation?.cycle_deviation?.cycles)
+            ? chart.evaluation.cycle_deviation.cycles.filter((entry) => entry?.cycle_type === cycleType)
+            : [];
         const dailyCounts = Array.isArray(chart?.evaluation?.daily_cycle_counts) ? chart.evaluation.daily_cycle_counts : [];
         const mapByDay = new Map(dailyCounts.map((entry) => [entry.day, entry]));
         const byBucket = new Map();
@@ -1093,14 +1138,14 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
 
         const fillCountData = categories.map((bucket) => {
             if (aggregation === 'day') {
-                return mapByDay.get(bucket)?.fill_count ?? 0;
+                return mapByDay.get(bucket)?.[countField] ?? 0;
             }
             if (aggregation === 'week' || aggregation === 'month') {
                 let total = 0;
                 for (const [day, entry] of mapByDay.entries()) {
                     const dayBucket = bucketKey(`${day}T00:00:00Z`, aggregation);
                     if (dayBucket === bucket) {
-                        total += entry.fill_count || 0;
+                        total += entry?.[countField] || 0;
                     }
                 }
                 return total;
@@ -1149,7 +1194,7 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
         }
 
         series.push({
-            name: `${chart.sensorID} Befüllungen`,
+            name: `${chart.sensorID} ${cycleTypeLabel}`,
             type: 'bar',
             data: fillCountData,
             xAxisIndex: 1,
@@ -1161,16 +1206,16 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                 borderWidth: 1
             },
             tooltip: {
-                formatter: (params) => `${params.name}<br>Befüllungen: ${params.value}`
+                formatter: (params) => `${params.name}<br>${cycleTypeLabel}: ${params.value}`
             }
         });
     });
 
     const chartTitle = aggregation === 'week'
-        ? 'Steigung der Zyklen und Befüllungen pro Woche'
+        ? `${chartTitlePrefix} Woche`
         : aggregation === 'month'
-            ? 'Steigung der Zyklen und Befüllungen pro Monat'
-            : 'Steigung der Zyklen und Befüllungen pro Tag';
+            ? `${chartTitlePrefix} Monat`
+            : `${chartTitlePrefix} Tag`;
 
     const chartOptions = createSharedChartChrome({
         title: {
@@ -1188,7 +1233,7 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                 type: 'category',
                 gridIndex: 0,
                 data: categories.map(labelForBucket),
-                axisLabel: { color: '#cbd5e1', rotate: 30, show: false },
+                axisLabel: { color: '#cbd5e1', rotate: 45, show: false },
                 axisLine: { lineStyle: { color: '#94a3b8' } },
                 axisTick: { show: false }
             },
@@ -1196,7 +1241,7 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                 type: 'category',
                 gridIndex: 1,
                 data: categories.map(labelForBucket),
-                axisLabel: { color: '#cbd5e1', rotate: 30 },
+                axisLabel: { color: '#cbd5e1', rotate: 45 },
                 axisLine: { lineStyle: { color: '#94a3b8' } },
                 axisTick: { show: false }
             }
@@ -1213,7 +1258,7 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
             {
                 type: 'value',
                 gridIndex: 1,
-                name: 'Befüllungen / Eintrag',
+                name: `${cycleTypeLabel} / Eintrag`,
                 axisLabel: { color: '#cbd5e1' },
                 axisLine: { lineStyle: { color: '#94a3b8' } },
                 splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }

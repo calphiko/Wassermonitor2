@@ -101,15 +101,23 @@
     function getEvaluationChartMounts() {
         const cycleDeviationChart = document.getElementById('cycleDeviationChart');
         const dailyCycleCountChart = document.getElementById('dailyCycleCountChart');
+        const dailyDrainCycleCountChart = document.getElementById('dailyDrainCycleCountChart');
         const stdDevChart = document.getElementById('stdDevChart');
         const intervalHistChart = document.getElementById('intervalHistChart');
-        if (!(cycleDeviationChart instanceof HTMLElement) || !(dailyCycleCountChart instanceof HTMLElement) || !(stdDevChart instanceof HTMLElement) || !(intervalHistChart instanceof HTMLElement)) {
+        if (
+            !(cycleDeviationChart instanceof HTMLElement)
+            || !(dailyCycleCountChart instanceof HTMLElement)
+            || !(dailyDrainCycleCountChart instanceof HTMLElement)
+            || !(stdDevChart instanceof HTMLElement)
+            || !(intervalHistChart instanceof HTMLElement)
+        ) {
             throw new Error('Evaluation chart container not found.');
         }
 
         return [
             { name: 'cycleDeviationChart', divName: cycleDeviationChart },
             { name: 'dailyCycleCountChart', divName: dailyCycleCountChart },
+            { name: 'dailyDrainCycleCountChart', divName: dailyDrainCycleCountChart },
             { name: 'stdDevChart', divName: stdDevChart },
             { name: 'intervalHistChart', divName: intervalHistChart }
         ];
@@ -529,6 +537,9 @@
  
                 <div class="chart-container">
                    <div id='dailyCycleCountChart' class='chartDiv'></div>
+                </div>
+                <div class="chart-container">
+                   <div id='dailyDrainCycleCountChart' class='chartDiv'></div>
                 </div>
                 <div class="chart-container">
                    {#if stdDevChartLoading}
