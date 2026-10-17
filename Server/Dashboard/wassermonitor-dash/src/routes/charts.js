@@ -13,7 +13,7 @@
  */
 
 import * as echarts from 'echarts';
-import { loadFillDataFromAPI, loadMeasurementStdDevFromAPI, loadRawTimeDataFromAPI, loadTimeDataFromAPI } from './api';
+import { loadFillDataFromAPI, loadRawTimeDataFromAPI, loadTimeDataFromAPI } from './api';
 import { processRawTimeSeries } from './timeProcessor';
 
 let firstLineColor;
@@ -37,7 +37,6 @@ async function loadEvaluationDataSet(chartConfig, dtFrom, dtUntil, mpName) {
     const rawData = await loadRawTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
     const dataset = {
         rawData: rawData && typeof rawData === 'object' ? rawData : null,
-        stdDevData: null,
     };
     evaluationDataCache.set(cacheKey, dataset);
     return dataset;
@@ -465,7 +464,8 @@ export async function loadEvaluationCharts(
    aggregation = 'auto',
    forceReload = false,
    onPrimaryLoadingState = null,
-   onStdDevLoadingState = null
+   onStdDevLoadingState = null,
+   displayMode = 'auto'
 ) {
    if (typeof onPrimaryLoadingState === 'function') {
        onPrimaryLoadingState(true);
@@ -584,8 +584,6 @@ export async function loadEvaluationCharts(
    }
    const dataset = await loadEvaluationDataSet(chartConfig, dtFrom, dtUntil, mpName);
    const rawData = dataset?.rawData;
-   let stdDevData = dataset?.stdDevData ?? null;
-   let stdDevPromise = null;
    const sensorGroups = Array.isArray(rawData?.[mpName]) ? rawData[mpName] : [];
    if (sensorGroups.length === 0) {
        if (typeof onPrimaryLoadingState === 'function') {
@@ -602,11 +600,8 @@ export async function loadEvaluationCharts(
        return false;
    }
 
-   if (!stdDevData) {
-       stdDevPromise = loadMeasurementStdDevFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
-       if (typeof onStdDevLoadingState === 'function') {
-           onStdDevLoadingState(true);
-       }
+   if (typeof onStdDevLoadingState === 'function') {
+       onStdDevLoadingState(true);
    }
 
    const sensorStates = sensorGroups.map((sensor) => {
@@ -668,13 +663,18 @@ export async function loadEvaluationCharts(
        }
 
        await updateCycleDeviationChart(chartInstances.cycleDeviationChart, partialProcessed);
-       await updateDailyCycleCountChart(chartInstances.dailyCycleCountChart, partialProcessed, effectiveAggregation, 'fill');
-       await updateDailyCycleCountChart(chartInstances.dailyDrainCycleCountChart, partialProcessed, effectiveAggregation, 'drain');
+       await updateDailyCycleCountChart(chartInstances.dailyCycleCountChart, partialProcessed, effectiveAggregation, 'fill', displayMode);
+       await updateDailyCycleCountChart(chartInstances.dailyDrainCycleCountChart, partialProcessed, effectiveAggregation, 'drain', displayMode);
        await updateIntervalHistogramChart(chartInstances.intervalHistChart, partialProcessed);
+       await updateStdDevChart(chartInstances.stdDevChart, partialProcessed, effectiveAggregation);
+       chartInstances.stdDevChart.resize();
 
        if (!renderedFirstBucket && typeof onPrimaryLoadingState === 'function') {
            onPrimaryLoadingState(false);
            renderedFirstBucket = true;
+       }
+       if (typeof onStdDevLoadingState === 'function') {
+           onStdDevLoadingState(false);
        }
 
        await nextPaint();
@@ -697,26 +697,6 @@ export async function loadEvaluationCharts(
 
    if (!renderedFirstBucket && typeof onPrimaryLoadingState === 'function') {
        onPrimaryLoadingState(false);
-   }
-
-   if (!stdDevData && stdDevPromise) {
-       stdDevData = await stdDevPromise;
-       const cachedEntry = evaluationDataCache.get(cacheKey);
-       if (cachedEntry) {
-           cachedEntry.stdDevData = stdDevData ?? null;
-           evaluationDataCache.set(cacheKey, cachedEntry);
-       }
-   }
-
-   if (stdDevData) {
-       if (typeof onStdDevLoadingState === 'function') {
-           onStdDevLoadingState(true);
-       }
-       await updateStdDevChart(chartInstances.stdDevChart, stdDevData, mpName, effectiveAggregation);
-       chartInstances.stdDevChart.resize();
-       if (typeof onStdDevLoadingState === 'function') {
-           onStdDevLoadingState(false);
-       }
    }
 
    return true;
@@ -788,6 +768,19 @@ async function updateCycleDeviationChart(chartObj, processedData) {
     const titleConfigs = [];
     const tooltipConfigs = [];
     const countOfSubplots = processedData.length;
+    const cycleDurations = processedData.map((chart) => {
+        const cycles = Array.isArray(chart?.evaluation?.cycle_deviation?.cycles)
+            ? chart.evaluation.cycle_deviation.cycles
+            : [];
+        return cycles
+            .filter((cycle) => cycle.cycle_type === 'fill' || cycle.cycle_type === 'drain')
+            .map((cycle) => ({
+                type: cycle.cycle_type,
+                timestamp: new Date(cycle.timestamp).getTime(),
+                duration: Number(cycle.duration_min)
+            }))
+            .filter(({ timestamp, duration }) => Number.isFinite(timestamp) && Number.isFinite(duration));
+    });
 
     processedData.forEach((chart, index) => {
         const cycleData = chart?.evaluation?.cycle_deviation || {};
@@ -905,7 +898,6 @@ async function updateCycleDeviationChart(chartObj, processedData) {
             showSymbol: false,
             lineStyle: { opacity: 0 },
             markArea: {
-                silent: true,
                 itemStyle: {
                     color: 'rgba(34, 211, 238, 0.10)'
                 },
@@ -922,7 +914,6 @@ async function updateCycleDeviationChart(chartObj, processedData) {
             showSymbol: false,
             lineStyle: { opacity: 0 },
             markArea: {
-                silent: true,
                 itemStyle: {
                     color: 'rgba(248, 113, 113, 0.10)'
                 },
@@ -964,6 +955,18 @@ async function updateCycleDeviationChart(chartObj, processedData) {
                 }
 
                 const lines = [formatLocalDateTime(point.data[0])];
+                const chartIndex = Number.isInteger(point.axisIndex)
+                    ? point.axisIndex
+                    : Math.floor((point.seriesIndex ?? -1) / 3);
+                const hoveredTimestamp = point.data[0];
+                cycleDurations[chartIndex]?.forEach(({ type, timestamp, duration }) => {
+                    const halfDurationMs = Math.max(0, duration) * 30 * 1000;
+                    if (hoveredTimestamp >= timestamp - halfDurationMs
+                        && hoveredTimestamp <= timestamp + halfDurationMs) {
+                        const label = type === 'fill' ? 'Befüllungsdauer' : 'Ablaufdauer';
+                        lines.push(`${label}: ${duration.toFixed(1)} min`);
+                    }
+                });
                 tooltipParams.forEach((param) => {
                     if (!Array.isArray(param?.data)) {
                         return;
@@ -997,7 +1000,7 @@ async function updateCycleDeviationChart(chartObj, processedData) {
     });
 }
 
-async function updateDailyCycleCountChart(chartObj, processedData, aggregation = 'day', cycleType = 'fill') {
+async function updateDailyCycleCountChart(chartObj, processedData, aggregation = 'day', cycleType = 'fill', displayMode = 'auto') {
     const countField = cycleType === 'drain' ? 'drain_count' : 'fill_count';
     const cycleTypeLabel = cycleType === 'drain' ? 'Drain-Zyklen' : 'Befüllungen';
     const chartTitlePrefix = cycleType === 'drain'
@@ -1095,8 +1098,20 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
         return sorted[lo] * (1 - weight) + sorted[hi] * weight;
     };
 
+    const formatBoxplotTooltip = (params, unit) => {
+        const value = params?.value || [];
+        if (!Array.isArray(value) || value.length < 5) {
+            return `${params.seriesName}`;
+        }
+        return `${params.seriesName}<br>Min: ${Number(value[0]).toFixed(2)}<br>Q1: ${Number(value[1]).toFixed(2)}<br>Median: ${Number(value[2]).toFixed(2)}<br>Q3: ${Number(value[3]).toFixed(2)}<br>Max: ${Number(value[4]).toFixed(2)} ${unit}`;
+    };
+
     const series = [];
-    const useBoxplotForSlope = categories.length < 15;
+    const useBoxplotForSlope = displayMode === 'boxplot'
+        ? true
+        : displayMode === 'line'
+            ? false
+            : categories.length < 15;
     processedData.forEach((chart) => {
         const cycles = Array.isArray(chart?.evaluation?.cycle_deviation?.cycles)
             ? chart.evaluation.cycle_deviation.cycles.filter((entry) => entry?.cycle_type === cycleType)
@@ -1104,6 +1119,7 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
         const dailyCounts = Array.isArray(chart?.evaluation?.daily_cycle_counts) ? chart.evaluation.daily_cycle_counts : [];
         const mapByDay = new Map(dailyCounts.map((entry) => [entry.day, entry]));
         const byBucket = new Map();
+        const durationByBucket = new Map();
 
         cycles.forEach((entry) => {
             const bucket = bucketKey(entry.timestamp, aggregation);
@@ -1111,18 +1127,25 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                 byBucket.set(bucket, []);
             }
             byBucket.get(bucket).push(Number(entry.mean_slope_abs || 0));
+            const duration = Number(entry.duration_min);
+            if (Number.isFinite(duration)) {
+                if (!durationByBucket.has(bucket)) {
+                    durationByBucket.set(bucket, []);
+                }
+                durationByBucket.get(bucket).push(duration);
+            }
         });
 
-        const medianData = categories.map((bucket) => {
-            const values = byBucket.get(bucket) || [];
+        const buildMedianData = (source) => categories.map((bucket) => {
+            const values = source.get(bucket) || [];
             if (!values.length) {
                 return null;
             }
             return quantile([...values].sort((a, b) => a - b), 0.5);
         });
 
-        const boxplotData = categories.map((bucket) => {
-            const values = byBucket.get(bucket) || [];
+        const buildBoxplotData = (source) => categories.map((bucket) => {
+            const values = source.get(bucket) || [];
             if (!values.length) {
                 return null;
             }
@@ -1135,6 +1158,11 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                 sorted[sorted.length - 1],
             ];
         });
+
+        const medianData = buildMedianData(byBucket);
+        const boxplotData = buildBoxplotData(byBucket);
+        const durationMedianData = buildMedianData(durationByBucket);
+        const durationBoxplotData = buildBoxplotData(durationByBucket);
 
         const fillCountData = categories.map((bucket) => {
             if (aggregation === 'day') {
@@ -1167,13 +1195,7 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                     borderWidth: 1.5
                 },
                 tooltip: {
-                    formatter: (params) => {
-                        const value = params?.value || [];
-                        if (!Array.isArray(value) || value.length < 5) {
-                            return `${params.seriesName}`;
-                        }
-                        return `${params.seriesName}<br>Min: ${Number(value[0]).toFixed(2)}<br>Q1: ${Number(value[1]).toFixed(2)}<br>Median: ${Number(value[2]).toFixed(2)}<br>Q3: ${Number(value[3]).toFixed(2)}<br>Max: ${Number(value[4]).toFixed(2)} cm/h`;
-                    }
+                    formatter: (params) => formatBoxplotTooltip(params, 'cm/h')
                 }
             });
         } else {
@@ -1197,8 +1219,8 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
             name: `${chart.sensorID} ${cycleTypeLabel}`,
             type: 'bar',
             data: fillCountData,
-            xAxisIndex: 1,
-            yAxisIndex: 1,
+            xAxisIndex: 2,
+            yAxisIndex: 2,
             barWidth: '32%',
             itemStyle: {
                 color: `${sensorColor}33`,
@@ -1209,6 +1231,39 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                 formatter: (params) => `${params.name}<br>${cycleTypeLabel}: ${params.value}`
             }
         });
+
+        if (useBoxplotForSlope) {
+            series.push({
+                name: `${chart.sensorID} Dauer Boxplot`,
+                type: 'boxplot',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: durationBoxplotData,
+                itemStyle: {
+                    color: `${sensorColor}66`,
+                    borderColor: sensorColor,
+                    borderWidth: 1.5
+                },
+                tooltip: {
+                    formatter: (params) => formatBoxplotTooltip(params, 'min')
+                }
+            });
+        } else {
+            series.push({
+                name: `${chart.sensorID} Dauer Median`,
+                type: 'line',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: durationMedianData,
+                smooth: true,
+                symbol: 'none',
+                lineStyle: { color: sensorColor, width: 2.5 },
+                itemStyle: { color: sensorColor },
+                tooltip: {
+                    formatter: (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(1)} min`
+                }
+            });
+        }
     });
 
     const chartTitle = aggregation === 'week'
@@ -1225,8 +1280,9 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
             textStyle: { color: '#e2e8f0' }
         },
         grid: [
-            { left: '6%', right: '4%', top: '14%', bottom: '52%', height: '32%' },
-            { left: '6%', right: '4%', top: '58%', bottom: '12%', height: '24%' }
+            { left: '6%', right: '4%', top: '20%', height: '14%' },
+            { left: '6%', right: '4%', top: '42%', height: '14%' },
+            { left: '6%', right: '4%', top: '66%', height: '16%' }
         ],
         xAxis: [
             {
@@ -1240,6 +1296,14 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
             {
                 type: 'category',
                 gridIndex: 1,
+                data: categories.map(labelForBucket),
+                axisLabel: { color: '#cbd5e1', rotate: 45, show: false },
+                axisLine: { lineStyle: { color: '#94a3b8' } },
+                axisTick: { show: false }
+            },
+            {
+                type: 'category',
+                gridIndex: 2,
                 data: categories.map(labelForBucket),
                 axisLabel: { color: '#cbd5e1', rotate: 45 },
                 axisLine: { lineStyle: { color: '#94a3b8' } },
@@ -1258,6 +1322,14 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
             {
                 type: 'value',
                 gridIndex: 1,
+                name: 'Dauer [min]',
+                axisLabel: { color: '#cbd5e1' },
+                axisLine: { lineStyle: { color: '#94a3b8' } },
+                splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+            },
+            {
+                type: 'value',
+                gridIndex: 2,
                 name: `${cycleTypeLabel} / Eintrag`,
                 axisLabel: { color: '#cbd5e1' },
                 axisLine: { lineStyle: { color: '#94a3b8' } },
@@ -1283,7 +1355,13 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
     });
 }
 
-async function updateStdDevChart(chartObj, stdDevData, mpName, aggregation = 'day') {
+/**
+ * @param {import('echarts').ECharts} chartObj
+ * @param {Array<{sensorID?: string, measurement_mean?: number, normalized_measurement_stddev?: number, values?: Array<{timestamp?: string, meas_val?: number, meas_val_std?: number}>}>} processedSensors
+ * @param {'day'|'week'|'month'} aggregation
+ */
+async function updateStdDevChart(chartObj, processedSensors, aggregation = 'day') {
+    /** @param {string} timestamp @param {'day'|'week'|'month'} mode */
     const bucketKey = (timestamp, mode) => {
         const date = new Date(timestamp);
         if (mode === 'week') {
@@ -1300,6 +1378,7 @@ async function updateStdDevChart(chartObj, stdDevData, mpName, aggregation = 'da
         return date.toISOString().slice(0, 10);
     };
 
+    /** @param {string} bucket @param {'day'|'week'|'month'} mode */
     const labelForBucket = (bucket, mode) => {
         if (!bucket) {
             return '—';
@@ -1310,16 +1389,19 @@ async function updateStdDevChart(chartObj, stdDevData, mpName, aggregation = 'da
         return bucket.slice(5);
     };
 
-    const sensorGroups = stdDevData && typeof stdDevData === 'object' ? (stdDevData[mpName] || []) : [];
+    const sensorGroups = Array.isArray(processedSensors) ? processedSensors : [];
     if (!Array.isArray(sensorGroups) || sensorGroups.length === 0) {
         chartObj.clear();
         return;
     }
 
-    const categories = Array.from(new Set(sensorGroups.flatMap((sensor) => Array.isArray(sensor.rows) ? sensor.rows.map((row) => bucketKey(row.timestamp, aggregation)).filter(Boolean) : []))).sort();
-    const series = sensorGroups.map((sensor) => {
+    const categories = Array.from(new Set(sensorGroups.flatMap((sensor) => Array.isArray(sensor.values)
+        ? sensor.values.flatMap((row) => row.timestamp ? [bucketKey(row.timestamp, aggregation)] : [])
+        : []))).sort();
+    const timeSeries = sensorGroups.map((sensor) => {
+        /** @type {Map<string, number[]>} */
         const byBucket = new Map();
-        for (const row of Array.isArray(sensor.rows) ? sensor.rows : []) {
+        for (const row of Array.isArray(sensor.values) ? sensor.values : []) {
             const timestamp = row?.timestamp;
             if (!timestamp) {
                 continue;
@@ -1330,7 +1412,10 @@ async function updateStdDevChart(chartObj, stdDevData, mpName, aggregation = 'da
             }
             const stdValue = Number(row?.meas_val_std ?? 0);
             if (Number.isFinite(stdValue)) {
-                byBucket.get(bucket).push(stdValue);
+                const bucketValues = byBucket.get(bucket);
+                if (bucketValues) {
+                    bucketValues.push(stdValue);
+                }
             }
         }
 
@@ -1357,9 +1442,118 @@ async function updateStdDevChart(chartObj, stdDevData, mpName, aggregation = 'da
                 borderColor: getSensorColor(sensorName)
             },
             tooltip: {
-                formatter: (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(3)} cm`
+                formatter: /** @param {{seriesName: string, name: string, value: number}} params */ (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(3)} cm`
             }
         };
+    });
+
+    const sensorDistributions = sensorGroups.map((sensor) => {
+        const measurementMean = Number(sensor.measurement_mean);
+        const normalizedStddev = Number(sensor.normalized_measurement_stddev);
+        const normalizedValues = measurementMean !== 0
+            ? (Array.isArray(sensor.values) ? sensor.values : [])
+            .map((row) => Number(row?.meas_val))
+            .filter((value) => Number.isFinite(value))
+            .map((value) => value / measurementMean)
+            : [];
+        return {
+            sensorName: sensor.sensorID || 'Sensor',
+            values: normalizedValues,
+            mean: 1,
+            standardDeviation: Number.isFinite(normalizedStddev) ? normalizedStddev : 0
+        };
+    }).filter((sensor) => sensor.values.length > 0);
+    let distributionMin = Infinity;
+    let distributionMax = -Infinity;
+    for (const { values } of sensorDistributions) {
+        for (const value of values) {
+            distributionMin = Math.min(distributionMin, value);
+            distributionMax = Math.max(distributionMax, value);
+        }
+    }
+    if (!Number.isFinite(distributionMin) || !Number.isFinite(distributionMax)) {
+        distributionMin = 0;
+        distributionMax = 1;
+    }
+
+    const binCount = 20;
+    const binWidth = distributionMax === distributionMin
+        ? Math.max(Math.abs(distributionMin) * 0.1, 0.01)
+        : (distributionMax - distributionMin) / binCount;
+    const distributionStart = distributionMax === distributionMin
+        ? distributionMin - binWidth * binCount / 2
+        : distributionMin;
+    const distributionEnd = distributionMax === distributionMin
+        ? distributionStart + binWidth * binCount
+        : distributionMax;
+    const effectiveBinWidth = (distributionEnd - distributionStart) / binCount;
+    const distributionSeries = sensorDistributions.flatMap(({ sensorName, values, mean, standardDeviation }) => {
+        const counts = Array.from({ length: binCount }, () => 0);
+        for (const value of values) {
+            const binIndex = Math.min(
+                binCount - 1,
+                Math.floor((value - distributionStart) / effectiveBinWidth)
+            );
+            if (binIndex >= 0) {
+                counts[binIndex] += 1;
+            }
+        }
+
+        const sensorColor = getSensorColor(sensorName);
+        const histogramData = counts.map((count, index) => [
+            distributionStart + (index + 0.5) * effectiveBinWidth,
+            count
+        ]);
+        /** @type {Array<Object>} */
+        const sensorSeries = [{
+            name: `${sensorName} Verteilung`,
+            type: 'line',
+            xAxisIndex: 1,
+            yAxisIndex: 1,
+            data: histogramData,
+            step: 'middle',
+            showSymbol: false,
+            lineStyle: { color: sensorColor, width: 1.5, opacity: 0.7 },
+            areaStyle: { color: sensorColor, opacity: 0.08 },
+            tooltip: {
+                formatter: /** @param {{seriesName: string, value: number[]}} params */ (params) => `${params.seriesName}<br>Messwert / Mittelwert: ${Number(params.value[0]).toFixed(3)}<br>Anzahl: ${params.value[1]}`
+            }
+        }];
+
+        if (standardDeviation > 0) {
+            const gaussianData = Array.from({ length: 101 }, (_, index) => {
+                const value = distributionStart + (distributionEnd - distributionStart) * index / 100;
+                const zScore = (value - mean) / standardDeviation;
+                const density = Math.exp(-0.5 * zScore ** 2) / (standardDeviation * Math.sqrt(2 * Math.PI));
+                return [value, density * values.length * effectiveBinWidth];
+            });
+            sensorSeries.push({
+                name: `${sensorName} Gauss-Fit`,
+                type: 'line',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: gaussianData,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { color: sensorColor, width: 2.5, opacity: 1 },
+                markLine: {
+                    symbol: ['none', 'none'],
+                    lineStyle: { color: sensorColor, type: 'dashed', width: 1.5, opacity: 0.8 },
+                    label: {
+                        color: '#e2e8f0',
+                        formatter: /** @param {{name: string}} params */ (params) => params.name
+                    },
+                    data: [-2, -1, 1, 2].map((sigma) => ({
+                        name: `${sigma > 0 ? '+' : '−'}${Math.abs(sigma)}σ`,
+                        xAxis: mean + sigma * standardDeviation
+                    }))
+                },
+                tooltip: {
+                    formatter: /** @param {{seriesName: string, value: number[]}} params */ (params) => `${params.seriesName}<br>Messwert / Mittelwert: ${Number(params.value[0]).toFixed(3)}<br>Erwartete Anzahl: ${Number(params.value[1]).toFixed(2)}`
+                }
+            });
+        }
+        return sensorSeries;
     });
     const chartTitle = aggregation === 'week'
         ? 'Standardabweichung pro Woche'
@@ -1368,45 +1562,77 @@ async function updateStdDevChart(chartObj, stdDevData, mpName, aggregation = 'da
             : 'Standardabweichung pro Tag';
 
     const chartOptions = createSharedChartChrome({
-        title: {
-            text: chartTitle,
-            left: 'center',
-            top: '2%',
-            textStyle: { color: '#e2e8f0' }
-        },
-        grid: {
-            left: '6%',
-            right: '4%',
-            bottom: '16%',
-            top: '16%'
-        },
-        xAxis: {
-            type: 'category',
-            data: categories.map((bucket) => labelForBucket(bucket, aggregation)),
-            axisLabel: { color: '#cbd5e1', rotate: 30 },
-            axisLine: { lineStyle: { color: '#94a3b8' } }
-        },
-        yAxis: {
-            type: 'value',
-            name: 'Std. [cm]',
-            axisLabel: { color: '#cbd5e1' },
-            axisLine: { lineStyle: { color: '#94a3b8' } },
-            splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
-        },
+        title: [
+            {
+                text: chartTitle,
+                left: 'center',
+                top: '2%',
+                textStyle: { color: '#e2e8f0' }
+            },
+            {
+                text: 'Verteilung normierter Messwerte je Sensor',
+                left: 'center',
+                top: '52%',
+                textStyle: { color: '#e2e8f0', fontSize: 14 }
+            }
+        ],
+        grid: [
+            { left: '7%', right: '4%', top: '18%', height: '30%' },
+            { left: '7%', right: '4%', top: '65%', height: '24%' }
+        ],
+        xAxis: [
+            {
+                type: 'category',
+                gridIndex: 0,
+                data: categories.map((bucket) => labelForBucket(bucket, aggregation)),
+                axisLabel: { color: '#cbd5e1', rotate: 30 },
+                axisLine: { lineStyle: { color: '#94a3b8' } }
+            },
+            {
+                type: 'value',
+                gridIndex: 1,
+                name: 'Messwert / Mittelwert [1]',
+                min: distributionStart,
+                max: distributionEnd,
+                axisLabel: { color: '#cbd5e1' },
+                axisLine: { lineStyle: { color: '#94a3b8' } },
+                splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+            }
+        ],
+        yAxis: [
+            {
+                type: 'value',
+                gridIndex: 0,
+                name: 'Std. [cm]',
+                axisLabel: { color: '#cbd5e1' },
+                axisLine: { lineStyle: { color: '#94a3b8' } },
+                splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+            },
+            {
+                type: 'value',
+                gridIndex: 1,
+                name: 'Anzahl',
+                min: 0,
+                axisLabel: { color: '#cbd5e1' },
+                axisLine: { lineStyle: { color: '#94a3b8' } },
+                splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+            }
+        ],
         tooltip: {
             trigger: 'axis',
-            axisPointer: { type: 'shadow' }
+            axisPointer: { type: 'cross' }
         },
         legend: {
             top: '8%',
-            textStyle: { color: '#e2e8f0' }
+            textStyle: { color: '#e2e8f0' },
+            type: 'scroll'
         },
-        series
+        series: [...timeSeries, ...distributionSeries]
     });
 
     chartObj.setOption(chartOptions, {
         notMerge: false,
-        replaceMerge: ['series', 'xAxis', 'yAxis'],
+        replaceMerge: ['series', 'xAxis', 'yAxis', 'grid', 'title'],
         lazyUpdate: true,
         silent: true
     });

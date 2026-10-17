@@ -21,6 +21,8 @@ Author:
 
 """
 import os.path
+import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy
@@ -39,6 +41,8 @@ try:
 except ImportError:
     pl = None
 
+logger = logging.getLogger('wassermonitor warning bot')
+
 
 def _get_ro_connection(db_file):
     """
@@ -56,14 +60,26 @@ def _get_ro_connection(db_file):
     return conn, cur
 
 
-def _read_month_rows(db_path, sql, sql_params):
+def _read_month_rows(db_path, sql, sql_params, request_id=None):
     """Read one monthly sqlite file and return raw rows."""
     if not os.path.exists(db_path):
+        if request_id:
+            logger.info("[raw-data:%s] month=%s skipped: database file does not exist", request_id, os.path.basename(db_path))
         return []
+    started_at = time.perf_counter()
     conn, cur = _get_ro_connection(db_path)
     try:
         cur.execute(sql, sql_params)
-        return cur.fetchall()
+        rows = cur.fetchall()
+        if request_id:
+            logger.info(
+                "[raw-data:%s] month=%s query_fetch_ms=%.1f raw_rows=%d",
+                request_id,
+                os.path.basename(db_path),
+                (time.perf_counter() - started_at) * 1000,
+                len(rows),
+            )
+        return rows
     finally:
         conn.close()
 
@@ -677,14 +693,14 @@ def convert_nan_to_none (x):
     return x
 
 
-def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_name=None):
+def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_name=None, request_id=None):
     """
     Retrieve raw measurement rows from SQLite files within a date range.
 
     This function reads monthly SQLite files in parallel and returns raw, sorted rows
     without deriving additional metrics (no slope/derivation/peaks processing). Each
-    sensor record additionally contains a ``meas_val_savgol`` field with a Savitzky-
-    Golay smoothed reading.
+    measurement contains its individual ``raw_values`` for client-side statistics,
+    along with the average and Savitzky-Golay-smoothed reading used by existing charts.
     """
     if not db_conf['engine'] == 'sqlite':
         raise ValueError("Invalid Database function call: This functions is only for sqlite3 approach. Please configure it in your config.cfg file.")
@@ -701,18 +717,18 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
     if dt_begin > dt_end:
         raise ValueError(f"Invalid input: dt_begin ({dt_begin}) has to be before dt_end ({dt_end})!")
 
+    function_started_at = time.perf_counter()
     sql = """
-        SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, AVG(v.value), s.tank_height
+        SELECT m.id, m.dt, mp.name, s.name, s.max_val, s.warn, s.alarm, v.value, s.tank_height
         FROM meas_val v
         INNER JOIN measurement m ON v.measurement_id = m.id
         INNER JOIN sensor s ON m.sensor_id = s.id
         INNER JOIN meas_point mp ON s.meas_point_id = mp.id
         WHERE m.dt > ? AND m.dt < ?
         {mp_filter}
-        GROUP BY m.id
     """
     configured_workers = int(db_conf.get('read_workers', 4))
-    columns = ['mid', 'dt', 'mp_name', 'sensor_name', 'max_val', 'warn', 'alarm', 'meas_val', 'tank_height']
+    columns = ['mid', 'dt', 'mp_name', 'sensor_name', 'max_val', 'warn', 'alarm', 'raw_value', 'tank_height']
     month_paths = [os.path.join(db_conf['sqlite_path'], f"{m}.sqlite") for m in get_months_between(dt_begin, dt_end)]
     mp_filter = ""
     sql_params = [dt_begin, dt_end]
@@ -723,21 +739,68 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
 
     all_rows = []
     max_workers = min(8, max(1, min(configured_workers, len(month_paths))))
+    query_started_at = time.perf_counter()
+    if request_id:
+        logger.info(
+            "[raw-data:%s] db_read_start mp=%s range=%s..%s month_files=%d workers=%d",
+            request_id,
+            mp_name or '*',
+            dt_begin.isoformat(),
+            dt_end.isoformat(),
+            len(month_paths),
+            max_workers,
+        )
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(_read_month_rows, db_path, sql, sql_params) for db_path in month_paths]
+        futures = [
+            executor.submit(_read_month_rows, db_path, sql, sql_params, request_id)
+            for db_path in month_paths
+        ]
         for future in as_completed(futures):
             rows = future.result()
             if rows:
                 all_rows.extend(rows)
 
+    if request_id:
+        logger.info(
+            "[raw-data:%s] db_read_done elapsed_ms=%.1f raw_rows=%d",
+            request_id,
+            (time.perf_counter() - query_started_at) * 1000,
+            len(all_rows),
+        )
     if not all_rows:
+        if request_id:
+            logger.info(
+                "[raw-data:%s] db_pipeline_done elapsed_ms=%.1f measurements=0",
+                request_id,
+                (time.perf_counter() - function_started_at) * 1000,
+            )
         return []
 
-    records = [dict(zip(columns, row)) for row in all_rows]
-    for r in records:
-        dt_val = r['dt']
-        r['dt'] = dt_val.isoformat() if isinstance(dt_val, datetime) else str(dt_val)
+    aggregation_started_at = time.perf_counter()
+    measurements = {}
+    for row in all_rows:
+        record = dict(zip(columns, row))
+        dt_val = record['dt']
+        record['dt'] = dt_val.isoformat() if isinstance(dt_val, datetime) else str(dt_val)
+        key = (record['mid'], record['dt'], record['mp_name'], record['sensor_name'])
+        measurement = measurements.get(key)
+        if measurement is None:
+            measurement = {
+                **record,
+                'raw_values': [],
+            }
+            measurements[key] = measurement
+        measurement['raw_values'].append(float(record['raw_value']))
 
+    records = list(measurements.values())
+    for record in records:
+        raw_values = record['raw_values']
+        record['meas_val'] = sum(raw_values) / len(raw_values)
+        record['meas_val_raw'] = record['meas_val']
+        del record['raw_value']
+
+    aggregation_elapsed_ms = (time.perf_counter() - aggregation_started_at) * 1000
+    smoothing_started_at = time.perf_counter()
     records.sort(key=lambda x: (x['mp_name'], x['sensor_name'], x['dt']))
     sensor_series = {}
     for record in records:
@@ -747,12 +810,23 @@ def get_meas_raw_data_from_sqlite_db(db_conf, dt_begin=None, dt_end=None, mp_nam
         values = np.asarray([float(row['meas_val']) for row in series], dtype=float)
         smoothed = _savgol_smooth(values)
         for row, smooth_value in zip(series, smoothed):
-            row['meas_val_raw'] = float(row['meas_val'])
             row['meas_val_savgol'] = float(smooth_value)
             # Keep the raw sensor value in ``meas_val`` for true raw-data responses.
             # The smoothed series remains available as ``meas_val_savgol`` for legacy callers.
             row['meas_val'] = float(row['meas_val'])
 
+    if request_id:
+        logger.info(
+            "[raw-data:%s] db_pipeline_done aggregation_ms=%.1f smoothing_sort_ms=%.1f "
+            "total_ms=%.1f measurements=%d sensors=%d raw_samples=%d",
+            request_id,
+            aggregation_elapsed_ms,
+            (time.perf_counter() - smoothing_started_at) * 1000,
+            (time.perf_counter() - function_started_at) * 1000,
+            len(records),
+            len(sensor_series),
+            len(all_rows),
+        )
     return records
 
 

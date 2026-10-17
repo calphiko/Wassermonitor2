@@ -124,41 +124,6 @@ export async function loadRawTimeDataFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
     }
 }
 
-export async function loadMeasurementStdDevFromAPI(apiUrl, dtFrom, dtUntil, mpName) {
-    const startedAt = performance.now();
-    const requestMeta = { apiUrl, dtFrom, dtUntil, mpName };
-    console.log('[API] loadMeasurementStdDevFromAPI start', requestMeta);
-
-    try {
-        const response = await fetch(apiUrl.concat('get_stddev/'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                'dt_begin': formatDateForISO(dtFrom),
-                'dt_end': formatDateForISO(dtUntil),
-                'mp_name': mpName,
-            }),
-        });
-        if (!response.ok) {
-            throw new Error("Invalid Network response!");
-        }
-        let data = await response.json();
-        if (typeof data === 'string') {
-            data = JSON.parse(data);
-        }
-        const elapsedMs = Math.round(performance.now() - startedAt);
-        console.log('[API] loadMeasurementStdDevFromAPI ready in', elapsedMs, 'ms', { rows: Array.isArray(data?.[mpName]) ? data[mpName].reduce((sum, sensor) => sum + (Array.isArray(sensor?.rows) ? sensor.rows.length : 0), 0) : 'n/a' });
-        return data;
-    } catch (error) {
-        const elapsedMs = Math.round(performance.now() - startedAt);
-        console.error('[API] loadMeasurementStdDevFromAPI failed after', elapsedMs, 'ms', error);
-        return null;
-    }
-}
-
-
 /**
  * Fetches the latest fill data from the API.
  *

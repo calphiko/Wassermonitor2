@@ -70,6 +70,7 @@ from psk_auth import load_authorized_keys, verify_signature
 import base64
 import os
 import logging
+import uuid
 
 # Loggerconfig
 logger = logging.getLogger('wassermonitor warning bot')
@@ -83,6 +84,61 @@ ch.setLevel(logging.INFO)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 logger.addHandler(fh)
+
+class RawDataTransferLoggingMiddleware:
+    """Log the body bytes and compression details emitted for raw-data requests."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope['type'] != 'http' or scope.get('path') != '/get/':
+            await self.app(scope, receive, send)
+            return
+
+        request_id = uuid.uuid4().hex[:8]
+        state = scope.setdefault('state', {})
+        state['request_id'] = request_id
+        started_at = time.perf_counter()
+        response_status = None
+        content_encoding = 'identity'
+        content_length = None
+        emitted_body_bytes = 0
+
+        async def track_response(message):
+            nonlocal response_status, content_encoding, content_length, emitted_body_bytes
+            if message['type'] == 'http.response.start':
+                response_status = message['status']
+                headers = {key.lower(): value for key, value in message.get('headers', [])}
+                content_encoding = headers.get(b'content-encoding', b'identity').decode('latin-1')
+                content_length = headers.get(b'content-length')
+            elif message['type'] == 'http.response.body':
+                emitted_body_bytes += len(message.get('body', b''))
+
+            await send(message)
+
+            if message['type'] == 'http.response.body' and not message.get('more_body', False):
+                uncompressed_body_bytes = state.get('raw_response_bytes')
+                compression_ratio = (
+                    uncompressed_body_bytes / emitted_body_bytes
+                    if uncompressed_body_bytes and emitted_body_bytes
+                    else None
+                )
+                logger.info(
+                    "[raw-data:%s] response_sent status=%s content_encoding=%s "
+                    "content_length=%s emitted_body_bytes=%d uncompressed_body_bytes=%s "
+                    "compression_ratio=%s elapsed_ms=%.1f",
+                    request_id,
+                    response_status,
+                    content_encoding,
+                    content_length.decode('latin-1') if content_length else 'unknown',
+                    emitted_body_bytes,
+                    uncompressed_body_bytes if uncompressed_body_bytes is not None else 'unknown',
+                    f"{compression_ratio:.2f}" if compression_ratio is not None else 'n/a',
+                    (time.perf_counter() - started_at) * 1000,
+                )
+
+        await self.app(scope, receive, track_response)
 
 
 config_file_pos = [os.path.abspath("../config.cfg"), os.path.abspath("../Server/config.cfg")]
@@ -371,7 +427,7 @@ def insert_to_db(measurement):
     return {'message':'Received'}
 
 
-def request_measurement_data(request_dict):
+def request_measurement_data(request_dict, request_id=None):
     """
     Requests raw measurement data from the database and formats it into a JSON response.
 
@@ -400,14 +456,19 @@ def request_measurement_data(request_dict):
 
     """
 
+    data_started_at = time.perf_counter()
     data = dbu.get_meas_raw_data_from_sqlite_db(
         config['database'],
         datetime.fromisoformat(request_dict['dt_begin']),
         datetime.fromisoformat(request_dict['dt_end']),
-        request_dict.get('mp_name')
+        request_dict.get('mp_name'),
+        request_id=request_id,
     )
+    data_elapsed_ms = (time.perf_counter() - data_started_at) * 1000
+    formatting_started_at = time.perf_counter()
     data_json = {}
     sensor_lookup = {}
+    raw_sample_count = 0
     for row in data:
         mp_name = row['mp_name']
         sensor_name = row['sensor_name']
@@ -420,20 +481,39 @@ def request_measurement_data(request_dict):
             sensor_lookup[mp_name][sensor_name] = sensor_entry
         raw_value = row.get('meas_val_raw', row.get('meas_val'))
         smooth_value = row.get('meas_val_savgol', raw_value)
+        raw_sample_count += len(row['raw_values'])
         sensor_lookup[mp_name][sensor_name]['rows'].append(
             {
                 'timestamp': row['dt'],
                 'meas_val_raw': raw_value,
-                'meas_val_std': row.get('meas_val_std', 0.0),
                 'meas_val': raw_value,
                 'meas_val_savgol': smooth_value,
+                'raw_values': row['raw_values'],
                 'tank_height': row['tank_height'],
                 'max_val': row['max_val'],
                 'warn': row['warn'],
                 'alarm': row['alarm'],
             }
         )
-    return JSONResponse(content=data_json)
+    formatting_elapsed_ms = (time.perf_counter() - formatting_started_at) * 1000
+    response_started_at = time.perf_counter()
+    response = JSONResponse(content=data_json)
+    response_elapsed_ms = (time.perf_counter() - response_started_at) * 1000
+    if request_id:
+        response_rows = sum(len(sensor['rows']) for sensors in data_json.values() for sensor in sensors)
+        logger.info(
+            "[raw-data:%s] response_ready db_pipeline_ms=%.1f format_ms=%.1f "
+            "json_encode_ms=%.1f response_bytes=%d measurements=%d sensors=%d raw_samples=%d",
+            request_id,
+            data_elapsed_ms,
+            formatting_elapsed_ms,
+            response_elapsed_ms,
+            len(response.body),
+            response_rows,
+            sum(len(sensors) for sensors in data_json.values()),
+            raw_sample_count,
+        )
+    return response
 
 
 def _json_safe_numeric(value):
@@ -611,6 +691,7 @@ app.add_middleware(
 )
 # Compresses large JSON responses (e.g. time-series) for faster network transfer.
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
+app.add_middleware(RawDataTransferLoggingMiddleware)
 
 @app.post("/insert/")
 async def receive_data(request: Request, token: str = Depends(verify_token)):
@@ -632,9 +713,28 @@ async def receive_data(request: Request, token: str = Depends(verify_token)):
 
 @app.post("/get/")
 async def post_data(request: Request):
+    request_id = request.state.request_id
+    request_started_at = time.perf_counter()
+    logger.info("[raw-data:%s] request_start path=/get/", request_id)
+    parse_started_at = time.perf_counter()
     json_obj = await parse_request_json(request)
+    parse_elapsed_ms = (time.perf_counter() - parse_started_at) * 1000
     if validate_request_json(json_obj):
-        return request_measurement_data(json_obj)
+        response = request_measurement_data(json_obj, request_id=request_id)
+        request.state.raw_response_bytes = len(response.body)
+        logger.info(
+            "[raw-data:%s] request_done parse_ms=%.1f total_ms=%.1f",
+            request_id,
+            parse_elapsed_ms,
+            (time.perf_counter() - request_started_at) * 1000,
+        )
+        return response
+    logger.info(
+        "[raw-data:%s] request_rejected parse_ms=%.1f total_ms=%.1f",
+        request_id,
+        parse_elapsed_ms,
+        (time.perf_counter() - request_started_at) * 1000,
+    )
 
 @app.post("/get_processed/")
 async def post_data_processed(request: Request):

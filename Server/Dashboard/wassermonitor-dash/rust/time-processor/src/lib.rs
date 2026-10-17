@@ -15,6 +15,8 @@ struct RawPoint {
     timestamp: String,
     meas_val: f64,
     #[serde(default)]
+    raw_values: Vec<f64>,
+    #[serde(default)]
     meas_val_savgol: Option<f64>,
     tank_height: f64,
     max_val: f64,
@@ -27,6 +29,8 @@ struct ProcessedSensor {
     #[serde(rename = "sensorID")]
     sensor_id: String,
     values: Vec<ValuePoint>,
+    measurement_mean: f64,
+    normalized_measurement_stddev: f64,
     deriv: Vec<DerivPoint>,
     y_max: f64,
     deriv_y_max: f64,
@@ -40,6 +44,9 @@ struct ValuePoint {
     value: f64,
     value_raw: f64,
     value_savgol: f64,
+    meas_val: f64,
+    meas_val_std: f64,
+    sample_count: usize,
     tank_height: f64,
     max_val: f64,
     warn: f64,
@@ -164,6 +171,13 @@ fn stddev(values: &[f64]) -> f64 {
         .sum::<f64>()
         / values.len() as f64;
     variance.sqrt()
+}
+
+fn sample_stats(values: &[f64], fallback: f64) -> (f64, f64, usize) {
+    if values.is_empty() {
+        return (fallback, 0.0, 1);
+    }
+    (average(values), stddev(values), values.len())
 }
 
 fn cycle_type_label(cycle_type: CycleType) -> String {
@@ -626,6 +640,13 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
         }
 
         let raw_meas_vals: Vec<f64> = sensor.rows.iter().map(|r| r.meas_val).collect();
+        let measurement_mean = average(&raw_meas_vals);
+        let normalized_measurements: Vec<f64> = if measurement_mean.abs() > f64::EPSILON {
+            raw_meas_vals.iter().map(|value| value / measurement_mean).collect()
+        } else {
+            Vec::new()
+        };
+        let normalized_measurement_stddev = stddev(&normalized_measurements);
         let smoothed_meas_vals: Vec<f64> = sensor
             .rows
             .iter()
@@ -659,11 +680,16 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
             .map(|(i, r)| {
                 let raw_level = r.tank_height - r.meas_val;
                 let smooth_level = r.tank_height - level_signal[i];
+                let (meas_val, meas_val_std, sample_count) =
+                    sample_stats(&r.raw_values, r.meas_val);
                 ValuePoint {
                     timestamp: r.timestamp.clone(),
                     value: round_1(smooth_level),
                     value_raw: round_1(raw_level),
                     value_savgol: round_1(smooth_level),
+                    meas_val,
+                    meas_val_std,
+                    sample_count,
                     tank_height: r.tank_height,
                     max_val: r.max_val,
                     warn: r.warn,
@@ -698,6 +724,8 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
         out.push(ProcessedSensor {
             sensor_id: sensor.sensor_id.clone(),
             values,
+            measurement_mean,
+            normalized_measurement_stddev,
             deriv: deriv_out,
             y_max,
             deriv_y_max: deriv_max,
@@ -707,4 +735,24 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
     }
 
     serde_wasm_bindgen::to_value(&out).map_err(|err| JsValue::from_str(&format!("Failed to serialize output: {err}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{sample_stats, stddev};
+
+    #[test]
+    fn sample_stats_returns_population_standard_deviation_and_count() {
+        let (mean, deviation, count) = sample_stats(&[1.0, 2.0, 3.0], 0.0);
+
+        assert_eq!(mean, 2.0);
+        assert!((deviation - (2.0_f64 / 3.0).sqrt()).abs() < 1e-12);
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn sample_stats_uses_measurement_mean_when_raw_samples_are_absent() {
+        assert_eq!(sample_stats(&[], 4.5), (4.5, 0.0, 1));
+        assert_eq!(stddev(&[4.5]), 0.0);
+    }
 }

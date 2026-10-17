@@ -26,6 +26,12 @@
     let mpName = '';
     let activeTab = 'current';
     let cycleAggregation = 'day';
+    let cycleDisplayMode = 'auto';
+    const cycleDisplayModeOptions = [
+        { value: 'auto', label: 'Auto' },
+        { value: 'boxplot', label: 'Boxplot' },
+        { value: 'line', label: 'Linie' }
+    ];
     const cycleAggregationOptions = [
         { value: 'day', label: 'Tag' },
         { value: 'week', label: 'Woche' },
@@ -252,7 +258,8 @@
                 },
                 (isLoading) => {
                     stdDevChartLoading = isLoading;
-                }
+                },
+                cycleDisplayMode
             );
             if (resolvedAggregation === false) {
                 evaluationHasData = false;
@@ -533,13 +540,28 @@
                        </button>
                      {/each}
                    </div>
+                   <div class="aggregation-toggle-group" role="group" aria-label="Darstellung">
+                     {#each cycleDisplayModeOptions as option}
+                       <button
+                         type="button"
+                         class:active={cycleDisplayMode === option.value}
+                         class="aggregation-button"
+                         on:click={() => {
+                           cycleDisplayMode = option.value;
+                           void loadEvaluationChartsSection(cycleAggregation, false);
+                         }}
+                       >
+                         {option.label}
+                       </button>
+                     {/each}
+                   </div>
                 </div>
  
                 <div class="chart-container">
-                   <div id='dailyCycleCountChart' class='chartDiv'></div>
+                   <div id='dailyCycleCountChart' class='chartDivEval'></div>
                 </div>
                 <div class="chart-container">
-                   <div id='dailyDrainCycleCountChart' class='chartDiv'></div>
+                   <div id='dailyDrainCycleCountChart' class='chartDivEval'></div>
                 </div>
                 <div class="chart-container">
                    {#if stdDevChartLoading}
@@ -599,6 +621,8 @@
     .aggregation-toolbar {
         display: flex;
         justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 0.75rem;
         margin: -0.5rem 0 1rem;
         padding: 0 0.25rem;
         width: 100%;
@@ -859,6 +883,13 @@
     box-sizing: border-box;
   }
 
+  .chartDivEval {
+    width: 100%;
+    height: 550px;
+    z-index: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
   .chart-loading-overlay {
     position: absolute;
     inset: 0;
