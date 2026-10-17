@@ -29,8 +29,6 @@ struct ProcessedSensor {
     #[serde(rename = "sensorID")]
     sensor_id: String,
     values: Vec<ValuePoint>,
-    measurement_mean: f64,
-    normalized_measurement_stddev: f64,
     deriv: Vec<DerivPoint>,
     y_max: f64,
     deriv_y_max: f64,
@@ -46,6 +44,8 @@ struct ValuePoint {
     value_savgol: f64,
     meas_val: f64,
     meas_val_std: f64,
+    // Single raw samples minus the mean of their measurement (scatter within one measurement_id)
+    meas_val_residuals: Vec<f64>,
     sample_count: usize,
     tank_height: f64,
     max_val: f64,
@@ -640,13 +640,6 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
         }
 
         let raw_meas_vals: Vec<f64> = sensor.rows.iter().map(|r| r.meas_val).collect();
-        let measurement_mean = average(&raw_meas_vals);
-        let normalized_measurements: Vec<f64> = if measurement_mean.abs() > f64::EPSILON {
-            raw_meas_vals.iter().map(|value| value / measurement_mean).collect()
-        } else {
-            Vec::new()
-        };
-        let normalized_measurement_stddev = stddev(&normalized_measurements);
         let smoothed_meas_vals: Vec<f64> = sensor
             .rows
             .iter()
@@ -689,6 +682,11 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
                     value_savgol: round_1(smooth_level),
                     meas_val,
                     meas_val_std,
+                    meas_val_residuals: if r.raw_values.len() > 1 {
+                        r.raw_values.iter().map(|v| v - meas_val).collect()
+                    } else {
+                        Vec::new()
+                    },
                     sample_count,
                     tank_height: r.tank_height,
                     max_val: r.max_val,
@@ -724,8 +722,6 @@ pub fn transform_time_data(raw: JsValue) -> Result<JsValue, JsValue> {
         out.push(ProcessedSensor {
             sensor_id: sensor.sensor_id.clone(),
             values,
-            measurement_mean,
-            normalized_measurement_stddev,
             deriv: deriv_out,
             y_max,
             deriv_y_max: deriv_max,

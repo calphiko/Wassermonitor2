@@ -110,12 +110,14 @@
         const dailyDrainCycleCountChart = document.getElementById('dailyDrainCycleCountChart');
         const stdDevChart = document.getElementById('stdDevChart');
         const intervalHistChart = document.getElementById('intervalHistChart');
+        const nightLeakageChart = document.getElementById('nightLeakageChart');
         if (
             !(cycleDeviationChart instanceof HTMLElement)
             || !(dailyCycleCountChart instanceof HTMLElement)
             || !(dailyDrainCycleCountChart instanceof HTMLElement)
             || !(stdDevChart instanceof HTMLElement)
             || !(intervalHistChart instanceof HTMLElement)
+            || !(nightLeakageChart instanceof HTMLElement)
         ) {
             throw new Error('Evaluation chart container not found.');
         }
@@ -125,7 +127,8 @@
             { name: 'dailyCycleCountChart', divName: dailyCycleCountChart },
             { name: 'dailyDrainCycleCountChart', divName: dailyDrainCycleCountChart },
             { name: 'stdDevChart', divName: stdDevChart },
-            { name: 'intervalHistChart', divName: intervalHistChart }
+            { name: 'intervalHistChart', divName: intervalHistChart },
+            { name: 'nightLeakageChart', divName: nightLeakageChart }
         ];
     }
 
@@ -562,6 +565,9 @@
                 </div>
                 <div class="chart-container">
                    <div id='dailyDrainCycleCountChart' class='chartDivEval'></div>
+                </div>
+                <div class="chart-container">
+                   <div id='nightLeakageChart' class='chartDiv'></div>
                 </div>
                 <div class="chart-container">
                    {#if stdDevChartLoading}

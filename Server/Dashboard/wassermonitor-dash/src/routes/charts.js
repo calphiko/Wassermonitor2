@@ -479,7 +479,8 @@ export async function loadEvaluationCharts(
    const dailyDrainCycleCountMount = chartDivs.find((chartDiv) => chartDiv.name === 'dailyDrainCycleCountChart');
    const stdDevMount = chartDivs.find((chartDiv) => chartDiv.name === 'stdDevChart');
    const intervalHistMount = chartDivs.find((chartDiv) => chartDiv.name === 'intervalHistChart');
-   if (!cycleDeviationMount || !dailyCycleCountMount || !dailyDrainCycleCountMount || !stdDevMount || !intervalHistMount) {
+   const nightLeakageMount = chartDivs.find((chartDiv) => chartDiv.name === 'nightLeakageChart');
+   if (!nightLeakageMount || !cycleDeviationMount || !dailyCycleCountMount || !dailyDrainCycleCountMount || !stdDevMount || !intervalHistMount) {
        if (typeof onPrimaryLoadingState === 'function') {
            onPrimaryLoadingState(false);
        }
@@ -495,6 +496,7 @@ export async function loadEvaluationCharts(
        dailyDrainCycleCountChart: reInitEchart('dailyDrainCycleCountChart', dailyDrainCycleCountMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
        stdDevChart: reInitEchart('stdDevChart', stdDevMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
        intervalHistChart: reInitEchart('intervalHistChart', intervalHistMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
+       nightLeakageChart: reInitEchart('nightLeakageChart', nightLeakageMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
    };
 
    const cacheKey = buildEvaluationDataCacheKey(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
@@ -558,6 +560,7 @@ export async function loadEvaluationCharts(
        chartInstances.dailyDrainCycleCountChart.clear();
        chartInstances.stdDevChart.clear();
        chartInstances.intervalHistChart.clear();
+       chartInstances.nightLeakageChart.clear();
        return 'day';
    }
 
@@ -597,6 +600,7 @@ export async function loadEvaluationCharts(
        chartInstances.dailyDrainCycleCountChart.clear();
        chartInstances.stdDevChart.clear();
        chartInstances.intervalHistChart.clear();
+       chartInstances.nightLeakageChart.clear();
        return false;
    }
 
@@ -666,6 +670,7 @@ export async function loadEvaluationCharts(
        await updateDailyCycleCountChart(chartInstances.dailyCycleCountChart, partialProcessed, effectiveAggregation, 'fill', displayMode);
        await updateDailyCycleCountChart(chartInstances.dailyDrainCycleCountChart, partialProcessed, effectiveAggregation, 'drain', displayMode);
        await updateIntervalHistogramChart(chartInstances.intervalHistChart, partialProcessed);
+       await updateNightLeakageChart(chartInstances.nightLeakageChart, partialProcessed, effectiveAggregation, displayMode);
        await updateStdDevChart(chartInstances.stdDevChart, partialProcessed, effectiveAggregation);
        chartInstances.stdDevChart.resize();
 
@@ -692,6 +697,7 @@ export async function loadEvaluationCharts(
        chartInstances.dailyDrainCycleCountChart.clear();
        chartInstances.stdDevChart.clear();
        chartInstances.intervalHistChart.clear();
+       chartInstances.nightLeakageChart.clear();
        return false;
    }
 
@@ -1356,8 +1362,145 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
 }
 
 /**
+ * Plots the leakage estimate per aggregation bucket: mean slope of drain cycles that
+ * start between 02:00 and 04:00 local time, when water consumption is assumed to be minimal.
  * @param {import('echarts').ECharts} chartObj
- * @param {Array<{sensorID?: string, measurement_mean?: number, normalized_measurement_stddev?: number, values?: Array<{timestamp?: string, meas_val?: number, meas_val_std?: number}>}>} processedSensors
+ * @param {Array<Object>} processedData
+ * @param {'day'|'week'|'month'} aggregation
+ * @param {'auto'|'boxplot'|'line'} displayMode
+ */
+async function updateNightLeakageChart(chartObj, processedData, aggregation = 'day', displayMode = 'auto') {
+    const pad = (value) => String(value).padStart(2, '0');
+    const localDayKey = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    const bucketKey = (date) => {
+        if (aggregation === 'month') {
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+        }
+        if (aggregation === 'week') {
+            const start = new Date(date);
+            start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+            return localDayKey(start);
+        }
+        return localDayKey(date);
+    };
+    const labelForBucket = (bucket) => {
+        const [year, month, day] = bucket.split('-');
+        return aggregation === 'month' ? `${month}-${year}` : `${day}.${month}.${year}`;
+    };
+    const quantile = (sorted, q) => {
+        const pos = (sorted.length - 1) * q;
+        const lo = Math.floor(pos);
+        const hi = Math.ceil(pos);
+        return sorted[lo] * (1 - (pos - lo)) + sorted[hi] * (pos - lo);
+    };
+
+    const perSensor = processedData.map((chart) => {
+        const byBucket = new Map();
+        const cycles = Array.isArray(chart?.evaluation?.cycle_deviation?.cycles)
+            ? chart.evaluation.cycle_deviation.cycles
+            : [];
+        cycles.forEach((entry) => {
+            if (entry?.cycle_type !== 'drain' || !entry?.timestamp) {
+                return;
+            }
+            const date = new Date(entry.timestamp);
+            const slope = Number(entry.mean_slope_abs);
+            if (!Number.isFinite(date.getTime()) || !Number.isFinite(slope) || date.getHours() < 2 || date.getHours() >= 4) {
+                return;
+            }
+            const key = bucketKey(date);
+            if (!byBucket.has(key)) {
+                byBucket.set(key, []);
+            }
+            byBucket.get(key).push(slope);
+        });
+        return { chart, byBucket };
+    });
+
+    const categories = Array.from(new Set(perSensor.flatMap(({ byBucket }) => Array.from(byBucket.keys())))).sort();
+    if (categories.length === 0) {
+        chartObj.clear();
+        return;
+    }
+
+    const useBoxplot = displayMode === 'boxplot'
+        ? true
+        : displayMode === 'line'
+            ? false
+            : categories.length < 15;
+
+    const series = perSensor.map(({ chart, byBucket }) => {
+        const sensorColor = getSensorColor(chart.sensorID || 'Sensor');
+        const sortedValues = categories.map((bucket) => {
+            const values = byBucket.get(bucket);
+            return values?.length ? [...values].sort((a, b) => a - b) : null;
+        });
+        if (useBoxplot) {
+            return {
+                name: `${chart.sensorID} Boxplot`,
+                type: 'boxplot',
+                data: sortedValues.map((v) => v && [v[0], quantile(v, 0.25), quantile(v, 0.5), quantile(v, 0.75), v[v.length - 1]]),
+                itemStyle: { color: `${sensorColor}66`, borderColor: sensorColor, borderWidth: 1.5 },
+                tooltip: {
+                    formatter: (params) => {
+                        const value = params?.value || [];
+                        return `${params.seriesName}<br>${params.name}<br>Min: ${Number(value[1]).toFixed(2)}<br>Q1: ${Number(value[2]).toFixed(2)}<br>Median: ${Number(value[3]).toFixed(2)}<br>Q3: ${Number(value[4]).toFixed(2)}<br>Max: ${Number(value[5]).toFixed(2)} cm/h`;
+                    }
+                }
+            };
+        }
+        return {
+            name: `${chart.sensorID} Median`,
+            type: 'line',
+            data: sortedValues.map((v) => (v ? quantile(v, 0.5) : null)),
+            smooth: true,
+            symbolSize: 6,
+            lineStyle: { color: sensorColor, width: 2.5 },
+            itemStyle: { color: sensorColor },
+            tooltip: {
+                formatter: (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(2)} cm/h`
+            }
+        };
+    });
+
+    const periodLabel = aggregation === 'week' ? 'Woche' : aggregation === 'month' ? 'Monat' : 'Tag';
+    const chartOptions = createSharedChartChrome({
+        title: {
+            text: `Leckage (Drain-Zyklen 02–04 Uhr) pro ${periodLabel}`,
+            left: 'center',
+            top: '2%',
+            textStyle: { color: '#e2e8f0' }
+        },
+        grid: { left: '6%', right: '4%', bottom: '16%', top: '16%' },
+        xAxis: {
+            type: 'category',
+            data: categories.map(labelForBucket),
+            axisLabel: { color: '#cbd5e1', rotate: 45 },
+            axisLine: { lineStyle: { color: '#94a3b8' } },
+            axisTick: { show: false }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Leckage [cm/h]',
+            axisLabel: { color: '#cbd5e1' },
+            axisLine: { lineStyle: { color: '#94a3b8' } },
+            splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+        },
+        tooltip: { trigger: 'item' },
+        legend: { top: '8%', textStyle: { color: '#e2e8f0' } },
+        series
+    });
+
+    chartObj.setOption(chartOptions, {
+        notMerge: true,
+        lazyUpdate: true,
+        silent: true
+    });
+}
+
+/**
+ * @param {import('echarts').ECharts} chartObj
+ * @param {Array<{sensorID?: string, values?: Array<{timestamp?: string, meas_val?: number, meas_val_std?: number, meas_val_residuals?: number[]}>}>} processedSensors
  * @param {'day'|'week'|'month'} aggregation
  */
 async function updateStdDevChart(chartObj, processedSensors, aggregation = 'day') {
@@ -1424,8 +1567,9 @@ async function updateStdDevChart(chartObj, processedSensors, aggregation = 'day'
             if (!values.length) {
                 return null;
             }
-            const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-            return Number(mean.toFixed(3));
+            // RMS, since variances (not standard deviations) are additive
+            const rms = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0) / values.length);
+            return Number(rms.toFixed(3));
         });
 
         const sensorName = sensor.sensorID || 'Sensor';
@@ -1448,55 +1592,41 @@ async function updateStdDevChart(chartObj, processedSensors, aggregation = 'day'
     });
 
     const sensorDistributions = sensorGroups.map((sensor) => {
-        const measurementMean = Number(sensor.measurement_mean);
-        const normalizedStddev = Number(sensor.normalized_measurement_stddev);
-        const normalizedValues = measurementMean !== 0
-            ? (Array.isArray(sensor.values) ? sensor.values : [])
-            .map((row) => Number(row?.meas_val))
-            .filter((value) => Number.isFinite(value))
-            .map((value) => value / measurementMean)
-            : [];
+        // Single samples minus the mean of their own measurement; pooled over all measurements
+        const residuals = (Array.isArray(sensor.values) ? sensor.values : [])
+            .flatMap((row) => Array.isArray(row?.meas_val_residuals) ? row.meas_val_residuals : [])
+            .map(Number)
+            .filter((value) => Number.isFinite(value));
+        const pooledStd = residuals.length
+            ? Math.sqrt(residuals.reduce((sum, value) => sum + value * value, 0) / residuals.length)
+            : 0;
         return {
             sensorName: sensor.sensorID || 'Sensor',
-            values: normalizedValues,
-            mean: 1,
-            standardDeviation: Number.isFinite(normalizedStddev) ? normalizedStddev : 0
+            values: residuals,
+            mean: 0,
+            standardDeviation: pooledStd
         };
     }).filter((sensor) => sensor.values.length > 0);
-    let distributionMin = Infinity;
-    let distributionMax = -Infinity;
-    for (const { values } of sensorDistributions) {
-        for (const value of values) {
-            distributionMin = Math.min(distributionMin, value);
-            distributionMax = Math.max(distributionMax, value);
-        }
-    }
-    if (!Number.isFinite(distributionMin) || !Number.isFinite(distributionMax)) {
-        distributionMin = 0;
-        distributionMax = 1;
-    }
-
-    const binCount = 20;
-    const binWidth = distributionMax === distributionMin
-        ? Math.max(Math.abs(distributionMin) * 0.1, 0.01)
-        : (distributionMax - distributionMin) / binCount;
-    const distributionStart = distributionMax === distributionMin
-        ? distributionMin - binWidth * binCount / 2
-        : distributionMin;
-    const distributionEnd = distributionMax === distributionMin
-        ? distributionStart + binWidth * binCount
-        : distributionMax;
+    // Symmetric x-range of ~3 sigma (largest sigma of all sensors), rounded up to 2 significant digits
+    const maxSigma = Math.max(0, ...sensorDistributions.map((sensor) => sensor.standardDeviation));
+    const rawHalfRange = maxSigma > 0 ? 3 * maxSigma : 0.1;
+    const magnitude = 10 ** Math.floor(Math.log10(rawHalfRange)) / 10;
+    const halfRange = Math.ceil(rawHalfRange / magnitude) * magnitude;
+    const binCount = 30;
+    const distributionStart = -halfRange;
+    const distributionEnd = halfRange;
     const effectiveBinWidth = (distributionEnd - distributionStart) / binCount;
     const distributionSeries = sensorDistributions.flatMap(({ sensorName, values, mean, standardDeviation }) => {
         const counts = Array.from({ length: binCount }, () => 0);
         for (const value of values) {
+            if (value < distributionStart || value > distributionEnd) {
+                continue;
+            }
             const binIndex = Math.min(
                 binCount - 1,
                 Math.floor((value - distributionStart) / effectiveBinWidth)
             );
-            if (binIndex >= 0) {
-                counts[binIndex] += 1;
-            }
+            counts[binIndex] += 1;
         }
 
         const sensorColor = getSensorColor(sensorName);
@@ -1516,7 +1646,7 @@ async function updateStdDevChart(chartObj, processedSensors, aggregation = 'day'
             lineStyle: { color: sensorColor, width: 1.5, opacity: 0.7 },
             areaStyle: { color: sensorColor, opacity: 0.08 },
             tooltip: {
-                formatter: /** @param {{seriesName: string, value: number[]}} params */ (params) => `${params.seriesName}<br>Messwert / Mittelwert: ${Number(params.value[0]).toFixed(3)}<br>Anzahl: ${params.value[1]}`
+                formatter: /** @param {{seriesName: string, value: number[]}} params */ (params) => `${params.seriesName}<br>Abweichung: ${Number(params.value[0]).toFixed(3)} cm<br>Anzahl: ${params.value[1]}`
             }
         }];
 
@@ -1549,7 +1679,7 @@ async function updateStdDevChart(chartObj, processedSensors, aggregation = 'day'
                     }))
                 },
                 tooltip: {
-                    formatter: /** @param {{seriesName: string, value: number[]}} params */ (params) => `${params.seriesName}<br>Messwert / Mittelwert: ${Number(params.value[0]).toFixed(3)}<br>Erwartete Anzahl: ${Number(params.value[1]).toFixed(2)}`
+                    formatter: /** @param {{seriesName: string, value: number[]}} params */ (params) => `${params.seriesName}<br>Abweichung: ${Number(params.value[0]).toFixed(3)} cm<br>Erwartete Anzahl: ${Number(params.value[1]).toFixed(2)}`
                 }
             });
         }
@@ -1570,7 +1700,7 @@ async function updateStdDevChart(chartObj, processedSensors, aggregation = 'day'
                 textStyle: { color: '#e2e8f0' }
             },
             {
-                text: 'Verteilung normierter Messwerte je Sensor',
+                text: 'Verteilung der Einzelmessungen um den Messungsmittelwert',
                 left: 'center',
                 top: '52%',
                 textStyle: { color: '#e2e8f0', fontSize: 14 }
@@ -1591,7 +1721,7 @@ async function updateStdDevChart(chartObj, processedSensors, aggregation = 'day'
             {
                 type: 'value',
                 gridIndex: 1,
-                name: 'Messwert / Mittelwert [1]',
+                name: 'Einzelwert − Messungsmittel [cm]',
                 min: distributionStart,
                 max: distributionEnd,
                 axisLabel: { color: '#cbd5e1' },
