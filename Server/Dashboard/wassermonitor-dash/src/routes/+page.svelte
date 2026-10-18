@@ -232,7 +232,7 @@
     /**
      * @param {string} message
      */
-    async function loadEvaluationChartsSection(aggregationOverride = null, forceReload = false) {
+    async function loadEvaluationChartsSection(aggregationOverride = null) {
         if (!chartConfig || !mpName || timeChartsLoading || activeTab !== 'evaluation') {
             return;
         }
@@ -255,7 +255,6 @@
                 dtUntil,
                 mpName,
                 requestedAggregation,
-                forceReload,
                 (isLoading) => {
                     timeChartsLoading = isLoading;
                 },
@@ -354,7 +353,7 @@
 
         if (nextTab === 'evaluation') {
             cycleAggregation = getAutoAggregationForRange();
-            await loadEvaluationChartsSection(null, false);
+            await loadEvaluationChartsSection(null);
         }
     }
 
@@ -506,7 +505,7 @@
               <button
                 type="button"
                 class="refresh-button bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-700 text-slate-950 font-semibold py-2 px-4 rounded-xl h-10 shadow-md shadow-cyan-950/30"
-                on:click={() => void loadEvaluationChartsSection(null, true)}
+                on:click={() => void loadEvaluationChartsSection(null)}
                 disabled={timeChartsLoading || stdDevChartLoading || !mpName}
               >
                 aktualisieren
@@ -536,7 +535,7 @@
                          class="aggregation-button"
                          on:click={() => {
                            cycleAggregation = option.value;
-                           void loadEvaluationChartsSection(option.value, false);
+                           void loadEvaluationChartsSection(option.value);
                          }}
                        >
                          {option.label}
@@ -551,7 +550,7 @@
                          class="aggregation-button"
                          on:click={() => {
                            cycleDisplayMode = option.value;
-                           void loadEvaluationChartsSection(cycleAggregation, false);
+                           void loadEvaluationChartsSection(cycleAggregation);
                          }}
                        >
                          {option.label}
