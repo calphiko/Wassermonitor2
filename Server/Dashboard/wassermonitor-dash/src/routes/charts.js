@@ -23,23 +23,100 @@ const evaluationDataCache = new Map();
 
 const SENSOR_COLOR_PALETTE = ['#f59e0b', '#f97316', '#fb7185', '#facc15', '#a78bfa', '#38bdf8', '#34d399', '#60a5fa'];
 
-function buildEvaluationDataCacheKey(apiUrl, dtFrom, dtUntil, mpName) {
-    return `${apiUrl}|${dtFrom}|${dtUntil}|${mpName}`;
+function buildEvaluationDataCacheKey(apiUrl, mpName) {
+    return `${apiUrl}|${mpName}`;
 }
 
 async function loadEvaluationDataSet(chartConfig, dtFrom, dtUntil, mpName) {
-    const cacheKey = buildEvaluationDataCacheKey(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
-    const cachedEntry = evaluationDataCache.get(cacheKey);
-    if (cachedEntry) {
-        return cachedEntry;
+    const cacheKey = buildEvaluationDataCacheKey(chartConfig['APIUrl'], mpName);
+    const rangeStart = new Date(dtFrom).getTime();
+    const rangeEnd = new Date(dtUntil).getTime();
+    if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd) || rangeStart > rangeEnd) {
+        return { rawData: null };
     }
 
-    const rawData = await loadRawTimeDataFromAPI(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
-    const dataset = {
-        rawData: rawData && typeof rawData === 'object' ? rawData : null,
+    const cachedEntry = evaluationDataCache.get(cacheKey) || {
+        rawData: { [mpName]: [] },
+        coverage: [],
     };
-    evaluationDataCache.set(cacheKey, dataset);
-    return dataset;
+    const missingRanges = [];
+    let nextStart = rangeStart;
+    const coverage = [...cachedEntry.coverage].sort((left, right) => left.start - right.start);
+    for (const interval of coverage) {
+        if (interval.end <= nextStart || interval.start >= rangeEnd) {
+            continue;
+        }
+        if (interval.start > nextStart) {
+            missingRanges.push([nextStart, interval.start]);
+        }
+        nextStart = Math.max(nextStart, interval.end);
+        if (nextStart >= rangeEnd) {
+            break;
+        }
+    }
+    if (nextStart < rangeEnd) {
+        missingRanges.push([nextStart, rangeEnd]);
+    }
+
+    if (missingRanges.length > 0) {
+        const fetchedData = await Promise.all(missingRanges.map(([start, end]) =>
+            loadRawTimeDataFromAPI(
+                chartConfig['APIUrl'],
+                new Date(start).toISOString(),
+                new Date(end).toISOString(),
+                mpName
+            )
+        ));
+        if (fetchedData.some((data) => !data || typeof data !== 'object')) {
+            return { rawData: null };
+        }
+
+        const sensorsById = new Map(
+            (cachedEntry.rawData?.[mpName] || []).map((sensor) => [
+                sensor.sensorID,
+                {
+                    ...sensor,
+                    rows: new Map((sensor.rows || []).map((row) => [row.timestamp, row])),
+                },
+            ])
+        );
+        fetchedData.forEach((data) => {
+            (data[mpName] || []).forEach((sensor) => {
+                if (!sensorsById.has(sensor.sensorID)) {
+                    sensorsById.set(sensor.sensorID, { ...sensor, rows: new Map() });
+                }
+                const cachedSensor = sensorsById.get(sensor.sensorID);
+                (sensor.rows || []).forEach((row) => cachedSensor.rows.set(row.timestamp, row));
+            });
+        });
+
+        const mergedData = {
+            ...(cachedEntry.rawData || {}),
+            [mpName]: Array.from(sensorsById.values())
+                .map((sensor) => ({
+                    ...sensor,
+                    rows: Array.from(sensor.rows.values()).sort((left, right) =>
+                        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime()
+                    ),
+                })),
+        };
+        const mergedCoverage = [...coverage, ...missingRanges.map(([start, end]) => ({ start, end }))]
+            .sort((left, right) => left.start - right.start)
+            .reduce((result, interval) => {
+                const previous = result[result.length - 1];
+                if (previous && interval.start <= previous.end) {
+                    previous.end = Math.max(previous.end, interval.end);
+                } else {
+                    result.push({ ...interval });
+                }
+                return result;
+            }, []);
+        const updatedEntry = { rawData: mergedData, coverage: mergedCoverage };
+        evaluationDataCache.set(cacheKey, updatedEntry);
+        return updatedEntry;
+    }
+
+    return cachedEntry;
 }
 
 function getSensorColor(sensorName) {
@@ -462,7 +539,6 @@ export async function loadEvaluationCharts(
    dtUntil,
    mpName,
    aggregation = 'auto',
-   forceReload = false,
    onPrimaryLoadingState = null,
    onStdDevLoadingState = null,
    displayMode = 'auto'
@@ -498,11 +574,6 @@ export async function loadEvaluationCharts(
        intervalHistChart: reInitEchart('intervalHistChart', intervalHistMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
        nightLeakageChart: reInitEchart('nightLeakageChart', nightLeakageMount.divName, charts, chartConfig["plotTheme"], chartConfig["plotThemeDark"]),
    };
-
-   const cacheKey = buildEvaluationDataCacheKey(chartConfig['APIUrl'], dtFrom, dtUntil, mpName);
-   if (forceReload) {
-       evaluationDataCache.delete(cacheKey);
-   }
 
    const parseInputDate = (value) => {
        const date = new Date(value);
@@ -585,9 +656,19 @@ export async function loadEvaluationCharts(
            cursor.setDate(cursor.getDate() + 1);
        }
    }
+   const maxProgressiveUpdates = 24;
+   const bucketStep = Math.max(1, Math.ceil(bucketStarts.length / maxProgressiveUpdates));
    const dataset = await loadEvaluationDataSet(chartConfig, dtFrom, dtUntil, mpName);
    const rawData = dataset?.rawData;
-   const sensorGroups = Array.isArray(rawData?.[mpName]) ? rawData[mpName] : [];
+   const sensorGroups = Array.isArray(rawData?.[mpName])
+       ? rawData[mpName].map((sensor) => ({
+           ...sensor,
+           rows: (sensor.rows || []).filter((row) => {
+               const timestamp = new Date(row.timestamp).getTime();
+               return !Number.isFinite(timestamp) || (timestamp > rangeStart.getTime() && timestamp < rangeEnd.getTime());
+           }),
+       }))
+       : [];
    if (sensorGroups.length === 0) {
        if (typeof onPrimaryLoadingState === 'function') {
            onPrimaryLoadingState(false);
@@ -632,7 +713,7 @@ export async function loadEvaluationCharts(
    let bucketsWithData = 0;
    let renderedFirstBucket = false;
 
-   for (const bucketStart of bucketStarts) {
+   for (const [bucketIndex, bucketStart] of bucketStarts.entries()) {
        const bucketEnd = toBucketEnd(bucketStart, effectiveAggregation);
        const clampedBucketEnd = new Date(Math.min(bucketEnd.getTime(), rangeEnd.getTime()));
        if (bucketStart > clampedBucketEnd) {
@@ -660,6 +741,12 @@ export async function loadEvaluationCharts(
            continue;
        }
        bucketsWithData += 1;
+
+       const isFinalBucket = bucketIndex === bucketStarts.length - 1;
+       const isProgressUpdate = (bucketIndex + 1) % bucketStep === 0;
+       if (renderedFirstBucket && !isFinalBucket && !isProgressUpdate) {
+           continue;
+       }
 
        const partialProcessed = await processRawTimeSeries({ [mpName]: partialSensors }, mpName);
        if (!Array.isArray(partialProcessed) || partialProcessed.length === 0) {
@@ -1219,6 +1306,19 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                     formatter: (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(2)} cm/h`
                 }
             });
+            series.push({
+                name: `${chart.sensorID} Einzelzyklen Steigung`,
+                type: 'scatter',
+                xAxisIndex: 0,
+                yAxisIndex: 0,
+                data: categories.flatMap((bucket, index) => (byBucket.get(bucket) || []).map((value) => [index, value])),
+                symbolSize: 7,
+                itemStyle: { color: sensorColor, opacity: 0.28 },
+                emphasis: { itemStyle: { opacity: 0.8 } },
+                tooltip: {
+                    formatter: (params) => `${chart.sensorID} Einzelzyklus<br>${labelForBucket(categories[params.value[0]], aggregation)}: ${Number(params.value[1]).toFixed(2)} cm/h`
+                }
+            });
         }
 
         series.push({
@@ -1267,6 +1367,19 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
                 itemStyle: { color: sensorColor },
                 tooltip: {
                     formatter: (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(1)} min`
+                }
+            });
+            series.push({
+                name: `${chart.sensorID} Einzelzyklen Dauer`,
+                type: 'scatter',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: categories.flatMap((bucket, index) => (durationByBucket.get(bucket) || []).map((value) => [index, value])),
+                symbolSize: 7,
+                itemStyle: { color: sensorColor, opacity: 0.28 },
+                emphasis: { itemStyle: { opacity: 0.8 } },
+                tooltip: {
+                    formatter: (params) => `${chart.sensorID} Einzelzyklus<br>${labelForBucket(categories[params.value[0]], aggregation)}: ${Number(params.value[1]).toFixed(1)} min`
                 }
             });
         }
@@ -1354,7 +1467,7 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
     });
 
     chartObj.setOption(chartOptions, {
-        notMerge: true,
+        notMerge: false,
         replaceMerge: ['series', 'xAxis', 'yAxis', 'grid', 'title'],
         lazyUpdate: true,
         silent: true
@@ -1429,14 +1542,14 @@ async function updateNightLeakageChart(chartObj, processedData, aggregation = 'd
             ? false
             : categories.length < 15;
 
-    const series = perSensor.map(({ chart, byBucket }) => {
+    const series = perSensor.flatMap(({ chart, byBucket }) => {
         const sensorColor = getSensorColor(chart.sensorID || 'Sensor');
         const sortedValues = categories.map((bucket) => {
             const values = byBucket.get(bucket);
             return values?.length ? [...values].sort((a, b) => a - b) : null;
         });
         if (useBoxplot) {
-            return {
+            return [{
                 name: `${chart.sensorID} Boxplot`,
                 type: 'boxplot',
                 data: sortedValues.map((v) => v && [v[0], quantile(v, 0.25), quantile(v, 0.5), quantile(v, 0.75), v[v.length - 1]]),
@@ -1447,9 +1560,9 @@ async function updateNightLeakageChart(chartObj, processedData, aggregation = 'd
                         return `${params.seriesName}<br>${params.name}<br>Min: ${Number(value[1]).toFixed(2)}<br>Q1: ${Number(value[2]).toFixed(2)}<br>Median: ${Number(value[3]).toFixed(2)}<br>Q3: ${Number(value[4]).toFixed(2)}<br>Max: ${Number(value[5]).toFixed(2)} cm/h`;
                     }
                 }
-            };
+            }];
         }
-        return {
+        const sensorSeries = [{
             name: `${chart.sensorID} Median`,
             type: 'line',
             data: sortedValues.map((v) => (v ? quantile(v, 0.5) : null)),
@@ -1460,7 +1573,18 @@ async function updateNightLeakageChart(chartObj, processedData, aggregation = 'd
             tooltip: {
                 formatter: (params) => `${params.seriesName}<br>${params.name}: ${Number(params.value).toFixed(2)} cm/h`
             }
-        };
+        }, {
+            name: `${chart.sensorID} Einzelzyklen`,
+            type: 'scatter',
+            data: categories.flatMap((bucket, index) => (byBucket.get(bucket) || []).map((value) => [index, value])),
+            symbolSize: 7,
+            itemStyle: { color: sensorColor, opacity: 0.28 },
+            emphasis: { itemStyle: { opacity: 0.8 } },
+            tooltip: {
+                formatter: (params) => `${chart.sensorID} Einzelzyklus<br>${categories[params.value[0]]}: ${Number(params.value[1]).toFixed(2)} cm/h`
+            }
+        }];
+        return sensorSeries;
     });
 
     const periodLabel = aggregation === 'week' ? 'Woche' : aggregation === 'month' ? 'Monat' : 'Tag';
@@ -1492,7 +1616,8 @@ async function updateNightLeakageChart(chartObj, processedData, aggregation = 'd
     });
 
     chartObj.setOption(chartOptions, {
-        notMerge: true,
+        notMerge: false,
+        replaceMerge: ['series', 'title', 'xAxis', 'yAxis', 'grid', 'dataZoom'],
         lazyUpdate: true,
         silent: true
     });
