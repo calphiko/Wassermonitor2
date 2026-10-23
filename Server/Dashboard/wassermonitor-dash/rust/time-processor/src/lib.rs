@@ -85,6 +85,8 @@ enum CycleType {
 #[derive(Serialize)]
 struct CycleDeviationPoint {
     timestamp: String,
+    start_timestamp: String,
+    end_timestamp: String,
     cycle_type: String,
     mean_slope_abs: f64,
     deviation_abs: f64,
@@ -240,6 +242,8 @@ fn build_evaluation_with_deriv(values: &[ValuePoint], _deriv: &[f64]) -> Evaluat
     struct RawCycle {
         cycle_type: CycleType,
         timestamp: String,
+        start_timestamp: String,
+        end_timestamp: String,
         mean_slope_abs: f64,
         duration_min: f64,
     }
@@ -380,6 +384,8 @@ fn build_evaluation_with_deriv(values: &[ValuePoint], _deriv: &[f64]) -> Evaluat
         raw_cycles.push(RawCycle {
             cycle_type,
             timestamp: mid_ts,
+            start_timestamp: values[start_idx].timestamp.clone(),
+            end_timestamp: values[end_idx].timestamp.clone(),
             mean_slope_abs: round_2(mean_slope_abs),
             duration_min: round_2(duration_min),
         });
@@ -513,6 +519,8 @@ fn build_evaluation_with_deriv(values: &[ValuePoint], _deriv: &[f64]) -> Evaluat
 
             CycleDeviationPoint {
                 timestamp: cycle.timestamp.clone(),
+                start_timestamp: cycle.start_timestamp.clone(),
+                end_timestamp: cycle.end_timestamp.clone(),
                 cycle_type: cycle_type_label(cycle.cycle_type),
                 mean_slope_abs: round_2(cycle.mean_slope_abs),
                 deviation_abs: round_2(deviation_abs),
