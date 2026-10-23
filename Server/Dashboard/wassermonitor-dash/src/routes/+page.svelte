@@ -2,7 +2,7 @@
     import { onMount, tick } from 'svelte';
     import { getAvailableMeasPointsFromApi } from './api';
     import { formatDateForInput, fetchChartConfig } from './utils';
-    import { loadEvaluationCharts, loadFillChart, loadTimeChart } from './charts';
+    import { loadEvaluationCharts, loadFillChart, loadTimeChart, updateEvaluationView } from './charts';
 
     const cConfigUrl = '/chartConfig.json';
     const apiUrlFallback = 'http://localhost:8012/';
@@ -533,9 +533,14 @@
                          type="button"
                          class:active={cycleAggregation === option.value}
                          class="aggregation-button"
-                         on:click={() => {
+                         on:click={async () => {
                            cycleAggregation = option.value;
-                           void loadEvaluationChartsSection(option.value);
+                           const reused = await updateEvaluationView(
+                             charts, chartConfig, dtFrom, dtUntil, mpName, cycleAggregation, cycleDisplayMode
+                           );
+                           if (!reused) {
+                             void loadEvaluationChartsSection(option.value);
+                           }
                          }}
                        >
                          {option.label}
@@ -548,9 +553,14 @@
                          type="button"
                          class:active={cycleDisplayMode === option.value}
                          class="aggregation-button"
-                         on:click={() => {
+                         on:click={async () => {
                            cycleDisplayMode = option.value;
-                           void loadEvaluationChartsSection(cycleAggregation);
+                           const reused = await updateEvaluationView(
+                             charts, chartConfig, dtFrom, dtUntil, mpName, cycleAggregation, cycleDisplayMode
+                           );
+                           if (!reused) {
+                             void loadEvaluationChartsSection(cycleAggregation);
+                           }
                          }}
                        >
                          {option.label}
