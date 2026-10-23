@@ -20,6 +20,14 @@ let firstLineColor;
 let plotBackGround;
 
 const evaluationDataCache = new Map();
+/** Last fully processed evaluation result, so display-only changes need no re-processing. */
+let evaluationRenderCache = null;
+let evaluationDataVersion = 0;
+
+function buildEvaluationRenderKey(chartConfig, dtFrom, dtUntil, mpName) {
+    const entry = evaluationDataCache.get(buildEvaluationDataCacheKey(chartConfig['APIUrl'], mpName));
+    return `${chartConfig['APIUrl']}|${mpName}|${dtFrom}|${dtUntil}|v${entry?.version ?? 0}`;
+}
 
 const SENSOR_COLOR_PALETTE = ['#f59e0b', '#f97316', '#fb7185', '#facc15', '#a78bfa', '#38bdf8', '#34d399', '#60a5fa'];
 
@@ -111,12 +119,75 @@ async function loadEvaluationDataSet(chartConfig, dtFrom, dtUntil, mpName) {
                 }
                 return result;
             }, []);
-        const updatedEntry = { rawData: mergedData, coverage: mergedCoverage };
+        const updatedEntry = { rawData: mergedData, coverage: mergedCoverage, version: ++evaluationDataVersion };
         evaluationDataCache.set(cacheKey, updatedEntry);
         return updatedEntry;
     }
 
     return cachedEntry;
+}
+
+const LEAKAGE_WINDOW_START_HOUR = 2;
+const LEAKAGE_WINDOW_END_HOUR = 4;
+
+/**
+ * Finds every 02:00-04:00 (local time) slot that lies completely inside a drain cycle and
+ * computes the mean level drop rate [cm/h] over that slot from the sensor's level series.
+ *
+ * @param {{values?: Array<{timestamp: string, value: number}>, evaluation?: Object}} sensor
+ * @returns {Array<{start: number, end: number, slope: number}>}
+ */
+function computeLeakageSegments(sensor) {
+    const cycles = Array.isArray(sensor?.evaluation?.cycle_deviation?.cycles)
+        ? sensor.evaluation.cycle_deviation.cycles
+        : [];
+    const values = Array.isArray(sensor?.values) ? sensor.values : [];
+    const times = values.map((point) => new Date(point.timestamp).getTime());
+    const lowerBound = (target) => {
+        let lo = 0;
+        let hi = times.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (times[mid] < target) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        return lo;
+    };
+
+    const segments = [];
+    for (const cycle of cycles) {
+        if (cycle?.cycle_type !== 'drain') {
+            continue;
+        }
+        const cycleStart = new Date(cycle.start_timestamp).getTime();
+        const cycleEnd = new Date(cycle.end_timestamp).getTime();
+        if (!Number.isFinite(cycleStart) || !Number.isFinite(cycleEnd) || cycleEnd <= cycleStart) {
+            continue;
+        }
+        const day = new Date(cycleStart);
+        day.setHours(0, 0, 0, 0);
+        while (day.getTime() < cycleEnd) {
+            const windowStart = new Date(day).setHours(LEAKAGE_WINDOW_START_HOUR, 0, 0, 0);
+            const windowEnd = new Date(day).setHours(LEAKAGE_WINDOW_END_HOUR, 0, 0, 0);
+            // Only count the slot if the whole window lies inside the drain cycle
+            if (cycleStart <= windowStart && cycleEnd >= windowEnd) {
+                const first = lowerBound(windowStart);
+                const last = lowerBound(windowEnd + 1) - 1;
+                if (last > first) {
+                    const hours = (times[last] - times[first]) / 3_600_000;
+                    const slope = (values[first].value - values[last].value) / hours;
+                    if (hours > 0 && Number.isFinite(slope)) {
+                        segments.push({ start: times[first], end: times[last], slope });
+                    }
+                }
+            }
+            day.setDate(day.getDate() + 1);
+        }
+    }
+    return segments;
 }
 
 function getSensorColor(sensorName) {
@@ -712,6 +783,8 @@ export async function loadEvaluationCharts(
 
    let bucketsWithData = 0;
    let renderedFirstBucket = false;
+   let finalProcessed = null;
+   evaluationRenderCache = null;
 
    for (const [bucketIndex, bucketStart] of bucketStarts.entries()) {
        const bucketEnd = toBucketEnd(bucketStart, effectiveAggregation);
@@ -751,6 +824,9 @@ export async function loadEvaluationCharts(
        const partialProcessed = await processRawTimeSeries({ [mpName]: partialSensors }, mpName);
        if (!Array.isArray(partialProcessed) || partialProcessed.length === 0) {
            continue;
+       }
+       if (isFinalBucket) {
+           finalProcessed = partialProcessed;
        }
 
        await updateCycleDeviationChart(chartInstances.cycleDeviationChart, partialProcessed);
@@ -792,6 +868,43 @@ export async function loadEvaluationCharts(
        onPrimaryLoadingState(false);
    }
 
+   if (finalProcessed) {
+       evaluationRenderCache = {
+           key: buildEvaluationRenderKey(chartConfig, dtFrom, dtUntil, mpName),
+           processed: finalProcessed,
+       };
+   }
+
+   return true;
+}
+
+/**
+ * Re-renders the charts that depend on aggregation or display mode (boxplot/line) from the
+ * already processed evaluation result. The WASM result only depends on the loaded rows and
+ * the time range, so no data loading or processing is repeated.
+ *
+ * @returns {Promise<boolean>} false if no matching processed result is available
+ *                             and a full reload is required.
+ */
+export async function updateEvaluationView(charts, chartConfig, dtFrom, dtUntil, mpName, aggregation, displayMode) {
+   const cached = evaluationRenderCache;
+   if (!cached || cached.key !== buildEvaluationRenderKey(chartConfig, dtFrom, dtUntil, mpName)) {
+       return false;
+   }
+   if (aggregation !== 'day' && aggregation !== 'week' && aggregation !== 'month') {
+       return false;
+   }
+   const targets = ['dailyCycleCountChart', 'dailyDrainCycleCountChart', 'nightLeakageChart', 'stdDevChart'].map((name) => charts[name]);
+   if (targets.some((chart) => !chart || chart.isDisposed() || !chart.getDom()?.isConnected)) {
+       return false;
+   }
+
+   const [fillChart, drainChart, leakageChart, stdDevChart] = targets;
+   await updateDailyCycleCountChart(fillChart, cached.processed, aggregation, 'fill', displayMode);
+   await updateDailyCycleCountChart(drainChart, cached.processed, aggregation, 'drain', displayMode);
+   await updateNightLeakageChart(leakageChart, cached.processed, aggregation, displayMode);
+   await updateStdDevChart(stdDevChart, cached.processed, aggregation);
+   stdDevChart.resize();
    return true;
 }
 
@@ -913,6 +1026,7 @@ async function updateCycleDeviationChart(chartObj, processedData) {
                 const halfDurationMs = Math.max(0, Number(cycle.duration_min || 0)) * 30 * 1000;
                 return [{ xAxis: mid - halfDurationMs }, { xAxis: mid + halfDurationMs }];
             });
+        // Drain cycles are drawn completely; only the 02:00-04:00 part counts as leakage
         const drainAreas = cycles
             .filter((cycle) => cycle.cycle_type === 'drain')
             .map((cycle) => {
@@ -920,6 +1034,7 @@ async function updateCycleDeviationChart(chartObj, processedData) {
                 const halfDurationMs = Math.max(0, Number(cycle.duration_min || 0)) * 30 * 1000;
                 return [{ xAxis: mid - halfDurationMs }, { xAxis: mid + halfDurationMs }];
             });
+        const leakageAreas = computeLeakageSegments(chart).map((segment) => [{ xAxis: segment.start }, { xAxis: segment.end }]);
 
         titleConfigs.push({
             text: `${chart.sensorID} | Ø ↑: ${fillMean} cm/h | Ø ↓: ${drainMean} cm/h`,
@@ -1014,6 +1129,23 @@ async function updateCycleDeviationChart(chartObj, processedData) {
             }
         });
 
+        seriesConfigs.push({
+            name: 'Leckage-Zyklen (02–04 Uhr)',
+            type: 'line',
+            data: [],
+            xAxisIndex: index,
+            yAxisIndex: index,
+            showSymbol: false,
+            lineStyle: { opacity: 0 },
+            itemStyle: { color: 'rgba(250, 204, 21, 0.6)' },
+            markArea: {
+                itemStyle: {
+                    color: 'rgba(250, 204, 21, 0.35)'
+                },
+                data: leakageAreas
+            }
+        });
+
         dataZoomConfigs.push({
             type: 'slider',
             show: true,
@@ -1050,7 +1182,7 @@ async function updateCycleDeviationChart(chartObj, processedData) {
                 const lines = [formatLocalDateTime(point.data[0])];
                 const chartIndex = Number.isInteger(point.axisIndex)
                     ? point.axisIndex
-                    : Math.floor((point.seriesIndex ?? -1) / 3);
+                    : Math.floor((point.seriesIndex ?? -1) / 4);
                 const hoveredTimestamp = point.data[0];
                 cycleDurations[chartIndex]?.forEach(({ type, timestamp, duration }) => {
                     const halfDurationMs = Math.max(0, duration) * 30 * 1000;
@@ -1475,8 +1607,8 @@ async function updateDailyCycleCountChart(chartObj, processedData, aggregation =
 }
 
 /**
- * Plots the leakage estimate per aggregation bucket: mean slope of drain cycles that
- * start between 02:00 and 04:00 local time, when water consumption is assumed to be minimal.
+ * Plots the leakage estimate per aggregation bucket: mean level drop rate within the
+ * 02:00-04:00 local-time part of each drain cycle, when water consumption is assumed to be minimal.
  * @param {import('echarts').ECharts} chartObj
  * @param {Array<Object>} processedData
  * @param {'day'|'week'|'month'} aggregation
@@ -1509,23 +1641,12 @@ async function updateNightLeakageChart(chartObj, processedData, aggregation = 'd
 
     const perSensor = processedData.map((chart) => {
         const byBucket = new Map();
-        const cycles = Array.isArray(chart?.evaluation?.cycle_deviation?.cycles)
-            ? chart.evaluation.cycle_deviation.cycles
-            : [];
-        cycles.forEach((entry) => {
-            if (entry?.cycle_type !== 'drain' || !entry?.timestamp) {
-                return;
-            }
-            const date = new Date(entry.timestamp);
-            const slope = Number(entry.mean_slope_abs);
-            if (!Number.isFinite(date.getTime()) || !Number.isFinite(slope) || date.getHours() < 2 || date.getHours() >= 4) {
-                return;
-            }
-            const key = bucketKey(date);
+        computeLeakageSegments(chart).forEach((segment) => {
+            const key = bucketKey(new Date(segment.start));
             if (!byBucket.has(key)) {
                 byBucket.set(key, []);
             }
-            byBucket.get(key).push(slope);
+            byBucket.get(key).push(segment.slope);
         });
         return { chart, byBucket };
     });
