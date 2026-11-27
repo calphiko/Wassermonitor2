@@ -236,12 +236,12 @@ def get_last_data_from_api():
         r = post(f"http://{config['API']['host']}:{config['API']['port']}/get_latest/", headers=headers)
         if r.status_code == 200:
             logger.info("Received data from API")
-            return json.loads(r.json())
+            return r.json()
         else:
             logger.warning(f"Didn't receive data from API. Status code was: {r.status_code}")
             return {}
-    except:
-        logger.error(f"Connection Error. No data received")
+    except Exception as e:
+        logger.error(f"Connection Error. No data received: {e}")
         return {}
 
 
