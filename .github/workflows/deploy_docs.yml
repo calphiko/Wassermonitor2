@@ -52,7 +52,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install sphinx sphinx_rtd_theme paramiko scp  # Installiere Sphinx und SSH-Tools
-          pip install -r requirements.txt
+          pip install fastapi numpy pandas pymysql pytz scipy smbus2 cryptography requests
           
 
 
